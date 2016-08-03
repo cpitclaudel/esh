@@ -20,11 +20,17 @@
 
 ;;; Commentary:
 
-(require 'esh)
-(require 'dash)
-(require 'server)
+;;; Code:
+
+;; Can only use built-in packages in esh-cli and esh-client, because ‘cask exec’
+;; is slow.  On server, it's fine to use cask-loaded dependencies.
+
+(require 'server) ;; That's Emacs' server
 
 (defconst esh-client--server-name "esh--server")
+
+(defvar esh-client-use-cask nil
+  "Whether to use `cask exec' to start the highlighting server.")
 
 (defun esh-client--server-running-p ()
   "Check if the ESH server is running."
@@ -60,18 +66,19 @@
 
 (defun esh-client--ensure-server-1 ()
   "Start server process."
-  (let* ((server-name-form `(setq server-name ,esh-client--server-name)))
-    (start-process "server" nil "emacs" "-Q"
-                   "--eval" (prin1-to-string server-name-form)
-                   "--daemon")))
+  (let* ((server-name-form `(setq server-name ,esh-client--server-name))
+         (emacs-cmdline `(,@(if esh-client-use-cask '("cask" "exec")) "emacs" "-Q"
+                          "--eval" ,(prin1-to-string server-name-form)
+                          "--daemon")))
+    (apply #'start-process "server" nil emacs-cmdline)))
 
 (defun esh-client--server-init-form (server-load-path display &optional prelude)
   "Initialize the ESH server.
 Inherit SERVER-LOAD-PATH, then create an invisible frame on DISPLAY
 after loading PRELUDE."
   `(progn
-     (setq load-path ',server-load-path)
-     (setq gc-cons-threshold 16000000)
+     ;; Load path still needed to find `esh'
+     (setq load-path (append load-path ',server-load-path))
      (require 'esh)
      (when ,prelude (load-file ,prelude))
      (setq esh--server-frame (make-frame '((window-system . x)
@@ -95,46 +102,29 @@ after loading PRELUDE."
 (defun esh-client-kill-server ()
   "Kill the ESH server."
   (interactive)
-  (-when-let* ((socket-fname (esh-client--server-running-p)))
-    (signal-process (server-eval-at esh-client--server-name '(emacs-pid)) 'kill)
-    (delete-file socket-fname)))
+  (let ((socket-fname (esh-client--server-running-p)))
+    (when socket-fname
+      (signal-process (server-eval-at esh-client--server-name '(emacs-pid)) 'kill)
+      (delete-file socket-fname))))
 
 (defun esh-client--latexify-batch-form (path)
   "Construct a ELisp form to latexify PATH."
   `(progn
-     ;; (profiler-start 'cpu)
-     ;; (profiler-write-profile (profiler-cpu-profile) "batch.profile")
      (with-selected-frame esh--server-frame
        (esh-latexify-file ,path))))
 
-(defun esh-latexify-batch (path &optional restart-server)
+(defun esh-client-latexify-batch (path)
   "Latexify PATH.
 This starts an Emacs daemon, and runs the latexification code on
-it.  If a daemon is available it is reused, except when
-RESTART-SERVER is non-nil (in that case, the server is restarted
-first).  Originally, the only reason a daemon was needed was that
-it's hard to make Emacs' initial frame invisible.  Now, it's also
-used to make things faster."
-  (when restart-server (esh-client-kill-server))
+it.  If a daemon is available, it is reused.  Originally, the
+only reason a daemon was needed was that it's hard to make Emacs'
+initial frame invisible.  Now, it's also used to make things
+faster."
   (princ (esh-client--run (esh-client--latexify-batch-form path))))
-
-;; (let* (;;(server-id (format "esh--%S-%S" (random) (float-time (current-time))))
-;;        (server-pid nil))
-;;   (unwind-protect
-;;       (progn
-;;         ;; (esh-client--busy-wait launch-server-proc) ;; Wait for server to start
-;;         ;; (setq server-pid (server-eval-at server-id '(emacs-pid)))
-;;         ;; (message "Server %S" server-pid)
-;;         ) ;; )))
-;;     (when (process-live-p launch-server-proc)
-;;       (delete-process launch-server-proc))
-;;     (if server-pid
-;;         (signal-process server-pid 'kill)
-;;       ;; May prompt:
-;;       (server-eval-at server-id '(kill-emacs))))))
-
-
-;;; Code:
 
 (provide 'esh-client)
 ;;; esh-client.el ends here
+
+;; Local Variables:
+;; checkdoc-arguments-in-order-flag: nil
+;; End:

@@ -27,8 +27,7 @@
 ;;; Code:
 
 (require 'seq)
-(require 'stream)
-(require 'dash)
+;; (require 'stream)
 (require 'color)
 (require 'subr-x)
 
@@ -44,16 +43,36 @@
   (seq-filter (lambda (pair) (not (eq (cdr pair) val))) alist))
 
 (defun esh--extract-props (props str)
+  "Read PROPS from STR as an ALIST or (PROP . VAL)."
   (seq-map (lambda (prop) (cons prop (get-text-property 0 prop str))) props))
 
 (defun esh--font-for-char (char)
   "Compute which font displays CHAR."
   (car (internal-char-font nil char)))
 
+;;; Stream functions
+
+;; We only use streams if available: this way, we don't have external
+;; dependencies, and thus we don't directly need Cask.
+
+(require 'stream nil t)
+
+(defmacro esh--stream-cons (hd tl)
+  "Make a stream of HD and TL."
+  `(if (fboundp 'stream-cons)
+       (stream-cons ,hd ,tl)
+     (cons ,hd ,tl)))
+
+(defun esh--stream-empty ()
+  "Return nil."
+  (if (fboundp 'stream-empty)
+      (stream-empty)
+    nil))
+
 ;;; Segmenting a buffer
 
-;; FIXME this splits by properties including overlays, but then it ignores them
 
+;; FIXME this splits by properties including overlays, but then it ignores them
 (defun esh--buffer-ranges-from (start prop)
   "Create a stream of buffer ranges from START.
 Ranges are pairs of START..END positions in which all characters
@@ -62,8 +81,8 @@ properties."
   (let ((end (if prop (next-single-char-property-change start prop)
                (next-char-property-change start))))
     (if (< start end)
-        (stream-cons (cons start end) (esh--buffer-ranges-from end prop))
-      (stream-empty))))
+        (esh--stream-cons (cons start end) (esh--buffer-ranges-from end prop))
+      (esh--stream-empty))))
 
 (defun esh--buffer-spans (&optional prop)
   "Create a stream of buffer spans.
@@ -141,34 +160,38 @@ the original string."
 (defvar esh--latex-props '(display))
 (defvar esh--latex-face-attrs '(:foreground :weight :slant)) ;; FIXME :underline
 
-(defvar esh--latex-substitutions '(("\\\\" . "\\\\textbackslash\0")
-                                ("\n" . "\\\\\\\\\n")
-                                ("%" . "\\\\%")
-                                ("&" . "\\\\&")
-                                ("{" . "\\\\{")
-                                ("}" . "\\\\}")
-                                ("_" . "\\\\_")
-                                ("#" . "\\\\#")
-                                (" " . "\\\\-~")
-                                ("\0" . "{}")))
+(defvar esh--latex-specials '(?\\ ?^ ?$ ?~ ?% ?& ?{ ?} ?_ ?#))
+(defvar esh--latex-substitutions '(("\n" . "\\\\\\\\\n")
+                                (" "  . "\\\\-~")))
+
+(defun esh--latex-substitutions ()
+  "Construct a list of (REGEXP . REPLACE) to sanitize Latex code."
+  (let ((specials-re (concat "\\(" (regexp-opt-charset esh--latex-specials) "\\)")))
+    (cons (cons specials-re "\\\\char`\\1")
+          esh--latex-substitutions)))
 
 (defun esh--wrap-symbols (str)
-  "Wrap characters of STR that use a fallback font in \\SpecialChar{}."
+  "Wrap characters of STR that use a fallback font in \\ESHSpecialChar{}."
   (let ((ref-fonts (list nil (esh--font-for-char ?a))))
     (seq-mapcat (lambda (chr)
                   (if (memq (esh--font-for-char chr) ref-fonts)
                       (char-to-string chr)
-                    (format "\\SpecialChar{%c}" chr)))
+                    (format "\\ESHSpecialChar{%c}" chr)))
                 str 'string)))
 
 (defun esh--escape-for-latex (str)
   "Escape LaTeX special characters in STR."
-  (setq str (substring-no-properties str))
-  (pcase-dolist (`(,from . ,to) esh--latex-substitutions)
-    (setq str (replace-regexp-in-string from to str t)))
+  (setq str (with-temp-buffer
+              (insert (substring-no-properties str))
+              (pcase-dolist (`(,from . ,to) (esh--latex-substitutions))
+                (goto-char (point-min))
+                (while (re-search-forward from nil t)
+                  (replace-match to t)))
+              (buffer-substring-no-properties
+               (point-min) (point-max))))
   (esh--wrap-symbols str))
 
-(defun esh--latexify-1 (span)
+(defun esh--latexify-span (span)
   "Render SPAN as a LaTeX string."
   (let ((latex-str (esh--escape-for-latex span))
         (props-alist (esh--extract-props esh--latex-props span))
@@ -223,55 +246,142 @@ the original string."
 (defun esh--latexify-current-buffer ()
   "Export current buffer to LaTeX."
   (esh--commit-compositions)
-  (string-join (seq-into-sequence (seq-map #'esh--latexify-1 (esh--buffer-spans)))))
+  (string-join (seq-into-sequence (seq-map #'esh--latexify-span (esh--buffer-spans)))))
 
 (defun esh--latexify-in-buffer (str buffer)
   "Insert STR in BUFFER, fontify it, and latexify it."
-  (with-current-buffer buffer
-    (erase-buffer)
-    (insert str)
-    (font-lock-ensure)
-    (esh--latexify-current-buffer)))
+  (save-match-data
+    (with-current-buffer buffer
+      (erase-buffer)
+      (insert str)
+      (font-lock-ensure)
+      (esh--latexify-current-buffer))))
 
 (defmacro esh--make-temp-buffer (mode buffers)
   "Get temp buffer for MODE from BUFFERS.
 If no such buffer exist, create one and add it to BUFFERS."
-  `(-if-let* ((buf (alist-get ,mode ,buffers))) buf
-     (push (cons ,mode (with-current-buffer (generate-new-buffer " *temp*")
-                         (funcall ,mode)
-                         (current-buffer)))
-           ,buffers)
-     (cdar ,buffers)))
+  (let ((buf (make-symbol "buf")))
+    `(save-match-data
+       (let ((,buf (alist-get ,mode ,buffers)))
+         (unless ,buf
+           (setq ,buf (generate-new-buffer " *temp*"))
+           (with-current-buffer ,buf (funcall ,mode))
+           (push (cons ,mode ,buf) ,buffers))
+         ,buf))))
+
+(defvar esh--latex-preamble
+  "
+\\RequirePackage{xcolor}
+\\RequirePackage{fontspec}
+\\RequirePackage[normalem]{ulem}
+
+\\providecommand{\\ESHFont}{\\ttfamily}
+\\providecommand{\\ESHSpecialChar}{\\ttfamily}
+\\providecommand{\\ESHInline}{\\ttfamily} % FIXME
+
+\\makeatletter
+\\@ifundefined{ESHBlock}{\\newenvironment{ESHCode}{\\setlength{\\parindent}{0pt}\\ESHFont}{\\par}}{}
+\\makeatother
+")
+
+(defvar esh-latexify-block-envs
+  `(("\\\\begin{HighlightWithEmacs}\\[\\([-a-zA-Z]+\\)\\]" "\\begin{ESHBlock}"
+     "\\\\end{HighlightWithEmacs}" "\\end{ESHBlock}")
+    ("^\\s-*%%\\s-*ESH: \\([-a-zA-Z]+\\)\\s-*\n\\s-*\\\\begin{\\([^}]+\\)}.*$" "\\begin{ESHBlock}"
+     ,(lambda () (concat "^\\s-*\\\\end{" (match-string 2) "}")) "\\end{ESHBlock}"))
+  "List of replaceable environments.")
+
+(defvar esh--latexify-preamble-marker "^%%\\s-+ESH-preamble-here\\s-*$")
+(defvar esh--latexify-inline-env-declaration-re "^\\s-*%%\\s-*ESH-inline:\\s-*\\(.*\\)$")
+
+(defun esh--latexify-add-preamble ()
+  "Expand `esh--latexify-preamble-marker'."
+  (goto-char (point-min))
+  (when (re-search-forward esh--latexify-preamble-marker nil t)
+    (replace-match (replace-quote esh--latex-preamble) t)))
+
+(defun esh--latexify-inline-envs-re ()
+  "Construct a regexp matching user-defined inline environments.
+This works by looking for `esh--latexify-inline-env-declaration-re'."
+  (goto-char (point-min))
+  (let ((envs nil))
+    (while (re-search-forward esh--latexify-inline-env-declaration-re nil t)
+      (let ((def-string (regexp-quote (match-string 1))))
+        (push (replace-regexp-in-string
+               "%mode" "\\(?1:[-a-zA-Z]+?\\)"
+               (replace-regexp-in-string
+                "%code" "\\(?2:.*?\\)"
+                def-string t t)
+               t t)
+              envs)))
+    (mapconcat (lambda (str) (concat "\\(?:" str "\\)")) envs "\\|")))
+
+(defmacro esh--latexify-do-inline-envs (temp-buffers)
+  "Latexify sources in esh inline environments.
+TEMP-BUFFERS is an alist of (MODE . TEMP-BUFFER)."
+  (declare (debug t))
+  `(let ((envs-re (esh--latexify-inline-envs-re)))
+     (goto-char (point-min))
+     (while (re-search-forward envs-re nil t)
+       (let* ((mode-fn (intern (match-string 1)))
+              (code (match-string-no-properties 2))
+              (temp-buffer (esh--make-temp-buffer mode-fn ,temp-buffers))
+              (code-latex (esh--latexify-in-buffer code temp-buffer)))
+         (replace-match (concat "\\ESHInline{" code-latex "}") t t)))))
+
+(defmacro esh--latexify-do-block-envs (code-start code-end temp-buffers)
+  "Latexify sources in esh block environments.
+CODE-START and CODE-END are markers.  TEMP-BUFFERS is an alist
+of (MODE . TEMP-BUFFER)."
+  (declare (debug t))
+  `(pcase-dolist (`(,old-start ,new-start ,old-end ,new-end)
+                  esh-latexify-block-envs)
+     (goto-char (point-min))
+     (while (re-search-forward old-start nil t)
+       (goto-char (match-end 0))
+       (skip-chars-forward "\t\r\n ")
+       (set-marker ,code-start (point))
+       (let ((mode-fn (intern (match-string 1)))
+             (old-end (cond ((stringp old-end) old-end)
+                            ((functionp old-end) (funcall old-end)))))
+         (replace-match new-start t t)
+         (re-search-forward old-end)
+         (goto-char (match-beginning 0))
+         (skip-chars-backward "\t\r\n ")
+         (set-marker ,code-end (point))
+         (replace-match new-end t t)
+         (let* ((code (buffer-substring-no-properties ,code-start ,code-end))
+                (temp-buffer (esh--make-temp-buffer mode-fn ,temp-buffers)))
+           (goto-char ,code-start)
+           (delete-region ,code-start ,code-end)
+           (insert (esh--latexify-in-buffer code temp-buffer)))))))
 
 (defun esh-latexify ()
   "Fontify contents of all esh environments.
-More precisely, find all pairs of \\begin{ENV}..\\end{env},
-fontify their contents according to Coq mode, and insert the
-corresponding LaTeX code."
+Replace `esh--latexify-preamble-marker' by
+`esh--latexify-preamble', then latexify sources in environments
+delimited by `esh-latexify-block-envs' and user-defined inline
+groups."
   (interactive)
-  (let* ((env-start "^\\s-*\\\\begin{HighlightWithEmacs}\\[\\([-a-z]+\\)\\]\\s-*\n")
-         (env-end "\n\\s-*\\\\end{HighlightWithEmacs}\\s-*$")
-         (temp-buffers nil))
-    (unwind-protect
-        (save-excursion
-          (goto-char (point-min))
-          (while (re-search-forward env-start nil t)
-            (let ((code-start (match-end 0))
-                  (mode-function (intern (match-string 1))))
-              (re-search-forward env-end)
-              (let* ((code-end (match-beginning 0))
-                     (code (buffer-substring-no-properties code-start code-end))
-                     (temp-buffer (esh--make-temp-buffer mode-function temp-buffers)))
-                (goto-char code-start)
-                (delete-region code-start code-end)
-                (insert (esh--latexify-in-buffer code temp-buffer))))))
-      (seq-map (lambda (p) (kill-buffer (cdr p))) temp-buffers))))
+  (save-excursion
+    (esh--latexify-add-preamble)
+    (let* ((temp-buffers nil)
+           (code-start (make-marker))
+           (code-end (make-marker)))
+      (unwind-protect
+          (progn
+            (esh--latexify-do-inline-envs temp-buffers)
+            (esh--latexify-do-block-envs code-start code-end temp-buffers))
+        (set-marker code-start nil)
+        (set-marker code-end nil)
+        (seq-map (lambda (p) (kill-buffer (cdr p))) temp-buffers)))))
 
 (defun esh-latexify-file (path)
   "Fontify contents of all esh environments in PATH."
   (with-temp-buffer
     (insert-file-contents path)
     (esh-latexify)
+    (write-file "/tmp/prettified")
     (buffer-string)))
 
 (defvar esh--server-frame nil
@@ -279,3 +389,7 @@ corresponding LaTeX code."
 
 (provide 'esh)
 ;;; esh.el ends here
+
+;; Local Variables:
+;; checkdoc-arguments-in-order-flag: nil
+;; End:
