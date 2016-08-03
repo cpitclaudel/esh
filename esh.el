@@ -47,7 +47,9 @@
 
 (defun esh--extract-props (props str)
   "Read PROPS from STR as an ALIST or (PROP . VAL)."
-  (seq-map (lambda (prop) (cons prop (get-text-property 0 prop str))) props))
+  (seq-map (lambda (prop)
+             (cons prop (get-text-property 0 prop str)))
+           props))
 
 (defun esh--font-for-char (char)
   "Compute which font displays CHAR."
@@ -161,7 +163,7 @@ the original string."
 ;;; Producing LaTeX
 
 (defvar esh--latex-props '(display))
-(defvar esh--latex-face-attrs '(:foreground :weight :slant)) ;; FIXME :underline
+(defvar esh--latex-face-attrs '(:foreground :weight :slant :underline))
 
 (defvar esh--latex-specials '(?\\ ?^ ?$ ?~ ?% ?& ?{ ?} ?_ ?#))
 (defvar esh--latex-substitutions '(("\n" . "\\\\\\\\\n")
@@ -170,7 +172,7 @@ the original string."
 (defun esh--latex-substitutions ()
   "Construct a list of (REGEXP . REPLACE) to sanitize Latex code."
   (let ((specials-re (concat "\\(" (regexp-opt-charset esh--latex-specials) "\\)")))
-    (cons (cons specials-re "\\\\char`\\1")
+    (cons (cons specials-re "\\\\char`\\\\\\1")
           esh--latex-substitutions)))
 
 (defun esh--wrap-symbols (str)
@@ -274,7 +276,6 @@ If no such buffer exist, create one and add it to BUFFERS."
 
 (defvar esh--latex-preamble
   "\\RequirePackage{xcolor}
-\\RequirePackage{fontspec}
 \\RequirePackage[normalem]{ulem}
 
 \\makeatletter
@@ -301,14 +302,14 @@ If no such buffer exist, create one and add it to BUFFERS."
 \\makeatother")
 
 (defvar esh-latexify-block-envs
-  `(("\\\\begin{HighlightWithEmacs}\\[\\([-a-zA-Z]+\\)\\]" "\\begin{ESHBlock}"
+  `(("\\\\begin{HighlightWithEmacs}\\[\\([-+a-zA-Z]+\\)\\]" "\\begin{ESHBlock}"
      "\\\\end{HighlightWithEmacs}" "\\end{ESHBlock}")
-    ("^[ \t]*%%[ \t]*ESH: \\([-a-zA-Z]+\\)[ \t]*\n[ \t]*\\\\begin{\\([^}]+\\)}.*$" "\\begin{ESHBlock}"
+    ("^[ \t]*%%[ \t]*ESH: \\([-+a-zA-Z]+\\)[ \t]*\n[ \t]*\\\\begin{\\([^}]+\\)}.*$" "\\begin{ESHBlock}"
      ,(lambda () (concat "^[ \t]*\\\\end{" (match-string 2) "}")) "\\end{ESHBlock}"))
   "List of replaceable environments.")
 
 (defvar esh--latexify-preamble-marker "^%%[ \t]*ESH-preamble-here[ \t]*$")
-(defvar esh--latexify-inline-env-declaration-re "^[ \t]*%%[ \t]*ESH-inline:[ \t]+\\([-a-zA-Z]+\\)[ \t]+\\(.*\\)$")
+(defvar esh--latexify-inline-env-declaration-re "^[ \t]*%%[ \t]*ESH-inline:[ \t]+\\([-+a-zA-Z]+\\)[ \t]+\\(.*\\)$")
 
 (defun esh--latexify-add-preamble ()
   "Expand `esh--latexify-preamble-marker'."
