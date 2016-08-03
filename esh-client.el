@@ -95,9 +95,18 @@ after loading PRELUDE."
                                            (visibility . nil))))
      t))
 
+(defconst esh-client--init-file-name "esh-init.el")
+
+(defun esh-client--init-file ()
+  "Find init file for current directory."
+  (let* ((parent-dir (locate-dominating-file "." esh-client--init-file-name))
+         (fname (expand-file-name esh-client--init-file-name (or parent-dir user-emacs-directory))))
+    (when (and (file-exists-p fname) (file-readable-p fname))
+      fname)))
+
 (defun esh-client--init-server ()
   "Initialize ESH server."
-  (let ((init-fpath (expand-file-name "esh-init-file.el")))
+  (let ((init-fpath (esh-client--init-file)))
     (esh-client--run (esh-client--server-init-form load-path (getenv "DISPLAY") init-fpath))))
 
 (defun esh-client--ensure-server ()

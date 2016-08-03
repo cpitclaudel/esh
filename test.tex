@@ -7,11 +7,15 @@
 \newcommand{\ESHFont}{\UbuntuMono}
 \DeclareTextFontCommand{\ESHInline}{\UbuntuMono}
 \DeclareTextFontCommand{\ESHSpecialChar}{\Symbola}
-\newenvironment{ESHBlock}{\setlength{\parindent}{0pt}\ESHFont}{\par}
+
+\usepackage{listings}
+
+\def\coqverb{\verb}
+\def\cverb{\lstinline[language=c]}
 
 %% ESH-preamble-here
-%% ESH-inline: \verb|[%mode]%code|
-%% ESH-inline: \lstinline[language=%mode]|%code|
+%% ESH-inline: coq-mode \coqverb|...|
+%% ESH-inline: c-mode \cverb|...|
 
 \usepackage[margin=0.75in]{geometry}
 \usepackage{fancyvrb}
@@ -19,6 +23,9 @@
 \begin{document}
 
 \section*{Coq Code}
+
+It works with inline code as well: \coqverb|int main() {return 0;}|, \cverb|fun x => x|.
+
 %% ESH: coq-mode
 \begin{Verbatim}
 Class FacadeWrapper (WrappingType WrappedType: Type) :=
