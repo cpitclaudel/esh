@@ -1,4 +1,4 @@
-;;; esh.el --- Highlight a file using emacs and export the results  -*- lexical-binding: t; -*-
+;;; esh.el --- Use Emacs to highlight code snippets in LaTeX documents  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2016  Clément Pit-Claudel
 
@@ -6,6 +6,7 @@
 ;; Package-Requires: ((stream "2.2") (seq "2.18") (dash "2.12"))
 ;; Package-Version: 0.1
 ;; Keywords: faces
+;; URL: https://github.com/cpitclaudel/esh2tex
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -22,12 +23,14 @@
 
 ;;; Commentary:
 
+;; ESH is a replacement for lstlistings, minted, etc.\ that uses Emacs'
+;; major-modes to syntax-highlight code blocks in LaTeX documents.
 ;;
+;; See URL `https://github.com/cpitclaudel/esh2tex' for usage instructions.
 
 ;;; Code:
 
 (require 'seq)
-;; (require 'stream)
 (require 'color)
 (require 'subr-x)
 
@@ -368,7 +371,7 @@ of (MODE . TEMP-BUFFER)."
           (insert (esh--latexify-in-buffer code temp-buffer))))))
   temp-buffers)
 
-(defun esh-latexify ()
+(defun esh2tex-current-buffer ()
   "Fontify contents of all esh environments.
 Replace `esh--latexify-preamble-marker' by
 `esh--latex-preamble', then latexify sources in environments
@@ -394,7 +397,7 @@ groups."
   "Fontify contents of all esh environments in PATH."
   (with-temp-buffer
     (insert-file-contents path)
-    (esh-latexify)
+    (esh2tex-current-buffer)
     (buffer-string)))
 
 (defvar esh--server-frame nil

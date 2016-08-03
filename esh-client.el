@@ -28,6 +28,17 @@
 (require 'server) ;; That's Emacs' server
 
 (defconst esh-client--server-name "esh--server")
+(defconst esh-client--init-file-name "esh-init.el")
+
+(defconst esh-client--script-full-path
+  (or (and load-in-progress load-file-name)
+      (bound-and-true-p byte-compile-current-file)
+      (buffer-file-name))
+  "Full path of this script.")
+
+(defconst esh-client--script-directory
+  (file-name-directory esh-client--script-full-path)
+  "Full path to directory of this script.")
 
 (defvar esh-client-use-cask nil
   "Whether to use `cask exec' to start the highlighting server.")
@@ -95,14 +106,17 @@ after loading PRELUDE."
                                            (visibility . nil))))
      t))
 
-(defconst esh-client--init-file-name "esh-init.el")
+(defun esh-client--default-init-file ()
+  "Locate the default init file."
+  (expand-file-name "esh-init.el" esh-client--script-directory))
 
 (defun esh-client--init-file ()
   "Find init file for current directory."
   (let* ((parent-dir (locate-dominating-file "." esh-client--init-file-name))
-         (fname (expand-file-name esh-client--init-file-name (or parent-dir user-emacs-directory))))
-    (when (and (file-exists-p fname) (file-readable-p fname))
-      fname)))
+         (fpath (expand-file-name esh-client--init-file-name (or parent-dir user-emacs-directory))))
+    (if (file-exists-p fpath)
+        fpath
+      (esh-client--default-init-file))))
 
 (defun esh-client--init-server ()
   "Initialize ESH server."
