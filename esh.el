@@ -270,19 +270,17 @@ If no such buffer exist, create one and add it to BUFFERS."
          ,buf))))
 
 (defvar esh--latex-preamble
-  "
-\\RequirePackage{xcolor}
+  "\\RequirePackage{xcolor}
 \\RequirePackage{fontspec}
 \\RequirePackage[normalem]{ulem}
 
 \\providecommand{\\ESHFont}{\\ttfamily}
+\\providecommand{\\ESHInline}{\\ttfamily}
 \\providecommand{\\ESHSpecialChar}{\\ttfamily}
-\\providecommand{\\ESHInline}{\\ttfamily} % FIXME
 
 \\makeatletter
 \\@ifundefined{ESHBlock}{\\newenvironment{ESHCode}{\\setlength{\\parindent}{0pt}\\ESHFont}{\\par}}{}
-\\makeatother
-")
+\\makeatother")
 
 (defvar esh-latexify-block-envs
   `(("\\\\begin{HighlightWithEmacs}\\[\\([-a-zA-Z]+\\)\\]" "\\begin{ESHBlock}"
@@ -381,7 +379,6 @@ groups."
   (with-temp-buffer
     (insert-file-contents path)
     (esh-latexify)
-    (write-file "/tmp/prettified")
     (buffer-string)))
 
 (defvar esh--server-frame nil

@@ -43,10 +43,11 @@
   (while (process-live-p proc)
     (accept-process-output proc 0 10)))
 
-(defun esh-client--demote-errors (form)
-  "Wrap FORM to prevent it from crashing the server."
-  `(with-demoted-errors "Error in form sent to server: %S"
-     ,form))
+(defun esh-client--wrap-form (form dest)
+  "Wrap FORM to save its output to file DEST."
+  `(with-temp-buffer
+     (insert (prin1-to-string ,form))
+     (write-region (point-min) (point-max) ,dest)))
 
 (defun esh-client--run-1 (form)
   "Start client process for FORM."
@@ -54,15 +55,23 @@
                  "-s" esh-client--server-name "--eval" (prin1-to-string form)))
 
 (defun esh-client--run (form)
-  "Run FORM on ESH server."
+  "Run FORM on ESH server.
+Result of FORM is printed to a temporary file, and read back by
+client, to work around a bug in `emacsclient'."
   (esh-client--ensure-server)
-  (with-temp-buffer
-    (let* ((client-proc (esh-client--run-1 form)))
-      (esh-client--busy-wait client-proc)
-      (goto-char (point-min))
-      (if (looking-at-p "\\*ERROR\\*:")
-          (error "%s" (buffer-string))
-        (read (buffer-string))))))
+  (let* ((fname (make-temp-name "esh-server-output"))
+         (fpath (expand-file-name fname temporary-file-directory)))
+    (unwind-protect
+        (with-temp-buffer
+          (let* ((client-proc (esh-client--run-1 (esh-client--wrap-form form fpath))))
+            (esh-client--busy-wait client-proc)
+            (goto-char (point-min))
+            (if (looking-at-p "\\*ERROR\\*:")
+                (error "%s" (buffer-string))
+              (with-temp-buffer
+                (insert-file-contents fpath)
+                (read (buffer-string))))))
+      (ignore-errors (delete-file fpath)))))
 
 (defun esh-client--ensure-server-1 ()
   "Start server process."
