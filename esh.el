@@ -353,28 +353,43 @@ If no such buffer exist, create one and add it to BUFFERS."
 % Fonts
 %%%%%%%
 
-% \\ESHFont is the default font for code blocks;
-\\providecommand{\\ESHFont}{\\ttfamily}
+% \\ESHFont is for code blocks
+\\providecommand*{\\ESHFont}{\\ttfamily}
 
 % \\ESHInlineFont is for inline code samples
-\\providecommand{\\ESHInlineFont}{\\ESHFont}
+\\providecommand*{\\ESHInlineFont}{\\ESHFont}
 
 % \\ESHSpecialCharFont is applied to characters not included in Emacs' default font
-\\providecommand{\\ESHSpecialCharFont}{\\ttfamily}
+\\providecommand*{\\ESHSpecialCharFont}{\\ttfamily}
 
 % Environments
 %%%%%%%%%%%%%%
 
-% \\ESHBasicSetup is used by both \\ESHInline and \\ESHBlock
-\\providecommand*{\\ESHBasicSetup}{\\obeylines\\obeyspaces\\setlength{\\parindent}{0pt}\\setlength{\\parskip}{0pt}}
+% \\ESHNoHyphens disables hyphenation
+\\providecommand*{\\ESHNoHyphens}{\\righthyphenmin=62\\lefthyphenmin=62}
+
+% \\ESHInlineBasicSetup is used by \\ESHInline
+\\providecommand*{\\ESHInlineBasicSetup}{%
+  \\obeyspaces\\ESHNoHyphens\\ESHInlineFont}
 
 % \\ESHInline is used for inline code
 % Note the extra pair of braces in the definition
-\\providecommand*{\\ESHInline}[1]{{\\ESHBasicSetup\\ESHInlineFont#1}}
+\\providecommand*{\\ESHInline}[1]{{\\ESHInlineBasicSetup#1}}
 
-% \\ESHInline is used for special characters (those not found in the default font)
+% \\ESHSpecialChar is used for special characters (those not found in the default font)
 % Note the extra pair of braces in the definition
 \\providecommand*{\\ESHSpecialChar}[1]{{\\ESHSpecialCharFont#1}}
+
+% \\ESHObeySpaces is a variant of \\obeyspaces that forbids line breaks
+{\\catcode`\\-=\\active
+ \\catcode`\\ =\\active
+ \\gdef\\ESHObeySpaces{% Must be a \\gdef to escape the surrounding group
+   \\catcode`\\-=\\active\\def-{\\hbox{\\char`\\-}\\nobreak}\\catcode`\\ =\\active\\def {\\nobreakspace}}}
+
+% \\ESHBlockBasicSetup is used by \\ESHBlock
+\\providecommand*{\\ESHBlockBasicSetup}{%
+  \\setlength{\\parindent}{0pt}\\setlength{\\parskip}{0pt}
+  \\obeylines\\ESHObeySpaces\\ESHNoHyphens\\ESHFont}
 
 \\makeatletter
 % \\ESHSkip is the amount to skip before and after an ESHBlock
@@ -383,7 +398,7 @@ If no such buffer exist, create one and add it to BUFFERS."
 % \\ESHBlock is used for code blocks
 \\@ifundefined{ESHBlock}{%
   \\newenvironment{ESHBlock}{%
-    \\ESHBasicSetup\\ESHFont\\par\\addvspace{\\ESHSkip}%
+    \\ESHBlockBasicSetup\\ESHObeySpaces\\obeylines\\ESHFont\\par\\addvspace{\\ESHSkip}%
   }{%
     \\par\\addvspace{\\ESHSkip}
   }
