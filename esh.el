@@ -178,22 +178,34 @@ the original string."
               (set-text-properties from (1+ from) props)
               (remove-text-properties from (1+ from) '(composition))))))))))
 
-(defun esh--mark-empty-lines ()
-  "Add a `empty-line' text property to each blank line.
-We need this to add a dummy element on empty lines to prevent
-LaTeX from complaining about underful hboxes."
+(defun esh--mark-newlines ()
+  "Add a `newline' text property to each \\n character.
+The value is either `empty' or `non-empty' (we need this to add a
+dummy element on empty lines to prevent LaTeX from complaining
+about underful hboxes)."
   (goto-char (point-min))
-  (while (re-search-forward "^\n" nil t)
-    (put-text-property (match-beginning 0) (match-end 0) 'empty-line t)))
+  (while (search-forward "\n" nil t)
+    (put-text-property (match-beginning 0) (match-end 0) 'newline
+                       ;; (point-at-bol 0) is beginning of previous line
+                       ;; (match-beginning 0) is end of previous line
+                       (if (eq (point-at-bol 0) (match-beginning 0))
+                           'empty 'non-empty))))
+
+(defun esh--mark-bol-whitespace ()
+  "Add a `bol-blank' text property to leading whitespace.
+We need this to add a discretionary hyphen “\\-” and prevent TeX from
+swallowing bol white space."
+  (goto-char (point-min))
+  (while (re-search-forward "^[ \t]" nil t)
+    (put-text-property (match-beginning 0) (match-end 0) 'bol-blank t)))
 
 ;;; Producing LaTeX
 
-(defvar esh--latex-props '(display empty-line))
+(defvar esh--latex-props '(display newline bol-blank))
 (defvar esh--latex-face-attrs '(:underline :foreground :weight :slant))
 
 (defvar esh--latex-specials '(?\\ ?^ ?$ ?~ ?% ?& ?{ ?} ?_ ?#))
-(defvar esh--latex-substitutions '(("\n" . "\\\\\\\\\n")
-                                (" "  . "\\\\-~")))
+(defvar esh--latex-substitutions '()) ;; None needed thanks to \obeyspaces and \obeylines
 
 (defun esh--latex-substitutions ()
   "Construct a list of (REGEXP . REPLACE) to sanitize Latex code."
@@ -290,17 +302,24 @@ LaTeX from complaining about underful hboxes."
                             "\\textsubscript{%s}"))
                          (_ (error "Unexpected display property %S" val)))
                        template)))
-        (`empty-line
-         (when val
-           (setq template (concat template "\\mbox{}\\\\\n"))
-           (setq latex-str "\\hfill")))
+        (`bol-blank
+         ;; Add a discretionary hyphen to prevent TeX from swallowing blanks
+         (setq template (concat "\\-" template)))
+        (`newline
+         ;; Ensure that no newlines are added inside commands (instead the
+         ;; newline is added to the end of the template), and add an mbox to
+         ;; prevent TeX from complaining about underfull boxes.
+         (setq latex-str "\\hfill")
+         (let ((mbox (pcase val (`empty "\\mbox{}"))))
+           (setq template (concat template mbox "\n"))))
         (_ (error "Unexpected property %S" property))))
     (format template latex-str)))
 
 (defun esh--latexify-current-buffer ()
   "Export current buffer to LaTeX."
   (esh--commit-compositions)
-  (esh--mark-empty-lines)
+  (esh--mark-newlines)
+  (esh--mark-bol-whitespace)
   (string-join (seq-into-sequence (seq-map #'esh--latexify-span (esh--buffer-spans)))))
 
 (defun esh--latexify-in-buffer (str buffer)
@@ -325,26 +344,46 @@ If no such buffer exist, create one and add it to BUFFERS."
          ,buf))))
 
 (defvar esh--latex-preamble
-  "\\RequirePackage{xcolor}
+  "% Packages
+%%%%%%%%%%
+
+\\RequirePackage{xcolor}
 \\RequirePackage[normalem]{ulem}
 
-\\makeatletter
-% ESHFont is the default code font
+% Fonts
+%%%%%%%
+
+% \\ESHFont is the default font for code blocks;
 \\providecommand{\\ESHFont}{\\ttfamily}
 
-% ESHSpecialChar is applied to characters not included in Emacs' default font
-\\providecommand{\\ESHSpecialChar}{\\ttfamily}
+% \\ESHInlineFont is for inline code samples
+\\providecommand{\\ESHInlineFont}{\\ESHFont}
 
-% ESHInline is applied to inline code
-\\providecommand{\\ESHInline}{\\ttfamily}
+% \\ESHSpecialCharFont is applied to characters not included in Emacs' default font
+\\providecommand{\\ESHSpecialCharFont}{\\ttfamily}
 
-% \\ESHSkip is the amount to skip before and after ESHBlock
+% Environments
+%%%%%%%%%%%%%%
+
+% \\ESHBasicSetup is used by both \\ESHInline and \\ESHBlock
+\\providecommand*{\\ESHBasicSetup}{\\obeylines\\obeyspaces\\setlength{\\parindent}{0pt}\\setlength{\\parskip}{0pt}}
+
+% \\ESHInline is used for inline code
+% Note the extra pair of braces in the definition
+\\providecommand*{\\ESHInline}[1]{{\\ESHBasicSetup\\ESHInlineFont#1}}
+
+% \\ESHInline is used for special characters (those not found in the default font)
+% Note the extra pair of braces in the definition
+\\providecommand*{\\ESHSpecialChar}[1]{{\\ESHSpecialCharFont#1}}
+
+\\makeatletter
+% \\ESHSkip is the amount to skip before and after an ESHBlock
 \\@ifundefined{ESHSkip}{\\newlength{\\ESHSkip}\\setlength{\\ESHSkip}{\\baselineskip}}{}
 
-% \\ESHBlock is our basic code-block environment
+% \\ESHBlock is used for code blocks
 \\@ifundefined{ESHBlock}{%
   \\newenvironment{ESHBlock}{%
-    \\setlength{\\parindent}{0pt}\\par\\addvspace{\\ESHSkip}\\ESHFont
+    \\ESHBasicSetup\\ESHFont\\par\\addvspace{\\ESHSkip}%
   }{%
     \\par\\addvspace{\\ESHSkip}
   }

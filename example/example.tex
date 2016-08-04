@@ -1,23 +1,35 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%       This file shows how to use and customize esh2tex.       %
+% (Comments marked with a '*' indicate optional customizations) %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 \documentclass{article}
 
 %%%%%%%%%%%%%%%%%%%%%%%
 % Load a few packages %
 %%%%%%%%%%%%%%%%%%%%%%%
 
-\usepackage[margin=0.75in]{geometry}
+\usepackage[margin=0.85in]{geometry}
 
-%%%%%%%%%%%%%%%%%%%%%
-% Load custom fonts %
-%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%
+% *Load custom fonts %
+%%%%%%%%%%%%%%%%%%%%%%
 
 \usepackage{fontspec}
 
-% XITS Math (monospacified) for symbols
+% Load XITS Math (monospacified) for symbols
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% https://github.com/cpitclaudel/monospacifier
 \newfontfamily{\XITSMath}[Path=fonts/,
                           UprightFont=*_monospacified_for_UbuntuMono.ttf,
                           BoldFont=*-Bold_monospacified_for_UbuntuMono.ttf,
                           Mapping=tex-ansi]{XITSMath}
-% Ubuntu Mono for code
+
+% Load Ubuntu Mono for code
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% http://font.ubuntu.com/
 \newfontfamily{\UbuntuMono}[Path=fonts/,
                             UprightFont=*-R.ttf,
                             BoldFont=*-B.ttf,
@@ -26,26 +38,37 @@
                             Mapping=tex-ansi]{UbuntuMono}
 
 % Tell ESH about these fonts
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 \newcommand{\ESHFont}{\UbuntuMono}
-\DeclareTextFontCommand{\ESHInline}{\UbuntuMono}
-\DeclareTextFontCommand{\ESHSpecialChar}{\XITSMath}
+\newcommand{\ESHInlineFont}{\UbuntuMono}
+\newcommand{\ESHSpecialCharFont}{\XITSMath}
 
-%%%%%%%%%%%%%%%%%%%%%
-% Customize spacing %
-%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%
+% *Customize spacing %
+%%%%%%%%%%%%%%%%%%%%%%
 
-% \newlength{\ESHSkip}
-% \setlength{\ESHSkip}{0.5\baselineskip}
+\newlength{\ESHSkip}
+\setlength{\ESHSkip}{0.5\baselineskip}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%
-% Customize environment %
-%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% *Customize environments %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% Override the \ESHCode environment to include rules and asymmetric spacing.
+% \ESHInline
+%%%%%%%%%%%%
+
+% Note the extra pair of braces in the definition, which prevent fonts and
+% settings from affecting subsequent text
+\newcommand*{\ESHInline}[1]{{\ESHBasicSetup\ESHInlineFont\fbox{#1}}}
+
+% \ESHBlock
+%%%%%%%%%%%
+
 \newenvironment{ESHBlock}{%
-  \setlength{\parindent}{0pt}\par\addvspace{\ESHSkip}\hrule\addvspace{0.5em}\ESHFont
+  \ESHBasicSetup\ESHFont\par\addvspace{\ESHSkip}\hrule\addvspace{0.5em}%
 }{%
-  \par\addvspace{0.5em}\hrule\addvspace{2\ESHSkip}
+  \par\addvspace{0.5em}\hrule\addvspace{4\ESHSkip}
 }
 
 %%%%%%%%%%%%%%%%%%%%%%%%%

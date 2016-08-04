@@ -2,9 +2,9 @@
  Emacs Syntax Highlighting for LaTeX
 =====================================
 
-This programs processes TeX source files, replacing the contents of
-specially-delimited environments and macros by their syntax-highlighted
-counterparts.  For example, esh2tex transforms this block:
+This programs processes TeX source files, adding syntax-highlighting macros to
+the contents of specially-delimited environments and macros.  For example,
+esh2tex transforms this block:
 
 .. code:: latex
 
@@ -18,21 +18,39 @@ into something like that:
 .. code:: latex
 
    \begin{ESHBlock}
-     \textcolor[HTML]{8CC4FF}{int}~\textcolor[HTML]{FCE94F}{main}
-     ()~\{~\textcolor[HTML]{B4FA70}{return}~0;~\}
+     \color{8CC4FF}{int} \color{FCE94F}{main}() \{ \color{B4FA70}{return} 0; \}
    \end{ESHBlock}
 
 See the ``example`` folder of the GitHub repository for a full example.  One of
 the best parts is that your document can keep pretending to use ``lstlistings``,
-``minted``, ``fancyvrb`` etc., and thus still be compilable by people who don't
-use this program.
+``minted``, ``fancyvrb``, ``verbatim`` etc. while using ESH, and thus still be
+compilable by people who don't have ESH.
 
 
 Setup
 =====
 
-Clone the repository somewhere, and add ``<wherever>/bin`` to your path.  Tested
-only on GNU/Linux.
+Clone the repository somewhere, and add ``<wherever>/bin`` to your path.  This
+program is tested only on GNU/Linux.
+
+
+Quickstart
+==========
+
+In ``minimal.tex`` put the following::
+
+  \documentclass{minimal}
+  %% ESH-preamble-here
+  \begin{document}
+    %% ESH: c-mode
+    \begin{verbatim}
+    int main() { return 0; }
+    \end{verbatim}
+  \end{document}
+
+Process with ``esh2tex minimal.tex > esh2tex.esh.tex``, and compile with
+``xelatex esh2tex.esh.tex``. See the ``example/`` directory of the Git
+repository for a more advanced example.
 
 
 Usage
@@ -123,13 +141,15 @@ See https://github.com/cpitclaudel/esh2tex for more information.
 Tips and suggestions
 ====================
 
+All the following tricks, and more, are demonstrated in the
+``example/example.tex`` file of the Git repository.
+
 Loading a different theme
 -------------------------
 
 To load a different theme, include the following line in your ``esh-init.el``::
 
   (load-theme '<theme-name> t) ;; tango, dichromacy, leuven, adwaita...
-
 
 Using prettification
 --------------------
@@ -146,7 +166,6 @@ otherwise, ``pdfLaTeX`` will be confused by the Unicode symbols, and probably
 won't find a font to display them anyway.
 
 You'll also want to redefine the ``\ESHSpecialChar`` command, too (see below).
-
 
 Defining inline environments
 ----------------------------
@@ -165,11 +184,10 @@ Adding these lines to your preamble let's you use ``\pythonverb|yield 1|`` or
 ``\cppverb|*p++ = !*q++|`` in the body of your document.  With plain ``xelatex``
 these will be rendered verbatim, and with ``esh2tex`` they will be highlighted.
 
-
 Customizing the output
 ----------------------
 
-All customizations should be done **before** the ``%% ESH-preamble-here`` line:
+All customizations should be done **before** the ``%% ESH-preamble-here`` line.
 
 Changing fonts::
 
@@ -178,12 +196,12 @@ Changing fonts::
 
   ;; Use Ubuntu Mono for inline code
   \newfontfamily{\UbuntuMono}[Mapping=tex-ansi]{Ubuntu Mono}
-  \DeclareTextFontCommand{\ESHInline}{\UbuntuMono}
+  \DeclareTextFontCommand{\ESHInlineFont}{\UbuntuMono}
 
   ;; Use Symbola for special characters:
   \usepackage{fontspec}
   \newfontfamily{\Symbola}{Symbola}
-  \DeclareTextFontCommand{\ESHSpecialChar}{\Symbola}
+  \DeclareTextFontCommand{\ESHSpecialCharFont}{\Symbola}
 
 Customizing spacing::
 
@@ -194,10 +212,13 @@ Customizing spacing::
 Overriding the ``ESHBlock`` environment::
 
   \newenvironment{ESHBlock}{%
-    \setlength{\parindent}{0pt}\par\addvspace{\ESHSkip}\ESHFont
+    \ESHBasicSetup\par\addvspace{\ESHSkip}\ESHFont
   }{%
     \par\addvspace{\ESHSkip}
   }
+
+All these tricks, and more, are demonstrated in the ``example/example.tex``
+subfolder of the repository.
 
 Fixing font inconsistencies
 ---------------------------
@@ -229,4 +250,4 @@ the repository) to work.  If you can't make the example work, please open a
 GitHub issue.
 
 For more advanced debugging, you can load the ``esh`` package into Emacs, and
-use ``M-x esh2tex-current-buffer`` in your TeX file.
+use ``M-x esh2tex-current-buffer`` on your TeX file.
