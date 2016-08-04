@@ -334,9 +334,7 @@ If no such buffer exist, create one and add it to BUFFERS."
 \\makeatother")
 
 (defvar esh-latexify-block-envs
-  `(("\\\\begin{HighlightWithEmacs}\\[\\([-+a-zA-Z]+\\)\\]" "\\begin{ESHBlock}"
-     "\\\\end{HighlightWithEmacs}" "\\end{ESHBlock}")
-    ("^[ \t]*%%[ \t]*ESH: \\([-+a-zA-Z]+\\)[ \t]*\n[ \t]*\\\\begin{\\([^}]+\\)}.*$" "\\begin{ESHBlock}"
+  `(("^[ \t]*%%[ \t]*ESH: \\([-+a-zA-Z]+\\)[ \t]*\n[ \t]*\\\\begin{\\([^}]+\\)}.*$" "\\begin{ESHBlock}"
      ,(lambda () (concat "^[ \t]*\\\\end{" (match-string 2) "}")) "\\end{ESHBlock}"))
   "List of replaceable environments.")
 
