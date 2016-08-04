@@ -76,9 +76,11 @@
 
 ;;; Segmenting a buffer
 
-
 ;; FIXME this splits by properties including overlays, but then it ignores them
-(defun esh--buffer-ranges-from (start prop)
+
+;;; As a proper stream, this would probably work; as a list, however, the
+;;; recursion quickly exceeds max-lisp-eval-depth
+(defun esh--stream-buffer-ranges-from (start prop)
   "Create a stream of buffer ranges from START.
 Ranges are pairs of START..END positions in which all characters
 have the same value of PROP or, if PROP is nil, of all
@@ -88,6 +90,22 @@ properties."
     (if (< start end)
         (esh--stream-cons (cons start end) (esh--buffer-ranges-from end prop))
       (esh--stream-empty))))
+
+(defun esh--buffer-ranges-from (start prop)
+  "Create a stream of buffer ranges from START.
+Ranges are pairs of START..END positions in which all characters
+have the same value of PROP or, if PROP is nil, of all
+properties."
+  (let ((ranges nil)
+        (making-progress t))
+    (while making-progress
+      (let ((end (if prop (next-single-char-property-change start prop)
+                   (next-char-property-change start))))
+        (if (< start end)
+            (push (cons start end) ranges)
+          (setq making-progress nil))
+        (setq start end)))
+    (nreverse ranges)))
 
 (defun esh--buffer-spans (&optional prop)
   "Create a stream of buffer spans.
