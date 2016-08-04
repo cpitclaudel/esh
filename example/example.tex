@@ -211,7 +211,7 @@ sub getopt {
         } elsif (index($opt,$f) >= $[) {
             $r = $r eq '' ? shift(@ARGV) : $r;
             eval "\$opt_$f = \$r;";
-        } else{
+        } else {
 \end{verbatim}
 
 \clearpage
@@ -224,7 +224,7 @@ ESH works inline as well:
 \item Here's some C code: \cverb|int main() { return 0; }|
 \item Some Python: \pythonverb|def method(self, x): yield x|
 \item
-  \begin{tabular}[t]{r l}
+  \begin{tabular}[t]{@{}r@{ }l}
     Some Elisp with prettification: & \prettylisp|(lambda (x y) (or (<= x y) (approx= (/+/ x y) 0)))| \\
             without prettification: & \normallisp|(lambda (x y) (or (<= x y) (approx= (/+/ x y) 0)))| \\
   \end{tabular}

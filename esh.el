@@ -210,7 +210,7 @@ swallowing bol white space."
 (defun esh--latex-substitutions ()
   "Construct a list of (REGEXP . REPLACE) to sanitize Latex code."
   (let ((specials-re (concat "\\(" (regexp-opt-charset esh--latex-specials) "\\)")))
-    (cons (cons specials-re "\\\\char`\\\\\\1")
+    (cons (cons specials-re "{\\\\char`\\\\\\1}")
           esh--latex-substitutions)))
 
 (defun esh--wrap-symbols (str)
