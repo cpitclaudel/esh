@@ -24,3 +24,4 @@
 *.out
 *.log
 *.synctex.gz
+/todo.org
