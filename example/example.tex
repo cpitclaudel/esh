@@ -1,0 +1,236 @@
+\documentclass{article}
+
+%%%%%%%%%%%%%%%%%%%%%%%
+% Load a few packages %
+%%%%%%%%%%%%%%%%%%%%%%%
+
+\usepackage[margin=0.75in]{geometry}
+
+%%%%%%%%%%%%%%%%%%%%%
+% Load custom fonts %
+%%%%%%%%%%%%%%%%%%%%%
+
+\usepackage{fontspec}
+
+% XITS Math (monospacified) for symbols
+\newfontfamily{\XITSMath}[Path=fonts/,
+                          UprightFont=*_monospacified_for_UbuntuMono.ttf,
+                          BoldFont=*-Bold_monospacified_for_UbuntuMono.ttf,
+                          Mapping=tex-ansi]{XITSMath}
+% Ubuntu Mono for code
+\newfontfamily{\UbuntuMono}[Path=fonts/,
+                            UprightFont=*-R.ttf,
+                            BoldFont=*-B.ttf,
+                            ItalicFont=*-RI.ttf,
+                            BoldItalicFont=*-BI.ttf,
+                            Mapping=tex-ansi]{UbuntuMono}
+
+% Tell ESH about these fonts
+\newcommand{\ESHFont}{\UbuntuMono}
+\DeclareTextFontCommand{\ESHInline}{\UbuntuMono}
+\DeclareTextFontCommand{\ESHSpecialChar}{\XITSMath}
+
+%%%%%%%%%%%%%%%%%%%%%
+% Customize spacing %
+%%%%%%%%%%%%%%%%%%%%%
+
+% \newlength{\ESHSkip}
+% \setlength{\ESHSkip}{0.5\baselineskip}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%
+% Customize environment %
+%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Override the \ESHCode environment to include rules and asymmetric spacing.
+\newenvironment{ESHBlock}{%
+  \setlength{\parindent}{0pt}\par\addvspace{\ESHSkip}\hrule\addvspace{0.5em}\ESHFont
+}{%
+  \par\addvspace{0.5em}\hrule\addvspace{2\ESHSkip}
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%
+% Load the ESH preamble %
+%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% ESH-preamble-here
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Define and register a few inline environments %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\def\cverb{\verb}
+\def\pythonverb{\verb}
+\def\prettylisp{\verb}
+\def\normallisp{\verb}
+
+%% ESH-inline: c-mode \cverb|...|
+%% ESH-inline: python-mode \pythonverb|...|
+%% ESH-inline: emacs-lisp-mode \normallisp|...|
+%% ESH-inline: pretty-emacs-lisp-mode \prettylisp|...|
+
+\begin{document}
+
+\section*{C (source: \texttt{xfaces.c} in Emacs)}
+
+%% ESH: c-mode
+\begin{verbatim}
+#if defined HAVE_X_WINDOWS && defined USE_X_TOOLKIT
+
+/* Make menus on frame F appear as specified by the `menu' face.  */
+
+static void
+x_update_menu_appearance (struct frame *f)
+{
+  struct x_display_info *dpyinfo = FRAME_DISPLAY_INFO (f);
+  XrmDatabase rdb;
+
+  if (dpyinfo
+      && (rdb = XrmGetDatabase (FRAME_X_DISPLAY (f)),
+      rdb != NULL))
+    {
+      char line[512];
+      char *buf = line;
+      ptrdiff_t bufsize = sizeof line;
+      Lisp_Object lface = lface_from_face_name (f, Qmenu, true);
+      struct face *face = FACE_FROM_ID (f, MENU_FACE_ID);
+      const char *myname = SSDATA (Vx_resource_name);
+      bool changed_p = false;
+#ifdef USE_MOTIF
+      const char *popup_path = "popup_menu";
+#else
+      const char *popup_path = "menu.popup";
+#endif
+
+      if (STRINGP (LFACE_FOREGROUND (lface)))
+\end{verbatim}
+
+\section*{Emacs lisp (source: \texttt{esh.el} in this library)}
+
+%% ESH: emacs-lisp-mode
+\begin{verbatim}
+(require 'seq)
+(require 'color)
+(require 'subr-x)
+
+;;; Misc utils
+
+(defun esh--normalize-color (color)
+  "Return COLOR as a hex string."
+  (upcase (if (= (aref color 0) ?#) color
+            (apply #'color-rgb-to-hex (color-name-to-rgb color)))))
+
+(defun esh--filter-cdr (val alist)
+  "Remove conses in ALIST whose `cdr' is VAL."
+  (seq-filter (lambda (pair) (not (eq (cdr pair) val))) alist))
+
+(defun esh--extract-props (props str)
+  "Read PROPS from STR as an ALIST or (PROP . VAL)."
+  (seq-map (lambda (prop)
+             (cons prop (get-text-property 0 prop str)))
+           props))
+\end{verbatim}
+
+\clearpage
+
+\section*{Python (source: \texttt{monospacifier.py})}
+
+%% ESH: python-mode
+\begin{verbatim}
+class GlyphScaler(object):
+    def __init__(self, cell_width):
+        self.cell_width = cell_width
+
+    @staticmethod
+    def set_width(glyph, width):
+        delta = width - glyph.width
+        glyph.left_side_bearing += delta / 2
+        glyph.right_side_bearing += delta - glyph.left_side_bearing
+        glyph.width = width
+
+class AllowWideCharsGlyphScaler(GlyphScaler):
+    def __init__(self, cell_width, avg_width):
+        """Construct instance based on target CELL_WIDTH and source AVG_WIDTH."""
+        GlyphScaler.__init__(self, cell_width)
+        self.avg_width = avg_width
+
+    def scale(self, glyph):
+        if glyph.width > 0:
+            new_width_in_cells = int(math.ceil(0.75 * glyph.width / self.avg_width))
+            # if new_width_in_cells > 1:
+            #     print("{} is {} cells wide ({} -> {})".format(
+            #         glyph.glyphname, new_width_in_cells, self.cell_width, glyph.width))
+            GlyphScaler.set_width(glyph, new_width_in_cells * self.cell_width)
+\end{verbatim}
+
+\section*{Perl (source: YAGOpt)}
+
+%% ESH: perl-mode
+\begin{verbatim}
+#Yet Another Getopt Routine In Perl
+# jgreely@cis.ohio-state.edu, 89/11/1
+#usage:
+#&getopt("f:bar") ||
+#	die &usage("script","f:bar","oo","[files ...]");
+
+sub getopt {
+    local($_,$flag,$opt,$f,$r,@temp) = @_;
+    @temp = split(/(.):/);
+    while ($#temp >= $[) {
+        $flag .= shift(@temp);
+        $opt .= shift(@temp);
+    }
+    while ($_ = $ARGV[0], /^-(.)(.*)/ && shift(@ARGV)) {
+        ($f,$r) = ($1,$2);
+        last if $f eq '-';
+        if (index($flag,$f) >= $[) {
+            eval "\$opt_$f++;";
+            $r =~ /^(.)(.*)/,redo if $r ne '';
+        } elsif (index($opt,$f) >= $[) {
+            $r = $r eq '' ? shift(@ARGV) : $r;
+            eval "\$opt_$f = \$r;";
+        } else{
+\end{verbatim}
+
+\clearpage
+
+\section*{Misc inline snippets}
+
+ESH works inline as well:
+
+\begin{itemize}
+\item Here's some C code: \cverb|int main() { return 0; }|
+\item Some Python: \pythonverb|def method(self, x): yield x|
+\item
+  \begin{tabular}[t]{r l}
+    Some Elisp with prettification: & \prettylisp|(lambda (x y) (or (<= x y) (approx= (/+/ x y) 0)))| \\
+            without prettification: & \normallisp|(lambda (x y) (or (<= x y) (approx= (/+/ x y) 0)))| \\
+  \end{tabular}
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% The following requires additional packages %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% \section*{Coq (source: \texttt{Between.v} in Coq's standard library)}
+%
+% %% ESH: coq-mode
+% \begin{verbatim}
+%
+% Implicit Types k l p q r : nat.
+%
+% Section Between.
+%   Variables P Q : nat -> Prop.
+%
+%   Inductive between k : nat -> Prop :=
+%     | bet_emp : between k k
+%     | bet_S : forall l, between k l -> P l -> between k (S l).
+%
+%   Hint Constructors between: arith v62.
+%
+%   Lemma bet_eq : forall k1 k2, k1 = k2 -> between k1 k2.
+%   Proof.
+%     induction 1; auto with arith.
+%   Qed.
+% \end{verbatim}
+
+\end{document}
