@@ -160,10 +160,18 @@ the original string."
               (set-text-properties from (1+ from) props)
               (remove-text-properties from (1+ from) '(composition))))))))))
 
+(defun esh--mark-empty-lines ()
+  "Add a `empty-line' text property to each blank line.
+We need this to add a dummy element on empty lines to prevent
+LaTeX from complaining about underful hboxes."
+  (goto-char (point-min))
+  (while (re-search-forward "^\n" nil t)
+    (put-text-property (match-beginning 0) (match-end 0) 'empty-line t)))
+
 ;;; Producing LaTeX
 
-(defvar esh--latex-props '(display))
-(defvar esh--latex-face-attrs '(:foreground :weight :slant :underline))
+(defvar esh--latex-props '(display empty-line))
+(defvar esh--latex-face-attrs '(:underline :foreground :weight :slant))
 
 (defvar esh--latex-specials '(?\\ ?^ ?$ ?~ ?% ?& ?{ ?} ?_ ?#))
 (defvar esh--latex-substitutions '(("\n" . "\\\\\\\\\n")
@@ -196,61 +204,85 @@ the original string."
                (point-min) (point-max))))
   (esh--wrap-symbols str))
 
+(defun esh--normalize-underline (underline)
+  "Normalize UNDERLINE."
+  (pcase underline
+    (`t '(nil . line))
+    ((pred stringp) `(,underline . line))
+    (`(:color ,color) `(,color . line))
+    (`(:color ,color :style ,style) `(,color . ,style))))
+
+(defun esh--normalize-weight (weight)
+  "Normalize WEIGHT."
+  (pcase weight
+    ((or `thin `ultralight `ultra-light `extralight
+         `extra-light `light `book `demilight
+         `semilight `semi-light)
+     'light)
+    ((or `normal `medium `regular)
+     'regular)
+    ((or `demi `demibold `semibold `semi-bold
+         `bold `extrabold `extra-bold `black
+         `ultrabold `ultra-bold)
+     'bold)))
+
 (defun esh--latexify-span (span)
   "Render SPAN as a LaTeX string."
-  (let ((latex-str (esh--escape-for-latex span))
+  (let ((template "%s")
+        (latex-str (esh--escape-for-latex span))
         (props-alist (esh--extract-props esh--latex-props span))
         (attrs-alist (esh--extract-face-attributes esh--latex-face-attrs span)))
     (pcase-dolist (`(,attribute . ,val) (esh--filter-cdr 'unspecified attrs-alist))
-      (setq latex-str
+      (setq template
             (pcase attribute
               (:foreground
                (format "\\textcolor[HTML]{%s}{%s}"
                        (substring (esh--normalize-color val) 1)
-                       latex-str))
+                       template))
               (:weight
-               (format (pcase val
-                         ((or `thin `ultralight `ultra-light `extralight
-                              `extra-light `light `book `demilight
-                              `semilight `semi-light)
-                          "\\textlf{%s}")
-                         ((or `normal `medium `regular)
-                          "\\textmd{%s}")
-                         ((or `demi `demibold `semibold `semi-bold
-                              `bold `extrabold `extra-bold `black
-                              `ultrabold `ultra-bold)
-                          "\\textbf{%s}")
+               (format (pcase (esh--normalize-weight val)
+                         (`light "\\textlf{%s}")
+                         (`regular "\\textmd{%s}")
+                         (`bold "\\textbf{%s}")
                          (_ (error "Unexpected weight %S" val)))
-                       latex-str))
+                       template))
               (:slant
                (format (pcase val
                          (`italic "\\textit{%s}")
                          (`oblique "\\textsl{%s}")
                          ((or `normal `roman) "\textrm{%s}")
                          (_ (error "Unexpected slant %S" val)))
-                       latex-str))
+                       template))
               (:underline
-               (format (pcase val
-                         (`t "\\uline{%s}")
+               (format (pcase (esh--normalize-underline val)
+                         ;; FIXME colored waves
+                         (`(_ . wave) "\\uwave{%s}")
+                         (`(nil . line) "\\uline{%s}")
+                         (`(color . line) "\\colorlet{saved}{.}\\uline{\\color{saved}%s}")
                          (_ (error "Unexpected underline %S" val)))
-                       latex-str))
+                       template))
               (_ (error "Unexpected attribute %S" attribute)))))
     (pcase-dolist (`(,property . ,val) (esh--filter-cdr nil props-alist))
-      (setq latex-str
-            (pcase property
-              (`display
+      (pcase property
+        (`display
+         (setq template
                (format (pcase val
                          (`(raise ,amount) ;; FIXME raisebox?
                           (if (> amount 0) "\\textsuperscript{%s}"
                             "\\textsubscript{%s}"))
                          (_ (error "Unexpected display property %S" val)))
-                       latex-str))
-              (_ (error "Unexpected property %S" property)))))
-    latex-str))
+                       template)))
+        (`empty-line
+         (when val
+           (setq template (concat template "\\mbox{}\\\\\n"))
+           (setq latex-str "\\hfill")))
+        (_ (error "Unexpected property %S" property))))
+    (format template latex-str)))
 
 (defun esh--latexify-current-buffer ()
   "Export current buffer to LaTeX."
   (esh--commit-compositions)
+  (esh--mark-empty-lines)
   (string-join (seq-into-sequence (seq-map #'esh--latexify-span (esh--buffer-spans)))))
 
 (defun esh--latexify-in-buffer (str buffer)
