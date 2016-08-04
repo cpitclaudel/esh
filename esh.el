@@ -364,7 +364,6 @@ This looks for `esh--latexify-inline-env-declaration-re'."
 (defun esh--latexify-do-inline-envs (temp-buffers)
   "Latexify sources in esh inline environments.
 TEMP-BUFFERS is an alist of (MODE . TEMP-BUFFER)."
-  (declare (debug t))
   (pcase-dolist (`(,env-re . ,mode-fn) (esh--latexify-inline-envs))
     (goto-char (point-min))
     (while (re-search-forward env-re nil t)
@@ -378,7 +377,6 @@ TEMP-BUFFERS is an alist of (MODE . TEMP-BUFFER)."
   "Latexify sources in esh block environments.
 CODE-START and CODE-END are markers.  TEMP-BUFFERS is an alist
 of (MODE . TEMP-BUFFER)."
-  (declare (debug t))
   (pcase-dolist (`(,old-start ,new-start ,old-end ,new-end)
                  esh-latexify-block-envs)
     (goto-char (point-min))
