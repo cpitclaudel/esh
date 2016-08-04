@@ -49,7 +49,7 @@
 %%%%%%%%%%%%%%%%%%%%%%
 
 \newlength{\ESHSkip}
-\setlength{\ESHSkip}{0.5\baselineskip}
+\setlength{\ESHSkip}{1.25\baselineskip}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
 % *Customize environments %
@@ -60,15 +60,16 @@
 
 % Note the extra pair of braces in the definition, which prevent fonts and
 % settings from affecting subsequent text
-\newcommand*{\ESHInline}[1]{{\ESHBasicSetup\ESHInlineFont\fbox{#1}}}
+\usepackage{amsmath,amssymb}
+\newcommand*{\ESHInline}[1]{{\ESHInlineBasicSetup$\langle\,$#1$\,\rangle$}}
 
 % \ESHBlock
 %%%%%%%%%%%
 
 \newenvironment{ESHBlock}{%
-  \ESHBasicSetup\ESHFont\par\addvspace{\ESHSkip}\hrule\addvspace{0.5em}%
+  \ESHBlockBasicSetup\par\addvspace{\ESHSkip}\hrule\addvspace{0.5em}%
 }{%
-  \par\addvspace{0.5em}\hrule\addvspace{4\ESHSkip}
+  \par\addvspace{0.5em}\hrule\addvspace{\ESHSkip}
 }
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
@@ -82,11 +83,13 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \def\cverb{\verb}
+\def\javaverb{\verb}
 \def\pythonverb{\verb}
 \def\prettylisp{\verb}
 \def\normallisp{\verb}
 
 %% ESH-inline: c-mode \cverb|...|
+%% ESH-inline: java-mode \javaverb|...|
 %% ESH-inline: python-mode \pythonverb|...|
 %% ESH-inline: emacs-lisp-mode \normallisp|...|
 %% ESH-inline: pretty-emacs-lisp-mode \prettylisp|...|
@@ -216,7 +219,9 @@ sub getopt {
 
 \clearpage
 
-\section*{Misc inline snippets}
+\section*{Misc}
+
+\subsection*{Inline snippets}
 
 ESH works inline as well:
 
@@ -230,30 +235,60 @@ ESH works inline as well:
   \end{tabular}
 \end{itemize}
 
+\subsection*{Line breaking}
+
+ESH allows line breaks to happen within inline code snippets (here is an example: \javaverb|private static volatile int counter = 0|), but not in code blocks:
+
+%% ESH: emacs-lisp-mode
+\begin{verbatim}
+(defun esh--normalize-color (color) (upcase (if (= (aref color 0) ?#) color (apply #'color-rgb-to-hex (color-name-to-rgb color)))))
+\end{verbatim}
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % The following requires additional packages %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% \section*{Coq (source: \texttt{Between.v} in Coq's standard library)}
-%
-% %% ESH: coq-mode
-% \begin{verbatim}
-%
-% Implicit Types k l p q r : nat.
-%
-% Section Between.
-%   Variables P Q : nat -> Prop.
-%
-%   Inductive between k : nat -> Prop :=
-%     | bet_emp : between k k
-%     | bet_S : forall l, between k l -> P l -> between k (S l).
-%
-%   Hint Constructors between: arith v62.
-%
-%   Lemma bet_eq : forall k1 k2, k1 = k2 -> between k1 k2.
-%   Proof.
-%     induction 1; auto with arith.
-%   Qed.
-% \end{verbatim}
+\section*{Coq (source: \texttt{Between.v} in Coq's standard library)}
+
+%% ESH: coq-mode
+\begin{verbatim}
+Implicit Types k l p q r : nat.
+
+Section Between.
+  Variables P Q : nat -> Prop.
+
+  Inductive between k : nat -> Prop :=
+    | bet_emp : between k k
+    | bet_S : forall l, between k l -> P l -> between k (S l).
+
+  Hint Constructors between: arith v62.
+
+  Lemma bet_eq : forall k1 k2, k1 = k2 -> between k1 k2.
+  Proof.
+    induction 1; auto with arith.
+  Qed.
+\end{verbatim}
+
+\section*{Haskell (source: \texttt{} in Haskell's standard library)}
+
+%% ESH: haskell-mode
+\begin{verbatim}
+
+\end{verbatim}
+
+\section*{Racket (source: \texttt{} in Racket's standard library)}
+
+%% ESH: racket-mode
+\begin{verbatim}
+
+\end{verbatim}
+
+\section*{Ur/Web (source: Ur/Web's tutorial)}
+
+%% ESH: haskell-mode
+\begin{verbatim}
+
+\end{verbatim}
 
 \end{document}
