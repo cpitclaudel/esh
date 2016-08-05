@@ -107,7 +107,7 @@ error checking here; we expect this to be invoked through
                               (display . ,display)
                               (visibility . nil))))))
 
-(defun esh-server-latefixy (path)
+(defun esh-server-latexify (path)
   "Latexify PATH and return the result as a string.
 No error checking here; we expect this to be invoked through
 `esh-server-eval'."
