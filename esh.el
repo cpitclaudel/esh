@@ -196,7 +196,7 @@ about underful hboxes)."
 ;;; Producing LaTeX
 
 (defvar esh--latex-props '(display invisible newline))
-(defvar esh--latex-face-attrs '(:underline :foreground :weight :slant))
+(defvar esh--latex-face-attrs '(:underline :background :foreground :weight :slant))
 
 (defvar esh--latex-specials '(?\\ ?^ ?$ ?~ ?% ?& ?{ ?} ?_ ?#))
 (defvar esh--latex-substitutions '()) ;; None needed thanks to \obeyspaces and \obeylines
@@ -259,6 +259,12 @@ about underful hboxes)."
       (when val
         (setq template
               (pcase attribute
+                (:background
+                 (setq val (esh--normalize-color val))
+                 ;; FIXME: Force all lines to have the the same height?
+                 ;; Could use \\vphantom{'g}\\smash{…}
+                 (if val (format "\\colorbox[HTML]{%s}{%s}" val template)
+                   template))
                 (:foreground
                  (setq val (esh--normalize-color val))
                  (if val (format "\\textcolor[HTML]{%s}{%s}" val template)
