@@ -38,8 +38,10 @@
 
 (defun esh--normalize-color (color)
   "Return COLOR as a hex string."
-  (upcase (if (= (aref color 0) ?#) color
-            (apply #'color-rgb-to-hex (color-name-to-rgb color)))))
+  (unless (member color '("unspecified-fg" "unspecified-bg" ""))
+    (let ((color (if (= (aref color 0) ?#) color
+                   (apply #'color-rgb-to-hex (color-name-to-rgb color)))))
+      (substring (upcase color) 1))))
 
 (defun esh--filter-cdr (val alist)
   "Remove conses in ALIST whose `cdr' is VAL."
@@ -257,9 +259,9 @@ about underful hboxes)."
       (setq template
             (pcase attribute
               (:foreground
-               (format "\\textcolor[HTML]{%s}{%s}"
-                       (substring (esh--normalize-color val) 1)
-                       template))
+               (setq val (esh--normalize-color val))
+               (if val (format "\\textcolor[HTML]{%s}{%s}" val template)
+                 template))
               (:weight
                (format (pcase (esh--normalize-weight val)
                          (`light "\\textlf{%s}")
