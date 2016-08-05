@@ -82,3 +82,11 @@
 ;; (dolist (ft (fontset-list))
 ;;   (set-fontset-font ft 'unicode (font-spec :name "Ubuntu Mono"))
 ;;   (set-fontset-font ft 'unicode (font-spec :name "Symbola monospacified for Ubuntu Mono") nil 'append))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Compatibility with 24.4 ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(eval-and-compile
+  (unless (fboundp 'prettify-symbols-mode)
+    (fset 'prettify-symbols-mode #'ignore)))

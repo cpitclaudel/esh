@@ -141,17 +141,24 @@ Faces is a list of (possibly anonymous) faces."
 This replaced each composed string by its composition, forgetting
 the original string."
   (let ((composed-ranges (esh--buffer-ranges-from 1 'composition)))
-    (seq-doseq (pair (seq-reverse (seq-into-sequence composed-ranges)))
+    (dolist (pair (reverse composed-ranges))
       (pcase pair
         (`(,from . ,to)
-         (pcase (get-text-property from 'composition)
-           ((or `((,_ . ,char)) `(,_ ,_ [,char]))
-            (goto-char from)
-            (let ((props (text-properties-at from)))
-              (delete-region from to)
-              (insert char)
-              (set-text-properties from (1+ from) props)
-              (remove-text-properties from (1+ from) '(composition))))))))))
+         (let ((composition (get-text-property from 'composition))
+               (char nil))
+           (pcase composition
+             (`((,_ . ,c))
+              (setq char c))
+             (`(,_ ,_ ,vc) ;; No support for ,[] QPatterns in 24.5
+              (when (and (vectorp vc) (= (length vc) 1))
+                (setq char (aref vc 0)))))
+           (when char
+             (goto-char from)
+             (let ((props (text-properties-at from)))
+               (delete-region from to)
+               (insert char)
+               (set-text-properties from (1+ from) props)
+               (remove-text-properties from (1+ from) '(composition))))))))))
 
 (defun esh--mark-newlines ()
   "Add a `newline' text property to each \\n character.
@@ -301,13 +308,19 @@ all lines."
   (esh--mark-newlines)
   (esh--latexify-protect-bols (mapconcat #'esh--latexify-span (esh--buffer-spans) "")))
 
+(defun esh--font-lock-ensure ()
+  "Wrapper around `font-lock-ensure'."
+  (if (fboundp 'font-lock-ensure)
+      (font-lock-ensure)
+    (with-no-warnings (font-lock-fontify-buffer))))
+
 (defun esh--latexify-in-buffer (str buffer mode-fn)
   "Insert STR in BUFFER, fontify it, and latexify it.
 With non-fbound MODE-FN, don't run font-lock on STR."
   (save-match-data
     (with-current-buffer buffer
       (insert str)
-      (when (fboundp mode-fn) (font-lock-ensure))
+      (when (fboundp mode-fn) (esh--font-lock-ensure))
       (esh--latexify-current-buffer))))
 
 (defconst esh--missing-mode-template
@@ -328,7 +341,7 @@ the required mode isn't available.  INLINE is passed to
 `esh--missing-mode-error-msg'."
   (let ((buf (make-symbol "buf")))
     `(save-match-data
-       (let ((,buf (alist-get ,mode ,buffers)))
+       (let ((,buf (cdr (assq ,mode ,buffers))))
          (unless ,buf
            (setq ,buf (generate-new-buffer " *temp*"))
            (with-current-buffer ,buf
