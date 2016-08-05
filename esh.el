@@ -442,8 +442,9 @@ the required mode isn't available.  INLINE is passed to
 (defun esh--latexify-add-preamble ()
   "Expand `esh--latexify-preamble-marker'."
   (goto-char (point-min))
-  (when (re-search-forward esh--latexify-preamble-marker nil t)
-    (replace-match (replace-quote esh--latex-preamble) t)))
+  (if (re-search-forward esh--latexify-preamble-marker nil t)
+      (replace-match (replace-quote esh--latex-preamble) t)
+    (error "%s" "Source document is missing the `%% ESH-preamble-here' line")))
 
 (defun esh--latexify-inline-envs ()
   "Construct a list of regexps matching user-defined inline environments.
