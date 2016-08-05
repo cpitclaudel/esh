@@ -15,7 +15,6 @@
                 ("lambda" . ?λ) ("approx=" . ?≈)))
   (prettify-symbols-mode))
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; For the following to work, you'll need to modify the Makefile to  ;;
 ;; use the --cask option, and run ``cask install`` in this directory ;;

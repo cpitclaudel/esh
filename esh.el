@@ -432,12 +432,12 @@ the required mode isn't available.  INLINE is passed to
 \\makeatother")
 
 (defvar esh-latexify-block-envs
-  `(("^[ \t]*%%[ \t]*ESH: \\([-+a-zA-Z]+\\)[ \t]*\n[ \t]*\\\\begin{\\([^}]+\\)}.*\n" "\\begin{ESHBlock}\n"
+  `(("^[ \t]*%%[ \t]*ESH: \\([-+a-zA-Z0-9]+\\)[ \t]*\n[ \t]*\\\\begin{\\([^}]+\\)}.*\n" "\\begin{ESHBlock}\n"
      ,(lambda () (concat "\n[ \t]*\\\\end{" (match-string 2) "}")) "\n\\end{ESHBlock}"))
   "List of replaceable environments.")
 
 (defvar esh--latexify-preamble-marker "^%%[ \t]*ESH-preamble-here[ \t]*$")
-(defvar esh--latexify-inline-env-declaration-re "^[ \t]*%%[ \t]*ESH-inline:[ \t]+\\([-+a-zA-Z]+\\)[ \t]+\\(.*\\)$")
+(defvar esh--latexify-inline-env-declaration-re "^[ \t]*%%[ \t]*ESH-inline:[ \t]+\\([-+a-zA-Z0-9]+\\)[ \t]+\\(.*\\)$")
 
 (defun esh--latexify-add-preamble ()
   "Expand `esh--latexify-preamble-marker'."
