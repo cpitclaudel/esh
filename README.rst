@@ -239,6 +239,17 @@ Overriding the ``ESHBlock`` environment::
 All these tricks, and more, are demonstrated in the ``example/example.tex``
 subfolder of the repository.
 
+Adding ``esh2tex`` comments in ``org-mode``
+-------------------------------------------
+
+Add the following to the beginning of your org file::
+
+  #+LATEX_HEADER: %% ESH-preamble-here
+
+Then before each Org source block::
+
+  #+LATEX: %% ESH: <mode>
+
 Fixing font inconsistencies
 ---------------------------
 
