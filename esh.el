@@ -191,14 +191,6 @@ about underful hboxes)."
                        (if (eq (point-at-bol 0) (match-beginning 0))
                            'empty 'non-empty))))
 
-(defun esh--mark-bol-whitespace ()
-  "Add a `bol-blank' text property to leading whitespace.
-We need this to add a discretionary hyphen “\\-” and prevent TeX from
-swallowing bol white space."
-  (goto-char (point-min))
-  (while (re-search-forward "^[ \t]" nil t)
-    (put-text-property (match-beginning 0) (match-end 0) 'bol-blank t)))
-
 ;;; Producing LaTeX
 
 (defvar esh--latex-props '(display newline bol-blank))
@@ -314,12 +306,19 @@ swallowing bol white space."
         (_ (error "Unexpected property %S" property))))
     (format template latex-str)))
 
+(defun esh--latexify-protect-bols (str)
+  "Prefix each line of STR with a discretionary hyphen.
+This used to only be needed for lines starting with whitespace,
+but leading dashes also behave strangely due to the \\hbox in
+\\ESHObeySpaces; given this, it's simpler (and safer) to prefix
+all lines."
+  (replace-regexp-in-string "^" "\\-" str t t))
+
 (defun esh--latexify-current-buffer ()
   "Export current buffer to LaTeX."
   (esh--commit-compositions)
   (esh--mark-newlines)
-  (esh--mark-bol-whitespace)
-  (string-join (seq-into-sequence (seq-map #'esh--latexify-span (esh--buffer-spans)))))
+  (esh--latexify-protect-bols (mapconcat #'esh--latexify-span (esh--buffer-spans) "")))
 
 (defun esh--latexify-in-buffer (str buffer)
   "Insert STR in BUFFER, fontify it, and latexify it."
@@ -382,6 +381,7 @@ If no such buffer exist, create one and add it to BUFFERS."
 % \\ESHObeySpaces is a variant of \\obeyspaces that forbids line breaks
 {\\catcode`\\-=\\active
  \\catcode`\\ =\\active
+ % The \hbox prevents line breaks around source hyphens
  \\gdef\\ESHObeySpaces{% Must be a \\gdef to escape the surrounding group
    \\catcode`\\-=\\active\\def-{\\hbox{\\char`\\-}\\nobreak}\\catcode`\\ =\\active\\def {\\nobreakspace}}}
 
