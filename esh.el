@@ -320,25 +320,42 @@ all lines."
   (esh--mark-newlines)
   (esh--latexify-protect-bols (mapconcat #'esh--latexify-span (esh--buffer-spans) "")))
 
-(defun esh--latexify-in-buffer (str buffer)
-  "Insert STR in BUFFER, fontify it, and latexify it."
+(defun esh--latexify-in-buffer (str buffer mode-fn)
+  "Insert STR in BUFFER, fontify it, and latexify it.
+With non-fbound MODE-FN, don't run font-lock on STR."
   (save-match-data
     (with-current-buffer buffer
-      (erase-buffer)
       (insert str)
-      (font-lock-ensure)
+      (when (fboundp mode-fn) (font-lock-ensure))
       (esh--latexify-current-buffer))))
 
-(defmacro esh--make-temp-buffer (mode buffers)
+(defconst esh--missing-mode-template
+  ">>> (void-function %S); are you missing dependencies? <<<%s")
+
+(defun esh--missing-mode-error-msg (mode inline)
+  "Construct an error message about missing MODE.
+With non-nil INLINE, suffix message with blanks instead of newlines."
+  (propertize (format esh--missing-mode-template mode (if inline "  " "\n\n"))
+              'face 'error 'font-lock-face 'error))
+
+(defmacro esh--make-temp-buffer (mode buffers inline)
   "Get temp buffer for MODE from BUFFERS.
-If no such buffer exist, create one and add it to BUFFERS."
+If no such buffer exist, create one and add it to BUFFERS.  In
+all cases, the buffer is erased, and a message is added to it if
+the required mode isn't available.  INLINE is passed to
+`esh--missing-mode-error-msg'."
   (let ((buf (make-symbol "buf")))
     `(save-match-data
        (let ((,buf (alist-get ,mode ,buffers)))
          (unless ,buf
            (setq ,buf (generate-new-buffer " *temp*"))
-           (with-current-buffer ,buf (funcall ,mode))
+           (with-current-buffer ,buf
+             (funcall (if (fboundp ,mode) ,mode #'fundamental-mode)))
            (push (cons ,mode ,buf) ,buffers))
+         (with-current-buffer ,buf
+           (erase-buffer)
+           (unless (fboundp ,mode)
+             (insert (esh--missing-mode-error-msg ,mode ,inline))))
          ,buf))))
 
 (defvar esh--latex-preamble
@@ -424,6 +441,8 @@ This looks for `esh--latexify-inline-env-declaration-re'."
   (goto-char (point-min))
   (let ((envs nil))
     (while (re-search-forward esh--latexify-inline-env-declaration-re nil t)
+      (when (string-empty-p (match-string 1))
+        (error "Invalid ESH-inline declaration: %S" (match-string 0)))
       (let* ((mode (intern (match-string 1)))
              (def-string (regexp-quote (match-string 2)))
              (re (replace-regexp-in-string
@@ -439,8 +458,8 @@ TEMP-BUFFERS is an alist of (MODE . TEMP-BUFFER)."
     (goto-char (point-min))
     (while (re-search-forward env-re nil t)
       (let* ((code (match-string-no-properties 1))
-             (temp-buffer (esh--make-temp-buffer mode-fn temp-buffers))
-             (code-latex (esh--latexify-in-buffer code temp-buffer)))
+             (temp-buffer (esh--make-temp-buffer mode-fn temp-buffers t))
+             (code-latex (esh--latexify-in-buffer code temp-buffer mode-fn)))
         (replace-match (concat "\\ESHInline{" code-latex "}") t t))))
   temp-buffers)
 
@@ -453,22 +472,22 @@ of (MODE . TEMP-BUFFER)."
     (goto-char (point-min))
     (while (re-search-forward old-start nil t)
       (goto-char (match-end 0))
-      (skip-chars-forward "\t\r\n ")
       (set-marker code-start (point))
-      (let ((mode-fn (intern (match-string 1)))
+      (when (string-empty-p (match-string-no-properties 1))
+        (error "Invalid ESH header: %S" (match-string-no-properties 0)))
+      (let ((mode-fn (intern (match-string-no-properties 1)))
             (old-end (cond ((stringp old-end) old-end)
                            ((functionp old-end) (funcall old-end)))))
         (replace-match new-start t t)
         (re-search-forward old-end)
         (goto-char (match-beginning 0))
-        (skip-chars-backward "\t\r\n ")
         (set-marker code-end (point))
         (replace-match new-end t t)
         (let* ((code (buffer-substring-no-properties code-start code-end))
-               (temp-buffer (esh--make-temp-buffer mode-fn temp-buffers)))
+               (temp-buffer (esh--make-temp-buffer mode-fn temp-buffers nil)))
           (goto-char code-start)
           (delete-region code-start code-end)
-          (insert (esh--latexify-in-buffer code temp-buffer))))))
+          (insert (esh--latexify-in-buffer code temp-buffer mode-fn))))))
   temp-buffers)
 
 (defun esh2tex-current-buffer ()

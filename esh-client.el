@@ -62,6 +62,20 @@
   (while (process-live-p proc)
     (accept-process-output proc 0 10)))
 
+(defun esh-client--message-no-newline (&rest args)
+  "Call `message' on ARGS, but don't print a final newline."
+  (let ((cursor-in-echo-area t))
+    ;; HACK HACK HACK found this trick by reading the C sources
+    (apply #'message args)))
+
+(defmacro esh-client--with-progress-msg (msg &rest body)
+  "Display MSG before running BODY, then display ‘done.’."
+  (declare (indent 1) (debug t))
+  `(progn
+     (message "%s..." ,msg)
+     (prog1 ,@body
+       (message "  done."))))
+
 ;;; RPC forms
 
 (defun esh-client--rpc-eval-form (form dest)
@@ -107,6 +121,9 @@ Errors in client's output are signaled."
   (when (looking-at-p "\\*ERROR\\*:")
     (error "%s" (buffer-string))))
 
+(defconst esh-client--backtrace-msg
+  ">> Run esh2tex again with --debug-on-error to see the full stack trace. <<")
+
 (defun esh-client--read-server-response (fpath)
   "Read server response from FPATH."
   (with-temp-buffer
@@ -114,9 +131,9 @@ Errors in client's output are signaled."
     (pcase (read (buffer-string))
       (`(success ,retv) retv)
       (`(error ,err ,backtrace)
+       (setq debug-on-error nil)
        (error "ESH error: %S\n%s" err
-              (if esh-client-debug-server backtrace
-                ">> Run esh2tex with --debug-server to see a stack trace."))))))
+              (if esh-client-debug-server backtrace esh-client--backtrace-msg))))))
 
 (defun esh-client--run (form)
   "Run FORM on ESH server.
@@ -151,17 +168,24 @@ client, to work around a bug in `emacsclient'."
         fpath
       (expand-file-name esh-client--init-file-name esh-client--script-directory))))
 
+(defun esh-client--truncate-right (str threshold)
+  "If STR is longer than THRESHOLD, truncate it from the left."
+  (let ((len (length str)))
+    (if (<= len threshold) str
+      (concat "..." (substring str (- len threshold) len)))))
+
 (defun esh-client--init-server ()
   "Initialize ESH server."
-  (esh-client--run (esh-client--rpc-server-init-form (getenv "DISPLAY") (esh-client--init-file-path))))
+  (let* ((init-fpath (esh-client--init-file-path)))
+    (esh-client--with-progress-msg (format "Loading %S" (esh-client--truncate-right init-fpath 25))
+      (esh-client--run (esh-client--rpc-server-init-form (getenv "DISPLAY") init-fpath)))))
 
 (defun esh-client--ensure-server ()
   "Ensure that an ESH server is running."
   (unless (esh-client--server-running-p)
-    (esh-client--busy-wait (esh-client--ensure-server-1))
-    (message "ESH server started.")
-    (esh-client--init-server)
-    (message "ESH server initialized.")))
+    (esh-client--with-progress-msg "Starting ESH server"
+      (esh-client--busy-wait (esh-client--ensure-server-1)))
+    (esh-client--init-server)))
 
 (defun esh-client-kill-server ()
   "Kill the ESH server."
@@ -169,7 +193,7 @@ client, to work around a bug in `emacsclient'."
   (let ((socket-fname (esh-client--server-running-p)))
     (when socket-fname
       (signal-process (server-eval-at esh-client--server-name '(emacs-pid)) 'kill)
-      (delete-file socket-fname))))
+      (ignore-errors (delete-file socket-fname)))))
 
 ;;; Main entry point
 
@@ -180,7 +204,9 @@ it.  If a daemon is available, it is reused.  Originally, the
 only reason a daemon was needed was that it's hard to make Emacs'
 initial frame invisible.  Now, it's also used to make things
 faster."
-  (princ (esh-client--run (esh-client--rpc-latexify-form path))))
+  (esh-client--ensure-server) ;; To prevent progress messages from interleaving
+  (esh-client--with-progress-msg (format "Highlighting %S" path)
+    (princ (esh-client--run (esh-client--rpc-latexify-form path)))))
 
 (provide 'esh-client)
 ;;; esh-client.el ends here
