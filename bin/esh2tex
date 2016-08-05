@@ -71,8 +71,8 @@
            (esh-client-kill-server))
           ("--persist"
            (setq esh2tex--persist t))
-          ("--cask"
-           (setq esh-client-use-cask t))
+          ("--no-cask"
+           (setq esh-client-use-cask nil))
           ("--no-Q"
            (setq esh-client-pass-Q-to-server nil))
           (arg

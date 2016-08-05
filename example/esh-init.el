@@ -11,7 +11,7 @@
 ;; Define a variant of Emacs-Lisp-mode that prettifies symbols ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun pretty-emacs-lisp-mode ()
+(defun prettified-emacs-lisp-mode ()
   (emacs-lisp-mode)
   (setq-local prettify-symbols-alist '(("<=" . ?≤)
                                        ("or" . ?∨)
@@ -29,33 +29,42 @@
 ;; See https://github.com/cask/cask for more on managing Emacs packages
 ;; with Cask; it's a bit like virtualenvs for Python.
 
-;;; Coq
-
-(add-to-list 'load-path "~/.emacs.d/lisp/PG/generic/")
-(when (and (require 'proof-site nil t)
-           (require 'company-coq nil t))
-  (setq-default proof-splash-seen t)
-  (add-hook 'coq-mode-hook #'company-coq-mode))
-
-;;; Ur/Web
-
-(when (require 'urweb-mode)
-  (defun my-urweb-setup ()
-    (setq-local prettify-symbols-alist '(("::" . ?∷) ("=>" . ?⇒)))
-    (prettify-symbols-mode))
-  (add-hook 'urweb-mode-hook #'my-urweb-setup))
-
 ;;; Haskell
 
+(require 'haskell-mode nil t)
 (setq-default haskell-font-lock-symbols t)
 
 ;;; Racket
 
-(when (require 'racket-mode)
+(when (require 'racket-mode nil t)
   (defun my-racket-setup ()
     (setq-local prettify-symbols-alist '(("lambda" . ?λ)))
     (prettify-symbols-mode))
   (add-hook 'racket-mode-hook #'my-racket-setup))
+
+;;; Dafny
+
+(require 'dafny-mode nil t)
+
+;;; Coq
+
+;; This looks for a local install of Proof-General, because PG isn't on MELPA
+(add-to-list 'load-path "~/.emacs.d/lisp/PG/generic/")
+(when (and (require 'proof-site nil t)
+           (require 'company-coq nil t))
+  (setq-default proof-splash-seen t)
+  (defun prettified-coq-mode ()
+    (coq-mode)
+    (company-coq-mode)))
+
+;;; Ur/Web
+
+;; Not on MELPA
+;; (when (require 'urweb-mode nil t)
+;;   (defun my-urweb-setup ()
+;;     (setq-local prettify-symbols-alist '(("::" . ?∷) ("=>" . ?⇒)))
+;;     (prettify-symbols-mode))
+;;   (add-hook 'urweb-mode-hook #'my-urweb-setup))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Uncomment and edit the following to improve handling of fallback ;;

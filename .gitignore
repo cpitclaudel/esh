@@ -25,3 +25,4 @@
 *.log
 *.synctex.gz
 /todo.org
+/example/.cask/

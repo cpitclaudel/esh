@@ -40,7 +40,7 @@
   (file-name-directory esh-client--script-full-path)
   "Full path to directory of this script.")
 
-(defvar esh-client-use-cask nil
+(defvar esh-client-use-cask t
   "Whether to use `cask exec' to start the highlighting server.")
 
 (defvar esh-client-pass-Q-to-server t
@@ -150,16 +150,6 @@ client, to work around a bug in `emacsclient'."
 
 ;;; Server management
 
-(defun esh-client--ensure-server-1 ()
-  "Start server process."
-  (let* ((server-name-form `(setq server-name ,esh-client--server-name))
-         (emacs-cmdline `(,@(when esh-client-use-cask '("cask" "exec"))
-                          "emacs" ,@(when esh-client-pass-Q-to-server '("-Q"))
-                          "-L" ,esh-client--script-directory "-l" "esh-server"
-                          "--eval" ,(prin1-to-string server-name-form)
-                          "--daemon")))
-    (apply #'start-process "server" nil emacs-cmdline)))
-
 (defun esh-client--init-file-path ()
   "Find init file for current directory."
   (let* ((parent-dir (locate-dominating-file "." esh-client--init-file-name))
@@ -179,6 +169,20 @@ client, to work around a bug in `emacsclient'."
   (let* ((init-fpath (esh-client--init-file-path)))
     (esh-client--with-progress-msg (format "Loading %S" (esh-client--truncate-right init-fpath 25))
       (esh-client--run (esh-client--rpc-server-init-form (getenv "DISPLAY") init-fpath)))))
+
+(defun esh-client--use-cask ()
+  "Check whether cask should be used."
+  (and esh-client-use-cask (file-exists-p "Cask") (executable-find "cask")))
+
+(defun esh-client--ensure-server-1 ()
+  "Start server process."
+  (let* ((server-name-form `(setq server-name ,esh-client--server-name))
+         (emacs-cmdline `(,@(when (esh-client--use-cask) '("cask" "exec"))
+                          "emacs" ,@(when esh-client-pass-Q-to-server '("-Q"))
+                          "-L" ,esh-client--script-directory "-l" "esh-server"
+                          "--eval" ,(prin1-to-string server-name-form)
+                          "--daemon")))
+    (apply #'start-process "server" nil emacs-cmdline)))
 
 (defun esh-client--ensure-server ()
   "Ensure that an ESH server is running."

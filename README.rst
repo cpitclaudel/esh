@@ -110,10 +110,12 @@ Options
   Leave server running after processing ``<input>``.  Don't forget to
   ``--kill-server`` if you make changes to your configuration!
 
-* ``--cask``
+* ``--no-cask``
 
-  Use ``cask exec emacs`` instead of ``emacs`` to start the
-  syntax-highlighting subprocess.
+  Normally, when the current directory contains a Cask file and the cask binary
+  is in your path, ESH uses ``cask exec emacs`` instead of ``emacs`` to start
+  the syntax-highlighting daemon.  With this option, ESH will stick to using
+  the plain ``emacs``.
 
 * ``--no-Q``
 
