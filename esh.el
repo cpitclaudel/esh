@@ -408,7 +408,8 @@ the required mode isn't available.  INLINE is passed to
 % \\ESHBlockBasicSetup is used by \\ESHBlock
 \\providecommand*{\\ESHBlockBasicSetup}{%
   \\setlength{\\parindent}{0pt}\\setlength{\\parskip}{0pt}
-  \\obeylines\\ESHObeySpaces\\ESHNoHyphens\\ESHFont}
+  \\obeylines\\ESHObeySpaces\\ESHNoHyphens\\ESHFont
+  \\spaceskip=\\fontdimen2\\font\\xspaceskip=0pt}
 
 \\makeatletter
 % \\ESHSkip is the amount to skip before and after an ESHBlock
