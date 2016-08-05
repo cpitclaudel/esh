@@ -195,7 +195,7 @@ about underful hboxes)."
 
 ;;; Producing LaTeX
 
-(defvar esh--latex-props '(display newline bol-blank))
+(defvar esh--latex-props '(display invisible newline))
 (defvar esh--latex-face-attrs '(:underline :foreground :weight :slant))
 
 (defvar esh--latex-specials '(?\\ ?^ ?$ ?~ ?% ?& ?{ ?} ?_ ?#))
@@ -256,35 +256,36 @@ about underful hboxes)."
         (props-alist (esh--extract-props esh--latex-props span))
         (attrs-alist (esh--extract-face-attributes esh--latex-face-attrs span)))
     (pcase-dolist (`(,attribute . ,val) (esh--filter-cdr 'unspecified attrs-alist))
-      (setq template
-            (pcase attribute
-              (:foreground
-               (setq val (esh--normalize-color val))
-               (if val (format "\\textcolor[HTML]{%s}{%s}" val template)
-                 template))
-              (:weight
-               (format (pcase (esh--normalize-weight val)
-                         (`light "\\textlf{%s}")
-                         (`regular "\\textmd{%s}")
-                         (`bold "\\textbf{%s}")
-                         (_ (error "Unexpected weight %S" val)))
-                       template))
-              (:slant
-               (format (pcase val
-                         (`italic "\\textit{%s}")
-                         (`oblique "\\textsl{%s}")
-                         ((or `normal `roman) "\textrm{%s}")
-                         (_ (error "Unexpected slant %S" val)))
-                       template))
-              (:underline
-               (format (pcase (esh--normalize-underline val)
-                         ;; FIXME colored waves
-                         (`(_ . wave) "\\uwave{%s}")
-                         (`(nil . line) "\\uline{%s}")
-                         (`(color . line) "\\colorlet{saved}{.}\\uline{\\color{saved}%s}")
-                         (_ (error "Unexpected underline %S" val)))
-                       template))
-              (_ (error "Unexpected attribute %S" attribute)))))
+      (when val
+        (setq template
+              (pcase attribute
+                (:foreground
+                 (setq val (esh--normalize-color val))
+                 (if val (format "\\textcolor[HTML]{%s}{%s}" val template)
+                   template))
+                (:weight
+                 (format (pcase (esh--normalize-weight val)
+                           (`light "\\textlf{%s}")
+                           (`regular "\\textmd{%s}")
+                           (`bold "\\textbf{%s}")
+                           (_ (error "Unexpected weight %S" val)))
+                         template))
+                (:slant
+                 (format (pcase val
+                           (`italic "\\textit{%s}")
+                           (`oblique "\\textsl{%s}")
+                           (`normal "\\textup{%s}")
+                           (_ (error "Unexpected slant %S" val)))
+                         template))
+                (:underline
+                 (format (pcase (esh--normalize-underline val)
+                           ;; FIXME colored waves
+                           (`(_ . wave) "\\uwave{%s}")
+                           (`(nil . line) "\\uline{%s}")
+                           (`(color . line) "\\colorlet{saved}{.}\\uline{\\color{saved}%s}")
+                           (_ (error "Unexpected underline %S" val)))
+                         template))
+                (_ (error "Unexpected attribute %S" attribute))))))
     (pcase-dolist (`(,property . ,val) (esh--filter-cdr nil props-alist))
       (pcase property
         (`display
@@ -295,9 +296,8 @@ about underful hboxes)."
                             "\\textsubscript{%s}"))
                          (_ (error "Unexpected display property %S" val)))
                        template)))
-        (`bol-blank
-         ;; Add a discretionary hyphen to prevent TeX from swallowing blanks
-         (setq template (concat "\\-" template)))
+        (`invisible
+         (when val (setq latex-str "")))
         (`newline
          ;; Ensure that no newlines are added inside commands (instead the
          ;; newline is added to the end of the template), and add an mbox to
