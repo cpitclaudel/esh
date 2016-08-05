@@ -30,8 +30,9 @@ compilable by people who don't have ESH.
 Setup
 =====
 
-Clone the repository somewhere, and add ``<wherever>/bin`` to your path.  This
-program is tested only on GNU/Linux.
+Clone the repository somewhere, and add ``<wherever>/bin`` to your path
+(alternatively, just use ``<wherever>/bin/esh2tex`` every time).  This program
+is tested only on GNU/Linux.
 
 
 Quickstart
@@ -79,14 +80,14 @@ Additionally, ``<input>`` should include a special comment::
 
   %% ESH-preamble-here
 
-in its preamble, which esh2tex will replace by appropriate set-up code
+in its preamble, which ``esh2tex`` will replace by appropriate set-up code
 (``\usepackage``, definition of ``ESHBlock``, etc.).
 
 
 You can enable highlighting of specific inline macros using the following
 special comment::
 
-  %% ESH-inline: <mode> <pattern mentionning '...'>
+  %% ESH-inline: <mode> <pattern mentioning '...'>
 
 For example::
 
@@ -119,9 +120,11 @@ Options
 
 * ``--no-Q``
 
-  Load your full Emacs configuration instead of an ``esh-init.el`` file.  Use
+  Load your full Emacs configuration instead of the ``esh-init.el`` file.  Use
   this option with caution; there are subtle differences between ESH and a
   regular Emacs that can prevent your Emacs configuration from loading properly.
+  In general, it's much better to extract just what you need from your
+  ``.emacs`` and put it in an ``esh-init.el``, as described below.
 
 * ``--debug-on-error``
 
@@ -130,10 +133,10 @@ Options
 Notes
 =====
 
-* esh2tex does not load your personal Emacs configuration (though see the
-  ``--no-Q`` option); instead, it looks for a file named esh-init.el in the
-  current directory, one of its parents, or ~/.emacs.d/.  You can use that file
-  to chose a different theme, load packages (though see also the ``--cask``
+* ``esh2tex`` does not load your personal Emacs configuration (though see the
+  ``--no-Q`` option); instead, it looks for a file named ``esh-init.el`` in the
+  current directory, one of its parents, or ``~/.emacs.d/``.  You can use that
+  file to chose a different theme, load packages (see also the ``--cask``
   option), etc.
 
 * Starting a server can be slow if your configuration file is large.  Use
@@ -188,6 +191,17 @@ Here are a few examples of inline environments:
 Adding these lines to your preamble let's you use ``\pythonverb|yield 1|`` or
 ``\cppverb|*p++ = !*q++|`` in the body of your document.  With plain ``xelatex``
 these will be rendered verbatim, and with ``esh2tex`` they will be highlighted.
+
+Installing extra packages
+-------------------------
+
+If the languages that you want to highlight are not supported by Emacs out of
+the box, use `Cask <https://github.com/cask/cask>`_ to install ELPA and MELPA
+packages locally.  This is much cleaner and more stable than loading your full
+Emacs configuration (Cask is to Emacs Lisp what VirtualEnv is to Python).
+
+The repo's ``example/`` directory uses a Cask file to manage external
+dependencies.
 
 Customizing the output
 ----------------------
