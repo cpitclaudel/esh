@@ -43,6 +43,14 @@
 (defvar esh-client-use-cask nil
   "Whether to use `cask exec' to start the highlighting server.")
 
+(defvar esh-client-pass-Q-to-server t
+  "Whether to pass -Q to the server.")
+
+(defvar esh-client-debug-server nil
+  "Whether to print backtraces produced by the server.")
+
+;;; Utils
+
 (defun esh-client--server-running-p ()
   "Check if the ESH server is running."
   (let* ((server-use-tcp nil)
@@ -54,16 +62,61 @@
   (while (process-live-p proc)
     (accept-process-output proc 0 10)))
 
-(defun esh-client--wrap-form (form dest)
-  "Wrap FORM to save its output to file DEST."
-  `(with-temp-buffer
-     (insert (prin1-to-string ,form))
-     (write-region (point-min) (point-max) ,dest)))
+;;; RPC forms
+
+(defun esh-client--rpc-eval-form (form dest)
+  "Construct a form to eval FORM on server.
+Output of FORM is saved to DEST."
+  `(esh-server-eval ',form ,dest))
+
+;; FIXME remove
+;; (defun esh-client--rpc-server-pre-init-form ()
+;;   "Export current load path to ESH server.
+;; No error checking here, but we don't expect this to run through
+;; esh-server-eval, since it won't have been loaded yet."
+;;   `(;; Load path needed to find `esh-server'
+;;     (setq load-path (append load-path ,load-path))
+;;     (require 'esh-server)))
+
+(defun esh-client--rpc-server-init-form (display &optional prelude)
+  "Construct a form to initialize the ESH server.
+DISPLAY and PRELUDE are forwarded."
+  `(progn
+     (esh-server-init ,display ,prelude)))
+
+(defun esh-client--rpc-latexify-form (path)
+  "Construct a form to latexify PATH on server."
+  `(esh-server-latexify ,path))
+
+;;; Running forms on server
 
 (defun esh-client--run-1 (form)
-  "Start client process for FORM."
-  (start-process "client" (current-buffer) "emacsclient"
-                 "-s" esh-client--server-name "--eval" (prin1-to-string form)))
+  "Start client process for FORM.
+Errors in client's output are signaled."
+  (with-temp-buffer
+    (let ((proc (start-process "client" (current-buffer)
+                               "emacsclient" "-s" esh-client--server-name
+                               "--eval" (prin1-to-string form))))
+      (esh-client--busy-wait proc)
+      (esh-client--die-if-rpc-failed))))
+
+(defun esh-client--die-if-rpc-failed ()
+  "Check if client response is *ERROR*, and throw if so."
+  ;; Should not happen: `esh-server-eval' captures all errors
+  (goto-char (point-min))
+  (when (looking-at-p "\\*ERROR\\*:")
+    (error "%s" (buffer-string))))
+
+(defun esh-client--read-server-response (fpath)
+  "Read server response from FPATH."
+  (with-temp-buffer
+    (insert-file-contents fpath)
+    (pcase (read (buffer-string))
+      (`(success ,retv) retv)
+      (`(error ,err ,backtrace)
+       (error "ESH error: %S\n%s" err
+              (if esh-client-debug-server backtrace
+                ">> Run esh2tex with --debug-server to see a stack trace."))))))
 
 (defun esh-client--run (form)
   "Run FORM on ESH server.
@@ -73,55 +126,34 @@ client, to work around a bug in `emacsclient'."
   (let* ((fname (make-temp-name "esh-server-output"))
          (fpath (expand-file-name fname temporary-file-directory)))
     (unwind-protect
-        (with-temp-buffer
-          (let* ((client-proc (esh-client--run-1 (esh-client--wrap-form form fpath))))
-            (esh-client--busy-wait client-proc)
-            (goto-char (point-min))
-            (if (looking-at-p "\\*ERROR\\*:")
-                (error "%s" (buffer-string))
-              (with-temp-buffer
-                (insert-file-contents fpath)
-                (read (buffer-string))))))
+        (progn
+          (esh-client--run-1 (esh-client--rpc-eval-form form fpath))
+          (esh-client--read-server-response fpath))
       (ignore-errors (delete-file fpath)))))
+
+;;; Server management
 
 (defun esh-client--ensure-server-1 ()
   "Start server process."
   (let* ((server-name-form `(setq server-name ,esh-client--server-name))
-         (emacs-cmdline `(,@(if esh-client-use-cask '("cask" "exec")) "emacs" "-Q"
+         (emacs-cmdline `(,@(when esh-client-use-cask '("cask" "exec"))
+                          "emacs" ,@(when esh-client-pass-Q-to-server '("-Q"))
+                          "-L" ,esh-client--script-directory "-l" "esh-server"
                           "--eval" ,(prin1-to-string server-name-form)
                           "--daemon")))
     (apply #'start-process "server" nil emacs-cmdline)))
 
-(defun esh-client--server-init-form (server-load-path display &optional prelude)
-  "Initialize the ESH server.
-Inherit SERVER-LOAD-PATH, then create an invisible frame on DISPLAY
-after loading PRELUDE."
-  `(progn
-     ;; Load path still needed to find `esh'
-     (setq load-path (append load-path ',server-load-path))
-     (require 'esh)
-     (when ,prelude (load-file ,prelude))
-     (setq esh--server-frame (make-frame '((window-system . x)
-                                           (display . ,display)
-                                           (visibility . nil))))
-     t))
-
-(defun esh-client--default-init-file ()
-  "Locate the default init file."
-  (expand-file-name "esh-init.el" esh-client--script-directory))
-
-(defun esh-client--init-file ()
+(defun esh-client--init-file-path ()
   "Find init file for current directory."
   (let* ((parent-dir (locate-dominating-file "." esh-client--init-file-name))
          (fpath (expand-file-name esh-client--init-file-name (or parent-dir user-emacs-directory))))
     (if (file-exists-p fpath)
         fpath
-      (esh-client--default-init-file))))
+      (expand-file-name esh-client--init-file-name esh-client--script-directory))))
 
 (defun esh-client--init-server ()
   "Initialize ESH server."
-  (let ((init-fpath (esh-client--init-file)))
-    (esh-client--run (esh-client--server-init-form load-path (getenv "DISPLAY") init-fpath))))
+  (esh-client--run (esh-client--rpc-server-init-form (getenv "DISPLAY") (esh-client--init-file-path))))
 
 (defun esh-client--ensure-server ()
   "Ensure that an ESH server is running."
@@ -139,11 +171,7 @@ after loading PRELUDE."
       (signal-process (server-eval-at esh-client--server-name '(emacs-pid)) 'kill)
       (delete-file socket-fname))))
 
-(defun esh-client--latexify-batch-form (path)
-  "Construct a ELisp form to latexify PATH."
-  `(progn
-     (with-selected-frame esh--server-frame
-       (esh-latexify-file ,path))))
+;;; Main entry point
 
 (defun esh-client-latexify-batch (path)
   "Latexify PATH.
@@ -152,7 +180,7 @@ it.  If a daemon is available, it is reused.  Originally, the
 only reason a daemon was needed was that it's hard to make Emacs'
 initial frame invisible.  Now, it's also used to make things
 faster."
-  (princ (esh-client--run (esh-client--latexify-batch-form path))))
+  (princ (esh-client--run (esh-client--rpc-latexify-form path))))
 
 (provide 'esh-client)
 ;;; esh-client.el ends here

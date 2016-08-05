@@ -64,12 +64,17 @@
         (pcase (pop argv)
           ("--usage"
            (princ (esh2tex--help)))
+          ("--debug-on-error"
+           (setq debug-on-error t)
+           (setq esh-client-debug-server t))
           ("--kill-server"
            (esh-client-kill-server))
           ("--persist"
            (setq esh2tex--persist t))
           ("--cask"
            (setq esh-client-use-cask t))
+          ("--no-Q"
+           (setq esh-client-pass-Q-to-server nil))
           (arg
            (if argv
                (error (concat "esh2tex: Unexpected argument %S") arg)

@@ -121,6 +121,9 @@ Options
   this option with caution; there are subtle differences between ESH and a
   regular Emacs that can prevent your Emacs configuration from loading properly.
 
+* ``--debug-on-error``
+
+  Print stack traces for errors.
 
 Notes
 =====

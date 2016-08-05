@@ -224,14 +224,13 @@ swallowing bol white space."
 
 (defun esh--escape-for-latex (str)
   "Escape LaTeX special characters in STR."
-  (setq str (with-temp-buffer
-              (insert (substring-no-properties str))
-              (pcase-dolist (`(,from . ,to) (esh--latex-substitutions))
-                (goto-char (point-min))
-                (while (re-search-forward from nil t)
-                  (replace-match to t)))
-              (buffer-substring-no-properties
-               (point-min) (point-max))))
+  (with-temp-buffer
+    (insert (substring-no-properties str))
+    (pcase-dolist (`(,from . ,to) (esh--latex-substitutions))
+      (goto-char (point-min))
+      (while (re-search-forward from nil t)
+        (replace-match to t)))
+    (setq str (buffer-substring-no-properties (point-min) (point-max))))
   (esh--wrap-symbols str))
 
 (defun esh--normalize-underline (underline)
@@ -500,9 +499,6 @@ groups."
     (insert-file-contents path)
     (esh2tex-current-buffer)
     (buffer-string)))
-
-(defvar esh--server-frame nil
-  "Global variable holding the invisible ESH frame.")
 
 (provide 'esh)
 ;;; esh.el ends here
