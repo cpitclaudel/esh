@@ -9,7 +9,7 @@
 % Load a few packages %
 %%%%%%%%%%%%%%%%%%%%%%%
 
-\usepackage[margin=0.85in]{geometry}
+\usepackage[margin=0.8in]{geometry}
 
 %%%%%%%%%%%%%%%%%%%%%%
 % *Load custom fonts %
@@ -49,7 +49,7 @@
 %%%%%%%%%%%%%%%%%%%%%%
 
 \newlength{\ESHSkip}
-\setlength{\ESHSkip}{1.25\baselineskip}
+\setlength{\ESHSkip}{0.8\baselineskip}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
 % *Customize environments %
@@ -69,7 +69,7 @@
 \newenvironment{ESHBlock}{%
   \ESHBlockBasicSetup\par\addvspace{\ESHSkip}\hrule\addvspace{0.5em}%
 }{%
-  \par\addvspace{0.5em}\hrule\addvspace{\ESHSkip}
+  \par\addvspace{0.5em}\hrule\addvspace{2\ESHSkip}
 }
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
@@ -103,31 +103,19 @@
 #if defined HAVE_X_WINDOWS && defined USE_X_TOOLKIT
 
 /* Make menus on frame F appear as specified by the `menu' face.  */
-
 static void
 x_update_menu_appearance (struct frame *f)
 {
   struct x_display_info *dpyinfo = FRAME_DISPLAY_INFO (f);
   XrmDatabase rdb;
 
-  if (dpyinfo
-      && (rdb = XrmGetDatabase (FRAME_X_DISPLAY (f)),
-      rdb != NULL))
+  if (dpyinfo && (rdb = XrmGetDatabase (FRAME_X_DISPLAY (f)), rdb != NULL))
     {
       char line[512];
       char *buf = line;
       ptrdiff_t bufsize = sizeof line;
       Lisp_Object lface = lface_from_face_name (f, Qmenu, true);
       struct face *face = FACE_FROM_ID (f, MENU_FACE_ID);
-      const char *myname = SSDATA (Vx_resource_name);
-      bool changed_p = false;
-#ifdef USE_MOTIF
-      const char *popup_path = "popup_menu";
-#else
-      const char *popup_path = "menu.popup";
-#endif
-
-      if (STRINGP (LFACE_FOREGROUND (lface)))
 \end{verbatim}
 
 \section*{Emacs lisp (source: \texttt{esh.el} in this library)}
@@ -148,31 +136,12 @@ x_update_menu_appearance (struct frame *f)
 (defun esh--filter-cdr (val alist)
   "Remove conses in ALIST whose `cdr' is VAL."
   (seq-filter (lambda (pair) (not (eq (cdr pair) val))) alist))
-
-(defun esh--extract-props (props str)
-  "Read PROPS from STR as an ALIST or (PROP . VAL)."
-  (seq-map (lambda (prop)
-             (cons prop (get-text-property 0 prop str)))
-           props))
 \end{verbatim}
-
-\clearpage
 
 \section*{Python (source: \texttt{monospacifier.py})}
 
 %% ESH: python-mode
 \begin{verbatim}
-class GlyphScaler(object):
-    def __init__(self, cell_width):
-        self.cell_width = cell_width
-
-    @staticmethod
-    def set_width(glyph, width):
-        delta = width - glyph.width
-        glyph.left_side_bearing += delta / 2
-        glyph.right_side_bearing += delta - glyph.left_side_bearing
-        glyph.width = width
-
 class AllowWideCharsGlyphScaler(GlyphScaler):
     def __init__(self, cell_width, avg_width):
         """Construct instance based on target CELL_WIDTH and source AVG_WIDTH."""
@@ -183,21 +152,18 @@ class AllowWideCharsGlyphScaler(GlyphScaler):
         if glyph.width > 0:
             new_width_in_cells = int(math.ceil(0.75 * glyph.width / self.avg_width))
             # if new_width_in_cells > 1:
-            #     print("{} is {} cells wide ({} -> {})".format(
-            #         glyph.glyphname, new_width_in_cells, self.cell_width, glyph.width))
+            #     print("{} is {} cells wide ({} -> {})".format(...))
             GlyphScaler.set_width(glyph, new_width_in_cells * self.cell_width)
 \end{verbatim}
+
+\clearpage
 
 \section*{Perl (source: YAGOpt)}
 
 %% ESH: perl-mode
 \begin{verbatim}
-#Yet Another Getopt Routine In Perl
-# jgreely@cis.ohio-state.edu, 89/11/1
-#usage:
 #&getopt("f:bar") ||
 #	die &usage("script","f:bar","oo","[files ...]");
-
 sub getopt {
     local($_,$flag,$opt,$f,$r,@temp) = @_;
     @temp = split(/(.):/);
@@ -211,13 +177,26 @@ sub getopt {
         if (index($flag,$f) >= $[) {
             eval "\$opt_$f++;";
             $r =~ /^(.)(.*)/,redo if $r ne '';
-        } elsif (index($opt,$f) >= $[) {
-            $r = $r eq '' ? shift(@ARGV) : $r;
-            eval "\$opt_$f = \$r;";
-        } else {
 \end{verbatim}
 
-\clearpage
+\section*{Ruby (source: \texttt{parser.rb} in Ruby's standard library)}
+
+%% ESH: ruby-mode
+\begin{verbatim}
+class NotWellFormedError < Error
+  attr_reader :line, :element
+
+  # Create a new NotWellFormedError for an error at +line+
+  # in +element+.
+  def initialize(line=nil, element=nil)
+    message = "This is not well formed XML"
+    if element or line
+      message << "\nerror occurred"
+      message << " in #{element}" if element
+    end
+    message << "\n#{yield}" if block_given?
+    super(message)
+\end{verbatim}
 
 \section*{Misc}
 
@@ -244,6 +223,8 @@ ESH allows line breaks to happen within inline code snippets (here is an example
 (defun esh--normalize-color (color) (upcase (if (= (aref color 0) ?#) color (apply #'color-rgb-to-hex (color-name-to-rgb color)))))
 \end{verbatim}
 
+\clearpage
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % The following requires additional packages %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -266,16 +247,6 @@ instance Monoid a => Monoid (Dual a) where
         mempty = Dual mempty
         Dual x `mappend` Dual y = Dual (y `mappend` x)
 
-instance Functor Dual where
-    fmap     = coerce
-
-instance Applicative Dual where
-    pure     = Dual
-    (<*>)    = coerce
-
-instance Monad Dual where
-    m >>= k  = k (getDual m)
-
 -- | The monoid of endomorphisms under composition.
 newtype Endo a = Endo { appEndo :: a -> a }
                deriving (Generic)
@@ -285,28 +256,43 @@ instance Monoid (Endo a) where
         Endo f `mappend` Endo g = Endo (f . g)
 \end{verbatim}
 
-\clearpage
-
 \subsection*{Racket (source: \texttt{misc.rkt} in Racket's standard library)}
 
 %% ESH: racket-mode
 \begin{verbatim}
-  (define-syntax define-syntax-rule
-    (lambda (stx)
-      (let-values ([(err) (lambda (what . xs)
-                            (apply raise-syntax-error
-                                   'define-syntax-rule what stx xs))])
-        (syntax-case stx ()
-          [(dr (name . pattern) template)
-           (identifier? #'name)
-           (syntax/loc stx
-             (define-syntax name
-               (lambda (user-stx)
-                 (syntax-case** dr #t user-stx () free-identifier=? #f
-                   [(_ . pattern) (syntax-protect (syntax/loc user-stx template))]
-                   [_ (pattern-failure user-stx 'pattern)]))))]
-          [(_ (name . ptrn) tmpl)         (err "expected an identifier" #'name)]
+(define-syntax define-syntax-rule
+  (lambda (stx)
+    (let-values ([(err) (lambda (what . xs) (apply raise-syntax-error
+                                              'define-syntax-rule what stx xs))])
+      (syntax-case stx ()
+        [(dr (name . pattern) template)
+         (identifier? #'name)
+         (syntax/loc stx
+           (define-syntax name
+             (lambda (user-stx)
+               (syntax-case** dr #t user-stx () free-identifier=? #f
+                 [(_ . pattern) (syntax-protect (syntax/loc user-stx template))]
+                 [_ (pattern-failure user-stx 'pattern)]))))]
 \end{verbatim}
+
+\subsection*{OCaml (source: \texttt{genlex.ml} in OCaml's standard library)}
+
+%% ESH: tuareg-mode
+\begin{verbatim}
+(** The lexer **)
+let make_lexer keywords =
+  let kwd_table = Hashtbl.create 17 in
+  List.iter (fun s -> Hashtbl.add kwd_table s (Kwd s)) keywords;
+  let ident_or_keyword id =
+    try Hashtbl.find kwd_table id with
+      Not_found -> Ident id
+  and keyword_or_error c =
+    let s = String.make 1 c in
+    try Hashtbl.find kwd_table s with
+      Not_found -> raise (Stream.Error ("Illegal character " ^ s))
+\end{verbatim}
+
+\clearpage
 
 \subsection*{Dafny (source: \texttt{DutchFlag.dfy} in Dafny's repo)}
 
@@ -328,25 +314,46 @@ method DutchFlag(a: array<Color>)
           r, w := r + 1, w + 1;
 \end{verbatim}
 
-\subsection*{Coq (source: \texttt{Between.v} in Coq's standard library)}
+\subsection*{Coq (source: \texttt{ExtendedLemmas.v} in Fiat)}
 
 %% ESH: prettified-coq-mode
 \begin{verbatim}
-Implicit Types k l p q r : nat.
+Lemma ProgOk_Chomp_lemma :
+  forall `{FacadeWrapper (Value av) A} (ev: Env av) (key: StringMap.key)
+    (prog: Stmt) (tail1 tail2: A -> Telescope av) ex (v: A),
+    key ∉ ex ->
+    ({{ tail1 v }} prog {{ tail2 v }} ∪ {{ [key |> wrap v] :: ex }} // ev <->
+     {{ [[`key ->> v as vv]]::tail1 vv }} prog {{ [[`key ->> v as vv]]::tail2 vv }} ∪ {{ ex }} // ev).
+Proof.
+  repeat match goal with
+         | _ => tauto
+         | _ => progress (intros || split)
+         | [ H: ?a /\ ?b |- _ ] => destruct H
+         | [ H: ?a ≲ Cons _ _ _ ∪ _ |- _ ] => learn (Cons_PushExt _ _ _ _ _ H)
+         | [ H: ProgOk ?fmap _ _ ?t1 ?t2, H': _ ≲ ?t1 ∪ ?fmap |- _ ] => destruct (H _ H'); no_dup
+         | [ H: RunsTo _ _ ?from ?to, H': forall st, RunsTo _ _ ?from st -> _ |- _ ] => specialize (H' _ H)
+         | [ H: _ ≲ _ ∪ [_ |> _] :: _ |- _ ] => apply Cons_PopExt in H
+         end.
+Qed.
+\end{verbatim}
 
-Section Between.
-  Variables P Q : nat -> Prop.
+\subsection*{F* (source: \texttt{Handshake.fst} in miTLS)}
 
-  Inductive between k : nat -> Prop :=
-    | bet_emp : between k k
-    | bet_S : forall l, between k l -> P l -> between k (S l).
+%% ESH: fstar-mode
+\begin{verbatim}
+val processServerFinished: KeySchedule.ks -> HandshakeLog.log -> (hs_msg * bytes) -> ST (result bytes)
+  (requires (fun h -> True))
+  (ensures (fun h_0 i h_1 -> True))
 
-  Hint Constructors between: arith v62.
-
-  Lemma bet_eq : forall k1 k2, k1 = k2 -> between k1 k2.
-  Proof.
-    induction 1; auto with arith.
-  Qed.
+let processServerFinished ks log (m, l) =
+   match m with
+   | Finished (f) ->
+     let svd = KeySchedule.ks_client_12_server_finished ks in
+     if (equalBytes svd f.fin_vd) then
+        let _ = log @@ (Finished (f)) in
+    Correct svd
+     else Error (AD_decode_error, "Finished MAC did not verify")
+   | _ -> Error (AD_decode_error, "Unexpected state")
 \end{verbatim}
 
 \clearpage

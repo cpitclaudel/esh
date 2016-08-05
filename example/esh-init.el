@@ -1,11 +1,8 @@
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Use a palette suitable for red/green color-blind users. ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;
+;; Load a color theme ;;
+;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; The color palette is from B. Wong, Nature Methods 8, 441 (2011).
-;; It is intended to provide good variability while being easily
-;; differentiated by individuals with protanopia or deuteranopia.
-(load-theme 'dichromacy t)
+(load-theme 'tango t)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Define a variant of Emacs-Lisp-mode that prettifies symbols ;;
@@ -13,11 +10,9 @@
 
 (defun prettified-emacs-lisp-mode ()
   (emacs-lisp-mode)
-  (setq-local prettify-symbols-alist '(("<=" . ?≤)
-                                       ("or" . ?∨)
-                                       ("/+/" . ?⊕)
-                                       ("lambda" . ?λ)
-                                       ("approx=" . ?≈)))
+  (setq-local prettify-symbols-alist
+              '(("<=" . ?≤) ("or" . ?∨) ("/+/" . ?⊕)
+                ("lambda" . ?λ) ("approx=" . ?≈)))
   (prettify-symbols-mode))
 
 
@@ -46,13 +41,26 @@
 
 (require 'dafny-mode nil t)
 
+;;; F*
+
+(require 'fstar-mode nil t)
+
+;;; OCaml
+
+(when (require 'tuareg nil t)
+  (defun my-tuareg-setup ()
+    (setq-local prettify-symbols-alist '(("fun" . ?λ) ("->" . ?→)))
+    (prettify-symbols-mode))
+  (add-hook 'tuareg-mode-hook #'my-tuareg-setup))
+
 ;;; Coq
 
 ;; This looks for a local install of Proof-General, because PG isn't on MELPA
 (add-to-list 'load-path "~/.emacs.d/lisp/PG/generic/")
 (when (and (require 'proof-site nil t)
            (require 'company-coq nil t))
-  (setq-default proof-splash-seen t)
+  (setq-default proof-splash-seen t
+                company-coq-local-symbols '(("->>" . ?↦) ("|>" . ?▹)))
   (defun prettified-coq-mode ()
     (coq-mode)
     (company-coq-mode)))
