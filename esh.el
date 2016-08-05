@@ -108,7 +108,9 @@ Takes inheritance into account."
   (let* ((attr (esh--face-get face attribute))
          (rel-p (face-attribute-relative-p attribute attr))
          (inherit (esh--face-get face :inherit)))
-    (if (and rel-p (or (listp inherit) (facep inherit)))
+    (if (and rel-p
+             (not (eq inherit 'default))
+             (or (listp inherit) (facep inherit)))
         (let ((merge-with (esh--single-face-attribute inherit attribute)))
           (merge-face-attribute attribute attr merge-with))
       attr)))
