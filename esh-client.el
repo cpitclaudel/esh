@@ -76,17 +76,12 @@ Also, don't interact in weird ways with `message' (bug #24157)."
 
 (defun esh-client--rpc-eval-form (form dest)
   "Construct a form to eval FORM on server.
-Output of FORM is saved to DEST."
-  `(esh-server-eval ',form ,dest))
-
-;; FIXME remove
-;; (defun esh-client--rpc-server-pre-init-form ()
-;;   "Export current load path to ESH server.
-;; No error checking here, but we don't expect this to run through
-;; esh-server-eval, since it won't have been loaded yet."
-;;   `(;; Load path needed to find `esh-server'
-;;     (setq load-path (append load-path ,load-path))
-;;     (require 'esh-server)))
+Output of FORM is saved to DEST.  `esh-server' is required here
+instead of when starting the server due to the better error
+reporting (see docstring of `esh-client--ensure-server-1')."
+  `(progn
+     (require 'esh-server)
+     (esh-server-eval ',form ,dest)))
 
 (defun esh-client--rpc-server-init-form (display &optional prelude)
   "Construct a form to initialize the ESH server.
@@ -111,8 +106,10 @@ Errors in client's output are signaled."
       (esh-client--die-if-rpc-failed))))
 
 (defun esh-client--die-if-rpc-failed ()
-  "Check if client response is *ERROR*, and throw if so."
-  ;; Should not happen: `esh-server-eval' captures all errors
+  "Check if client response is *ERROR*, and throw if so.
+This should only happen for very early errors, such as errors
+while loading `esh-server'.  Other errors are captured and
+properly returned by the server."
   (goto-char (point-min))
   (when (looking-at-p "\\*ERROR\\*:")
     (error "%s" (buffer-string))))
@@ -170,12 +167,21 @@ client, to work around a bug in `emacsclient'."
   "Check whether cask should be used."
   (and esh-client-use-cask (file-exists-p "Cask") (executable-find "cask")))
 
+(defun esh-client--find-emacs ()
+  "Find Emacs binary."
+  (or (getenv "EMACS") "emacs"))
+
 (defun esh-client--ensure-server-1 ()
-  "Start server process."
+  "Start server process.
+This passes a -L arg to make it possible to load `esh-server',
+but it doesn't load it immediately (neither with -l or with
+--eval): errors while loading the daemon cause it to never
+return.  Instead, the client passes (require 'esh-server) before
+each `esh-server-eval' query."
   (let* ((server-name-form `(setq server-name ,esh-client--server-name))
          (emacs-cmdline `(,@(when (esh-client--use-cask) '("cask" "exec"))
-                          "emacs" ,@(when esh-client-pass-Q-to-server '("-Q"))
-                          "-L" ,esh-client--script-directory "-l" "esh-server"
+                          ,(esh-client--find-emacs) ,@(when esh-client-pass-Q-to-server '("-Q"))
+                          "-L" ,esh-client--script-directory ;; no -l esh-server
                           "--eval" ,(prin1-to-string server-name-form)
                           "--daemon")))
     (apply #'start-process "server" nil emacs-cmdline)))
