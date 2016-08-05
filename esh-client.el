@@ -22,9 +22,6 @@
 
 ;;; Code:
 
-;; Can only use built-in packages in esh-cli and esh-client, because ‘cask exec’
-;; is slow.  On server, it's fine to use cask-loaded dependencies.
-
 (require 'server) ;; That's Emacs' server
 
 (defconst esh-client--server-name "esh--server")

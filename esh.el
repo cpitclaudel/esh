@@ -3,7 +3,7 @@
 ;; Copyright (C) 2016  Clément Pit-Claudel
 
 ;; Author: Clément Pit-Claudel <clement.pitclaudel@live.com>
-;; Package-Requires: ((stream "2.2") (seq "2.18") (dash "2.12"))
+;; Package-Requires: ((emacs "24.3"))
 ;; Package-Version: 0.1
 ;; Keywords: faces
 ;; URL: https://github.com/cpitclaudel/esh2tex
@@ -30,9 +30,8 @@
 
 ;;; Code:
 
-(require 'seq)
+;; Can't depend on anything outside of core Emacs
 (require 'color)
-(require 'subr-x)
 
 ;;; Misc utils
 
@@ -45,53 +44,27 @@
 
 (defun esh--filter-cdr (val alist)
   "Remove conses in ALIST whose `cdr' is VAL."
-  (seq-filter (lambda (pair) (not (eq (cdr pair) val))) alist))
+  ;; This is essentially seq-filter
+  (let ((kept nil))
+    (while alist
+      (let ((top (pop alist)))
+        (when (not (eq (cdr top) val))
+          (push top kept))))
+    (nreverse kept)))
 
 (defun esh--extract-props (props str)
   "Read PROPS from STR as an ALIST or (PROP . VAL)."
-  (seq-map (lambda (prop)
-             (cons prop (get-text-property 0 prop str)))
-           props))
+  (mapcar (lambda (prop)
+            (cons prop (get-text-property 0 prop str)))
+          props))
 
 (defun esh--font-for-char (char)
   "Compute which font displays CHAR."
   (car (internal-char-font nil char)))
 
-;;; Stream functions
-
-;; We only use streams if available: this way, we don't have external
-;; dependencies, and thus we don't directly need Cask.
-
-(require 'stream nil t)
-
-(defmacro esh--stream-cons (hd tl)
-  "Make a stream of HD and TL."
-  `(if (fboundp 'stream-cons)
-       (stream-cons ,hd ,tl)
-     (cons ,hd ,tl)))
-
-(defun esh--stream-empty ()
-  "Return nil."
-  (if (fboundp 'stream-empty)
-      (stream-empty)
-    nil))
-
 ;;; Segmenting a buffer
 
 ;; FIXME this splits by properties including overlays, but then it ignores them
-
-;;; As a proper stream, this would probably work; as a list, however, the
-;;; recursion quickly exceeds max-lisp-eval-depth
-(defun esh--stream-buffer-ranges-from (start prop)
-  "Create a stream of buffer ranges from START.
-Ranges are pairs of START..END positions in which all characters
-have the same value of PROP or, if PROP is nil, of all
-properties."
-  (let ((end (if prop (next-single-char-property-change start prop)
-               (next-char-property-change start))))
-    (if (< start end)
-        (esh--stream-cons (cons start end) (esh--buffer-ranges-from end prop))
-      (esh--stream-empty))))
 
 (defun esh--buffer-ranges-from (start prop)
   "Create a stream of buffer ranges from START.
@@ -113,9 +86,9 @@ properties."
   "Create a stream of buffer spans.
 Buffer spans are ranges of text in which all characters have the
 same value of PROP or, if PROP is nil, of all properties."
-  (seq-map (lambda (pair)
-             (buffer-substring (car pair) (cdr pair)))
-           (esh--buffer-ranges-from 1 prop)))
+  (mapcar (lambda (pair)
+            (buffer-substring (car pair) (cdr pair)))
+          (esh--buffer-ranges-from 1 prop)))
 
 ;;; Merging faces
 
@@ -158,8 +131,8 @@ Faces is a list of (possibly anonymous) faces."
 
 (defun esh--extract-face-attributes (face-attributes text)
   "Extract FACE-ATTRIBUTES from TEXT."
-  (seq-map (apply-partially #'esh--str-face-attribute text)
-           face-attributes))
+  (mapcar (apply-partially #'esh--str-face-attribute text)
+          face-attributes))
 
 ;;; Removing composition
 
@@ -210,11 +183,11 @@ about underful hboxes)."
 (defun esh--wrap-symbols (str)
   "Wrap characters of STR that use a fallback font in \\ESHSpecialChar{}."
   (let ((ref-fonts (list nil (esh--font-for-char ?a))))
-    (seq-mapcat (lambda (chr)
-                  (if (memq (esh--font-for-char chr) ref-fonts)
-                      (char-to-string chr)
-                    (format "\\ESHSpecialChar{%c}" chr)))
-                str 'string)))
+    (mapcarcat (lambda (chr)
+                 (if (memq (esh--font-for-char chr) ref-fonts)
+                     (char-to-string chr)
+                   (format "\\ESHSpecialChar{%c}" chr)))
+               str 'string)))
 
 (defun esh--escape-for-latex (str)
   "Escape LaTeX special characters in STR."
@@ -452,7 +425,7 @@ This looks for `esh--latexify-inline-env-declaration-re'."
   (goto-char (point-min))
   (let ((envs nil))
     (while (re-search-forward esh--latexify-inline-env-declaration-re nil t)
-      (when (string-empty-p (match-string 1))
+      (when (string= "" (match-string 1))
         (error "Invalid ESH-inline declaration: %S" (match-string 0)))
       (let* ((mode (intern (match-string 1)))
              (def-string (regexp-quote (match-string 2)))
@@ -484,7 +457,7 @@ of (MODE . TEMP-BUFFER)."
     (while (re-search-forward old-start nil t)
       (goto-char (match-end 0))
       (set-marker code-start (point))
-      (when (string-empty-p (match-string-no-properties 1))
+      (when (string= "" (match-string-no-properties 1))
         (error "Invalid ESH header: %S" (match-string-no-properties 0)))
       (let ((mode-fn (intern (match-string-no-properties 1)))
             (old-end (cond ((stringp old-end) old-end)
@@ -521,7 +494,7 @@ groups."
                   (esh--latexify-do-block-envs code-start code-end temp-buffers)))
         (set-marker code-start nil)
         (set-marker code-end nil)
-        (seq-map (lambda (p) (kill-buffer (cdr p))) temp-buffers)))))
+        (mapcar (lambda (p) (kill-buffer (cdr p))) temp-buffers)))))
 
 (defun esh-latexify-file (path)
   "Fontify contents of all esh environments in PATH."
