@@ -422,8 +422,8 @@ the required mode isn't available.  INLINE is passed to
 \\makeatother")
 
 (defvar esh-latexify-block-envs
-  `(("^[ \t]*%%[ \t]*ESH: \\([-+a-zA-Z]+\\)[ \t]*\n[ \t]*\\\\begin{\\([^}]+\\)}.*$" "\\begin{ESHBlock}"
-     ,(lambda () (concat "^[ \t]*\\\\end{" (match-string 2) "}")) "\\end{ESHBlock}"))
+  `(("^[ \t]*%%[ \t]*ESH: \\([-+a-zA-Z]+\\)[ \t]*\n[ \t]*\\\\begin{\\([^}]+\\)}.*\n" "\\begin{ESHBlock}\n"
+     ,(lambda () (concat "\n[ \t]*\\\\end{" (match-string 2) "}")) "\n\\end{ESHBlock}"))
   "List of replaceable environments.")
 
 (defvar esh--latexify-preamble-marker "^%%[ \t]*ESH-preamble-here[ \t]*$")
