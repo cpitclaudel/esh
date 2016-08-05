@@ -424,7 +424,7 @@ the required mode isn't available.  INLINE is passed to
 % \\ESHBlock is used for code blocks
 \\@ifundefined{ESHBlock}{%
   \\newenvironment{ESHBlock}{%
-    \\ESHBlockBasicSetup\\ESHObeySpaces\\obeylines\\ESHFont\\par\\addvspace{\\ESHSkip}%
+    \\ESHBlockBasicSetup\\par\\addvspace{\\ESHSkip}%
   }{%
     \\par\\addvspace{\\ESHSkip}
   }
