@@ -62,19 +62,18 @@
   (while (process-live-p proc)
     (accept-process-output proc 0 10)))
 
-(defun esh-client--message-no-newline (&rest args)
-  "Call `message' on ARGS, but don't print a final newline."
-  (let ((cursor-in-echo-area t))
-    ;; HACK HACK HACK found this trick by reading the C sources
-    (apply #'message args)))
+(defun esh-client--stderr (&rest args)
+  "Like `message' on ARGS, but don't print a final newline.
+Also, don't interact in weird ways with `message' (bug #24157)."
+  (princ (apply #'format args) #'external-debugging-output))
 
 (defmacro esh-client--with-progress-msg (msg &rest body)
   "Display MSG before running BODY, then display ‘done.’."
   (declare (indent 1) (debug t))
   `(progn
-     (message "%s..." ,msg)
+     (esh-client--stderr "%s:\n" ,msg)
      (prog1 ,@body
-       (message "  done."))))
+       (esh-client--stderr "  done.\n"))))
 
 ;;; RPC forms
 
