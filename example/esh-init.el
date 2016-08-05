@@ -25,7 +25,7 @@
 
 ;;; Haskell
 
-(require 'haskell-mode nil t)
+(require 'haskell nil t)
 (setq-default haskell-font-lock-symbols t)
 
 ;;; Racket
