@@ -201,9 +201,9 @@ each `esh-server-eval' query."
       (signal-process (server-eval-at esh-client--server-name '(emacs-pid)) 'kill)
       (ignore-errors (delete-file socket-fname)))))
 
-;;; Main entry point
+;;; Main entry points
 
-(defun esh-client-latexify-batch (path)
+(defun esh-client-latexify-one (path)
   "Latexify PATH.
 This starts an Emacs daemon, and runs the latexification code on
 it.  If a daemon is available, it is reused.  Originally, the
@@ -213,6 +213,13 @@ faster."
   (esh-client--ensure-server) ;; To prevent progress messages from interleaving
   (esh-client--with-progress-msg (format "Highlighting %S" path)
     (princ (esh-client--run (esh-client--rpc-latexify-form path)))))
+
+(defun esh-client-latexify-one-to-file (source-path dest-path)
+  "Latexify SOURCE-PATH, writing output to DEST-PATH."
+  (with-temp-buffer
+    (let ((standard-output (current-buffer)))
+      (esh-client-latexify-one source-path)
+      (write-region (point-min) (point-max) dest-path))))
 
 (provide 'esh-client)
 ;;; esh-client.el ends here

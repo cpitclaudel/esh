@@ -47,8 +47,8 @@
 (defvar esh2tex--persist nil
   "See option --persist.")
 
-(defvar esh2tex--cask nil
-  "See option --cask.")
+(defvar esh2tex--write-output nil
+  "See option --write-output.")
 
 (defun esh2tex--help ()
   "Read help from README file."
@@ -58,30 +58,55 @@
     (while (re-search-forward "\n\\(\\.\\. code\\)?::.*\n" nil t) (replace-match ""))
     (buffer-string)))
 
+(defconst esh2tex--ext "\\.tex\\'")
+
+(defun esh2tex--latexify-one-to-file (path)
+  "Call `esh-client-latexify-one-to-file'.
+Prepares PATH by appending `.esh.tex'.  Warns and skips if PATH
+doesn't end in `.tex'."
+  (if (string-match-p esh2tex--ext path)
+      (let ((dest (replace-regexp-in-string esh2tex--ext ".esh.tex" path t t)))
+        (esh-client-latexify-one-to-file path dest))
+    (esh-client-stderr "ESH Warning: unrecognized extension in %S (not `.tex')\n" path)))
+
+(defun esh2tex--unexpected-arg-msg (arg)
+  "Construct an unexpected ARG error message."
+  (concat (format "esh2tex: Unexpected argument %S." arg)
+          (unless (string-match-p "^-" arg)
+            "  Are you missing --write-output?")))
+
 (defun esh2tex--main ()
   "Main entry point."
   (unless argv
     (setq argv '("--usage")))
   (unwind-protect
-      (while argv
-        (pcase (pop argv)
-          ("--usage"
-           (princ (esh2tex--help)))
-          ("--debug-on-error"
-           (setq debug-on-error t)
-           (setq esh-client-debug-server t))
-          ("--kill-server"
-           (esh-client-kill-server))
-          ("--persist"
-           (setq esh2tex--persist t))
-          ("--no-cask"
-           (setq esh-client-use-cask nil))
-          ("--no-Q"
-           (setq esh-client-pass-Q-to-server nil))
-          (arg
-           (if argv
-               (error (concat "esh2tex: Unexpected argument %S") arg)
-             (esh-client-latexify-batch arg)))))
+      (let ((at-least-one nil))
+        (while argv
+          (pcase (pop argv)
+            ("--usage"
+             (princ (esh2tex--help)))
+            ("--debug-on-error"
+             (setq debug-on-error t)
+             (setq esh-client-debug-server t))
+            ("--kill-server"
+             (esh-client-kill-server))
+            ("--persist"
+             (setq esh2tex--persist t))
+            ("--no-cask"
+             (setq esh-client-use-cask nil))
+            ("--no-Q"
+             (setq esh-client-pass-Q-to-server nil))
+            ("--write-output"
+             (setq esh2tex--write-output t))
+            (arg
+             (when (and argv (not esh2tex--write-output))
+               (error "%s" (esh2tex--unexpected-arg-msg arg)))
+             (if esh2tex--write-output
+                 (esh2tex--latexify-one-to-file arg)
+               (esh-client-latexify-one arg))
+             (setq at-least-one t))))
+        (unless at-least-one
+          (error "No input files given")))
     (unless esh2tex--persist
       (esh-client-kill-server))))
 
