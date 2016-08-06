@@ -101,12 +101,19 @@
 \def\pythonverb{\verb}
 \def\prettylisp{\verb}
 \def\normallisp{\verb}
+\def\textttforc{\texttt}
 
-%% ESH-inline: c-mode \cverb|...|
-%% ESH-inline: java-mode \javaverb|...|
-%% ESH-inline: python-mode \pythonverb|...|
-%% ESH-inline: emacs-lisp-mode \normallisp|...|
-%% ESH-inline: prettified-emacs-lisp-mode \prettylisp|...|
+% ESH-inline-verb is for commands which (like \verb) use the same delimiter
+% before and after their argument: \verb|abc|, \verb/abc/, \verb,abc,
+%% ESH-inline-verb: c-mode \cverb
+%% ESH-inline-verb: java-mode \javaverb
+%% ESH-inline-verb: python-mode \pythonverb
+%% ESH-inline-verb: emacs-lisp-mode \normallisp
+%% ESH-inline-verb: prettified-emacs-lisp-mode \prettylisp
+
+% ESH-inline-command is for commands which (like \texttt) use a pair of curly
+% braces to delimit their argument: \textt{abc}.
+%% ESH-inline-command: c-mode \textttforc
 
 \begin{document}
 
@@ -220,11 +227,12 @@ ESH works inline as well:
 
 \begin{itemize}
 \item Here's some C code: \cverb|int main() { return 0; }|
-\item Some Python: \pythonverb|def method(self, x): yield x|
+  \footnote{It also works in footnotes: \textttforc{int main() \{ ...}}
+\item Some Python: \pythonverb/def method(self, x): yield x/
 \item
   \begin{tabular}[t]{@{}r@{ }l}
-    Some Elisp with prettification: & \prettylisp|(lambda (x y) (or (<= x y) (approx= (/+/ x y) 0)))| \\
-            without prettification: & \normallisp|(lambda (x y) (or (<= x y) (approx= (/+/ x y) 0)))| \\
+    Some Elisp with prettification: & \prettylisp,(lambda (x y) (or (<= x y) (approx= (/+/ x y) 0))), \\
+            without prettification: & \normallisp!(lambda (x y) (or (<= x y) (approx= (/+/ x y) 0)))!
   \end{tabular}
 \end{itemize}
 
