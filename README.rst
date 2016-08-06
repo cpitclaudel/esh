@@ -248,13 +248,7 @@ subfolder of the repository.
 Adding ``esh2tex`` comments in ``org-mode``
 -------------------------------------------
 
-Add the following to the beginning of your org file::
-
-  #+LATEX_HEADER: %% ESH-preamble-here
-
-Then before each Org source block::
-
-  #+LATEX: %% ESH: <mode>
+See `README.org-mode.rst`_.
 
 Fixing font inconsistencies
 ---------------------------
