@@ -61,6 +61,32 @@ And add the following lines to your Org header::
   #+LATEX_HEADER: %% ESH-inline-verb: c++-mode (c++) \verb
   #+LATEX_HEADER: %% ESH-inline-verb: python-mode (python) \verb
 
+
+Preamble
+========
+
+Get rid of inputenc, fontenc, babel, etc:
+
+.. code:: emacs-lisp
+
+   (with-eval-after-load 'org
+    (setq org-latex-default-packages-alist
+          '(("AUTO" "polyglossia" t)
+            ("" "fontspec" t)
+            ("" "fixltx2e" nil)
+            ("" "graphicx" t)
+            ("" "grffile" t)
+            ("" "longtable" nil)
+            ("" "wrapfig" nil)
+            ("" "rotating" nil)
+            ("normalem" "ulem" t)
+            ("" "amsmath" t)
+            ("" "textcomp" t)
+            ("" "amssymb" t)
+            ("" "capt-of" nil)
+            ("" "hyperref" nil))))
+
+
 Full example
 ============
 
