@@ -30,9 +30,14 @@ compilable by people who don't have ESH.
 Setup
 =====
 
-Clone the repository somewhere, and add ``<wherever>/bin`` to your path
-(alternatively, just use ``<wherever>/bin/esh2tex`` every time).  This program
+**Dependencies:** Emacs > 24.2; XeLaTeX (recommended); Cask (optional)
+
+**Setup:** Clone the repository somewhere, and add ``<wherever>/bin`` to your path
+(alternatively, just use ``<wherever>/bin/esh2tex`` explicitly).  This program
 is tested only on GNU/Linux.
+
+**Sanity check:** Running ``make`` in the ``example`` directory of the Git repo
+should produce a (partially) syntax-highlighted ``example.pdf``.
 
 
 Quickstart
@@ -49,9 +54,9 @@ In ``minimal.tex`` put the following::
     \end{verbatim}
   \end{document}
 
-Process with ``esh2tex minimal.tex > esh2tex.esh.tex``, and compile with
-``xelatex esh2tex.esh.tex``. See the ``example/`` directory of the Git
-repository for a more advanced example.
+Process with ``esh2tex minimal.tex > minimal.esh.tex``, and compile with
+``pdflatex minimal.esh.tex`` or ``xelatex minimal.esh.tex``. Run ``make`` in the
+``example/`` directory of the Git repository for a more advanced example.
 
 
 Usage
@@ -102,14 +107,14 @@ Options
 
   Show this help.
 
-* ``--kill-server``
-
-  Kill previously-started instances of the ESH server.
-
 * ``--persist``
 
   Leave server running after processing ``<input>``.  Don't forget to
-  ``--kill-server`` if you make changes to your configuration!
+  ``--kill-server`` if you make changes to your ``esh-init.el``!
+
+* ``--kill-server``
+
+  Kill previously-started instances of the ESH server.
 
 * ``--no-cask``
 
@@ -136,15 +141,14 @@ Notes
 * ``esh2tex`` does not load your personal Emacs configuration (though see the
   ``--no-Q`` option); instead, it looks for a file named ``esh-init.el`` in the
   current directory, one of its parents, or ``~/.emacs.d/``.  You can use that
-  file to chose a different theme, load packages (see also the ``--cask``
-  option), etc.
+  file to chose a different theme, load packages; this works great in
+  conjunction with the `Cask <https://github.com/cask/cask>`_ package manager.
 
 * Starting a server can be slow if your configuration file is large.  Use
   ``--persist`` to leave a server running after the first run and reuse it on
   subsequent runs.
 
 See https://github.com/cpitclaudel/esh2tex for more information.
-
 
 Tips and suggestions
 ====================
@@ -196,9 +200,10 @@ Installing extra packages
 -------------------------
 
 If the languages that you want to highlight are not supported by Emacs out of
-the box, use `Cask <https://github.com/cask/cask>`_ to install ELPA and MELPA
+the box, use `Cask <https://github.com/cask/cask>`_ to install the corresponding
 packages locally.  This is much cleaner and more stable than loading your full
-Emacs configuration (Cask is to Emacs Lisp what VirtualEnv is to Python).
+Emacs configuration (in short, ``Cask`` is to Emacs Lisp what ``VirtualEnv`` is
+to Python).
 
 The repo's ``example/`` directory uses a Cask file to manage external
 dependencies.
@@ -272,6 +277,14 @@ and in your XeLaTeX document::
   \DeclareTextFontCommand{\ESHInline}{\UbuntuMono}
   \DeclareTextFontCommand{\ESHSpecialChar}{\Symbola}
 
+Using a different version of Emacs
+----------------------------------
+
+If the Emacs in your path isn't the right one, you can use the ``EMACS``
+environment variable to let ESH know about the right one::
+
+  EMACS=/Applications/Emacs.app/Contents/MacOS/Emacs esh2tex your-file.tex
+
 Debugging
 ---------
 
@@ -280,4 +293,6 @@ the repository) to work.  If you can't make the example work, please open a
 GitHub issue.
 
 For more advanced debugging, you can load the ``esh`` package into Emacs, and
-use ``M-x esh2tex-current-buffer`` on your TeX file.
+use ``M-x esh2tex-current-buffer`` on your TeX file::
+
+  cask exec emacs -Q -L . -l esh your-file.tex
