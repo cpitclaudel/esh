@@ -327,12 +327,12 @@ With non-fbound MODE-FN, don't run font-lock on STR."
 
 (defconst esh--missing-mode-template
   (concat ">>> (void-function %S); did you forget to install"
-          " or 'require a dependency? <<<%s"))
+          " or load (`require') a dependency? <<<%s"))
 
 (defun esh--missing-mode-error-msg (mode inline)
   "Construct an error message about missing MODE.
 With non-nil INLINE, suffix message with blanks instead of newlines."
-  (propertize (format esh--missing-mode-template mode (if inline "  " "\n\n"))
+  (propertize (format esh--missing-mode-template mode (if inline "  " "\n"))
               'face 'error 'font-lock-face 'error))
 
 (defmacro esh--make-temp-buffer (mode buffers inline)
