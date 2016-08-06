@@ -18,10 +18,14 @@
 \usepackage{iftex}
 
 \ifPDFTeX
+% Minimal pdfLaTeX setup (but you should use XeLaTeX)
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage{lmodern}
-\def\ESHSpecialChar#1{\textvisiblespace}
+\makeatletter
+% http://tex.stackexchange.com/questions/323570/
+\renewcommand*{\UTFviii@defined}[1]{\ifx#1\relax\textvisiblespace\else\expandafter#1\fi}
+\makeatother
 
 \else
 \usepackage{fontspec}
