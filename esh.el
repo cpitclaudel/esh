@@ -180,7 +180,7 @@ about underful hboxes)."
 (defvar esh--latex-props '(display invisible newline))
 (defvar esh--latex-face-attrs '(:underline :background :foreground :weight :slant))
 
-(defvar esh--latex-specials '(?\\ ?^ ?$ ?~ ?% ?& ?{ ?} ?_ ?#))
+(defvar esh--latex-specials '(?\\ ?^ ?$ ?~ ?% ?& ?{ ?} ?_ ?# ?< ?>))
 (defvar esh--latex-substitutions '()) ;; None needed thanks to \obeyspaces and \obeylines
 
 (defun esh--latex-substitutions ()
