@@ -188,13 +188,13 @@ Here are a few examples of inline environments:
 .. code:: latex
 
    \def\cppverb{\verb}
-   %% ESH-inline: c++-mode \cppverb|...|
+   %% ESH-inline-verb: c++-mode \cppverb
 
    \def\pythonverb{\lstinline[language=python]}
-   %% ESH-inline: python-mode \pythonverb|...|
+   %% ESH-inline-verb: python-mode \pythonverb
 
-Adding these lines to your preamble let's you use ``\pythonverb|yield 1|`` or
-``\cppverb|*p++ = !*q++|`` in the body of your document.  With plain ``xelatex``
+Adding these lines to your preamble lets you use ``\pythonverb|yield 1|`` or
+``\cppverb/*p++ |= *q++/`` in the body of your document.  With plain ``xelatex``
 these will be rendered verbatim, and with ``esh2tex`` they will be highlighted.
 
 Installing extra packages
