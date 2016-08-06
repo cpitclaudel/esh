@@ -89,16 +89,17 @@ in its preamble, which ``esh2tex`` will replace by appropriate set-up code
 (``\usepackage``, definition of ``ESHBlock``, etc.).
 
 
-You can enable highlighting of specific inline macros using the following
-special comment::
+You can enable highlighting of specific inline verb-like macros using the
+following special comment::
 
-  %% ESH-inline: <mode> <pattern mentioning '...'>
+  %% ESH-inline-verb: <mode> <pattern>
 
-For example::
+For example, the following will highlight each occurrence of ``\verb|...|`` as C
+code, and each occurrence of ``\python|...|`` as Python code::
 
-  %% ESH-inline: c-mode \verb|...|
-  %% ESH-inline: python-mode \python{...}
-
+  \def\python{\verb} % To remain compatible with plain LaTeX
+  %% ESH-inline: c-mode \verb
+  %% ESH-inline: python-mode \python
 
 Options
 =======
