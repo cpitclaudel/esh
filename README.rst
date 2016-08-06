@@ -18,7 +18,7 @@ into something like that:
 .. code:: latex
 
    \begin{ESHBlock}
-     \color{8CC4FF}{int} \color{FCE94F}{main}() \{ \color{B4FA70}{return} 0; \}
+   \-  \color{8CC4FF}{int} \color{FCE94F}{main}() \{ \color{B4FA70}{return} 0; \}
    \end{ESHBlock}
 
 See the ``example`` folder of the GitHub repository for a full example.  One of
@@ -43,16 +43,18 @@ should produce a (partially) syntax-highlighted ``example.pdf``.
 Quickstart
 ==========
 
-In ``minimal.tex`` put the following::
+In ``minimal.tex`` put the following:
 
-  \documentclass{minimal}
-  %% ESH-preamble-here
-  \begin{document}
-    %% ESH: c-mode
-    \begin{verbatim}
-    int main() { return 0; }
-    \end{verbatim}
-  \end{document}
+.. code:: latex
+
+   \documentclass{minimal}
+   %% ESH-preamble-here
+   \begin{document}
+     %% ESH: c-mode
+     \begin{verbatim}
+     int main() { return 0; }
+     \end{verbatim}
+   \end{document}
 
 Process with ``esh2tex minimal.tex > minimal.esh.tex``, and compile with
 ``pdflatex minimal.esh.tex`` or ``xelatex minimal.esh.tex``. Run ``make`` in the
@@ -70,36 +72,44 @@ Usage
 ``<input>`` should be an UTF-8 encoded text file; output goes to standard out.
 
 
-In ``<input>``, you may indicate source blocks like this::
+In ``<input>``, you may indicate source blocks like this:
 
-  %% ESH: <mode>
-  \begin{...}
-    ...
-  \end{...}
+.. code:: latex
+
+   %% ESH: <mode>
+   \begin{...}
+     ...
+   \end{...}
 
 ``<mode>`` should be the name of an Emacs major mode; the name of the
 environment does not matter.
 
 
-Additionally, ``<input>`` should include a special comment::
+Additionally, ``<input>`` should include a special comment:
 
-  %% ESH-preamble-here
+.. code:: latex
+
+   %% ESH-preamble-here
 
 in its preamble, which ``esh2tex`` will replace by appropriate set-up code
 (``\usepackage``, definition of ``ESHBlock``, etc.).
 
 
 You can enable highlighting of specific inline verb-like macros using the
-following special comment::
+following special comment:
 
-  %% ESH-inline-verb: <mode> <pattern>
+.. code:: latex
+
+   %% ESH-inline-verb: <mode> <command-name>
 
 For example, the following will highlight each occurrence of ``\verb|...|`` as C
-code, and each occurrence of ``\python|...|`` as Python code::
+code, and each occurrence of ``\python|...|`` as Python code:
 
-  \def\python{\verb} % To remain compatible with plain LaTeX
-  %% ESH-inline: c-mode \verb
-  %% ESH-inline: python-mode \python
+.. code:: latex
+
+   \def\python{\verb} % To remain compatible with plain LaTeX
+   %% ESH-inline: c-mode \verb
+   %% ESH-inline: python-mode \python
 
 Options
 =======
@@ -160,9 +170,11 @@ All the following tricks, and more, are demonstrated in the
 Loading a different theme
 -------------------------
 
-To load a different theme, include the following line in your ``esh-init.el``::
+To load a different theme, include the following line in your ``esh-init.el``:
 
-  (load-theme '<theme-name> t) ;; tango, dichromacy, leuven, adwaita...
+.. code:: emacs-lisp
+
+   (load-theme '<theme-name> t) ;; tango, dichromacy, leuven, adwaita...
 
 Using prettification
 --------------------
@@ -170,9 +182,11 @@ Using prettification
 Emacs can render operators using unicode symbols, displaying ``→`` instead of
 ``->``, for example.  This feature is called ``prettify-symbols-mode``.
 
-To enable it in ESH, add the following to your ``esh-init.el``::
+To enable it in ESH, add the following to your ``esh-init.el``:
 
-  (add-hook '<mode>-hook #'prettify-symbols-mode) ;; lisp-mode, perl-mode...
+.. code:: emacs-lisp
+
+   (add-hook '<mode>-hook #'prettify-symbols-mode) ;; lisp-mode, perl-mode...
 
 You'll probably want to use XeLaTeX of LuaLaTeX for this to work well;
 otherwise, ``pdfLaTeX`` will be confused by the Unicode symbols, and probably
@@ -214,33 +228,40 @@ Customizing the output
 
 All customizations should be done **before** the ``%% ESH-preamble-here`` line.
 
-Changing fonts::
+Changing fonts:
 
-  ;; Use a roman font for code blocks
-  \newcommand{\ESHFont}{\textrm}
+.. code:: latex
 
-  ;; Use Ubuntu Mono for inline code
-  \newfontfamily{\UbuntuMono}[Mapping=tex-ansi]{Ubuntu Mono}
-  \DeclareTextFontCommand{\ESHInlineFont}{\UbuntuMono}
+   ;; Use a roman font for code blocks
+   \newcommand{\ESHFont}{\textrm}
 
-  ;; Use Symbola for special characters:
-  \usepackage{fontspec}
-  \newfontfamily{\Symbola}{Symbola}
-  \DeclareTextFontCommand{\ESHSpecialCharFont}{\Symbola}
+   ;; Use Ubuntu Mono for inline code
+   \newfontfamily{\UbuntuMono}[Mapping=tex-ansi]{Ubuntu Mono}
+   \DeclareTextFontCommand{\ESHInlineFont}{\UbuntuMono}
 
-Customizing spacing::
+   ;; Use Symbola for special characters:
+   \usepackage{fontspec}
+   \newfontfamily{\Symbola}{Symbola}
+   \DeclareTextFontCommand{\ESHSpecialCharFont}{\Symbola}
 
-  ;; Leave two blank lines before and after each code block
-  \newlength{\ESHSkip}
-  \setlength{\ESHSkip}{2\baselineskip}
+Customizing spacing:
 
-Overriding the ``ESHBlock`` environment::
+.. code:: latex
 
-  \newenvironment{ESHBlock}{%
-    \ESHBasicSetup\par\addvspace{\ESHSkip}\ESHFont
-  }{%
-    \par\addvspace{\ESHSkip}
-  }
+   ;; Leave two blank lines before and after each code block
+   \newlength{\ESHSkip}
+   \setlength{\ESHSkip}{2\baselineskip}
+
+
+Overriding the ``ESHBlock`` environment:
+
+.. code:: latex
+
+   \newenvironment{ESHBlock}{%
+     \ESHBasicSetup\par\addvspace{\ESHSkip}\ESHFont
+   }{%
+     \par\addvspace{\ESHSkip}
+   }
 
 All these tricks, and more, are demonstrated in the ``example/example.tex``
 subfolder of the repository.
@@ -248,29 +269,33 @@ subfolder of the repository.
 Adding ``esh2tex`` comments in ``org-mode``
 -------------------------------------------
 
-See `README.org-mode.rst`_.
+See `README.org-mode.rst <README.org-mode.rst>`_.
 
 Fixing font inconsistencies
 ---------------------------
 
 If you're having font issues, try switching to XeLaTeX or LuaLaTeX.  ESH uses
 Emacs' display engine to guess which characters need to use a fallback font;
-this will work well if you use the same fonts in your ``esh-init.el``::
+this will work well if you use the same fonts in your ``esh-init.el``:
 
-  (set-face-attribute 'default nil :family "Ubuntu Mono")
-  (dolist (ft (fontset-list))
-    (set-fontset-font ft 'unicode (font-spec :name "Ubuntu Mono"))
-    (set-fontset-font ft 'unicode (font-spec :name "Symbola") nil 'append))
+.. code:: emacs-lisp
 
-and in your XeLaTeX document::
+   (set-face-attribute 'default nil :family "Ubuntu Mono")
+   (dolist (ft (fontset-list))
+     (set-fontset-font ft 'unicode (font-spec :name "Ubuntu Mono"))
+     (set-fontset-font ft 'unicode (font-spec :name "Symbola") nil 'append))
 
-  \usepackage{fontspec}
-  \newfontfamily{\Symbola}{Symbola}
-  \newfontfamily{\UbuntuMono}{Ubuntu Mono}
+and in your XeLaTeX document:
 
-  \newcommand{\ESHFont}{\UbuntuMono}
-  \DeclareTextFontCommand{\ESHInline}{\UbuntuMono}
-  \DeclareTextFontCommand{\ESHSpecialChar}{\Symbola}
+.. code:: latex
+
+   \usepackage{fontspec}
+   \newfontfamily{\Symbola}{Symbola}
+   \newfontfamily{\UbuntuMono}{Ubuntu Mono}
+
+   \newcommand{\ESHFont}{\UbuntuMono}
+   \DeclareTextFontCommand{\ESHInline}{\UbuntuMono}
+   \DeclareTextFontCommand{\ESHSpecialChar}{\Symbola}
 
 Using a different version of Emacs
 ----------------------------------
@@ -284,8 +309,8 @@ Debugging
 ---------
 
 If you run into issues, try getting the example (in the ``example`` folder of
-the repository) to work.  If you can't make the example work, please open a
-GitHub issue.
+the repository) to work.  If you can't make get the example to work, please open
+a GitHub issue.
 
 For more advanced debugging, you can load the ``esh`` package into Emacs, and
 use ``M-x esh2tex-current-buffer`` on your TeX file::
