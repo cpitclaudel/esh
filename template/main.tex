@@ -1,0 +1,46 @@
+\documentclass{article}
+
+\usepackage[margin=0.8in]{geometry}
+
+%%%%%%%%%%%%%%%%%%%%%%
+% *Load custom fonts %
+%%%%%%%%%%%%%%%%%%%%%%
+
+\usepackage{fontspec}
+
+% https://github.com/cpitclaudel/monospacifier
+\newfontfamily{\XITSMath}[Path=fonts/,
+                          UprightFont=*_monospacified_for_UbuntuMono.ttf,
+                          BoldFont=*-Bold_monospacified_for_UbuntuMono.ttf,
+                          Mapping=tex-ansi]{XITSMath}
+
+% http://font.ubuntu.com/
+\newfontfamily{\UbuntuMono}[Path=fonts/,
+                            UprightFont=*-R.ttf,
+                            BoldFont=*-B.ttf,
+                            ItalicFont=*-RI.ttf,
+                            BoldItalicFont=*-BI.ttf,
+                            Mapping=tex-ansi]{UbuntuMono}
+
+\newcommand{\ESHFont}{\UbuntuMono}
+\newcommand{\ESHInlineFont}{\UbuntuMono}
+\newcommand{\ESHSpecialCharFont}{\XITSMath}
+
+%% ESH-preamble-here
+
+\def\cverb{\verb}
+%% ESH-inline-verb: c-mode \cverb
+
+\begin{document}
+
+Here's some inline C code: \cverb|int main() {}|. And here's more, in a block:
+
+%% ESH: c-mode
+\begin{verbatim}
+int
+main(argc, **argv)
+{
+  return 0;
+}
+\end{verbatim}
+\end{document}
