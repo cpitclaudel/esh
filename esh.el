@@ -288,13 +288,13 @@ about underful hboxes)."
       (pcase property
         (`display
          (setq template
-               (format (pcase val
-                         (`(raise ,amount) ;; FIXME raisebox?
-                          (if (> amount 0) "\\textsuperscript{%s}"
-                            "\\textsubscript{%s}"))
-                         (_ (error "Unexpected display property %S" val)))
-                       template)))
+               (pcase val
+                 (`(raise ,amount)
+                  (let ((sign (if (>= amount 0) "" "\\ESHDimenMinus")))
+                    (format "\\ESHRaise{%s%gex}{%s}" sign (abs amount) template)))
+                 (_ (error "Unexpected display property %S" val)))))
         (`invisible
+         ;; FIXME remove template too?
          (when val (setq latex-str "")))
         (`newline
          ;; Ensure that no newlines are added inside commands (instead the
@@ -402,12 +402,18 @@ the required mode isn't available.  INLINE is passed to
 % Note the extra pair of braces in the definition
 \\providecommand*{\\ESHSpecialChar}[1]{{\\ESHSpecialCharFont#1}}
 
+% \\ESHRaise implements monospace sub/superscripts
+\\providecommand*{\\ESHRaise}[2]{\\rlap{\\raisebox{#1}{\\scriptsize#2}}\\hphantom{#2}}
+
 % \\ESHObeySpaces is a variant of \\obeyspaces that forbids line breaks
 {\\catcode`\\-=\\active
  \\catcode`\\ =\\active
  % The \hbox prevents line breaks around source hyphens
  \\gdef\\ESHObeySpaces{% Must be a \\gdef to escape the surrounding group
    \\catcode`\\-=\\active\\def-{\\hbox{\\char`\\-}\\nobreak}\\catcode`\\ =\\active\\def {\\nobreakspace}}}
+
+% \\ESHDimenMinus is a regular minus (useful in arguments to \\ESHRaise).
+{\\catcode`\\-=12\\gdef\\ESHDimenMinus{-}}
 
 % \\ESHBlockBasicSetup is used by \\ESHBlock
 \\providecommand*{\\ESHBlockBasicSetup}{%

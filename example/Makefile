@@ -23,5 +23,5 @@ endif
 clean:
 	git clean -Xf
 
-reference: example.pdf
+reference: xelatex
 	cp example.pdf example.reference.pdf
