@@ -26,6 +26,9 @@
 ;;; Code:
 
 (eval-and-compile
+  (setq-default load-prefer-newer t)
+  (setq-default text-quoting-style 'grave)
+
   (defconst esh2tex--script-full-path
     (or (and load-in-progress load-file-name)
         (bound-and-true-p byte-compile-current-file)

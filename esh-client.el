@@ -59,7 +59,7 @@
   (while (process-live-p proc)
     (accept-process-output proc 0 10)))
 
-(defun esh-client--stderr (&rest args)
+(defun esh-client-stderr (&rest args)
   "Like `message' on ARGS, but don't print a final newline.
 Also, don't interact in weird ways with `message' (bug #24157)."
   (princ (apply #'format args) #'external-debugging-output))
@@ -68,9 +68,9 @@ Also, don't interact in weird ways with `message' (bug #24157)."
   "Display MSG before running BODY, then display ‘done.’."
   (declare (indent 1) (debug t))
   `(progn
-     (esh-client--stderr "%s:\n" ,msg)
+     (esh-client-stderr "%s:\n" ,msg)
      (prog1 ,@body
-       (esh-client--stderr "  done.\n"))))
+       (esh-client-stderr "  done.\n"))))
 
 ;;; RPC forms
 
@@ -189,7 +189,7 @@ each `esh-server-eval' query."
 (defun esh-client--ensure-server ()
   "Ensure that an ESH server is running."
   (unless (esh-client--server-running-p)
-    (esh-client--with-progress-msg "Starting ESH server"
+    (esh-client--with-progress-msg "Starting ESH"
       (esh-client--busy-wait (esh-client--ensure-server-1)))
     (esh-client--init-server)))
 

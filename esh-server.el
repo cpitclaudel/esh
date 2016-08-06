@@ -101,6 +101,8 @@ list (success RESULT) or a cons (error ERR BACKTRACE)."
 Create an invisible frame on DISPLAY after loading PRELUDE.  No
 error checking here; we expect this to be invoked through
 `esh-server-eval'."
+  (setq-default load-prefer-newer t)
+  (setq-default text-quoting-style 'grave)
   (when prelude (load-file prelude))
   (ignore (setq esh--server-frame
                 (make-frame `((window-system . x)
