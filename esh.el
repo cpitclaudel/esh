@@ -436,12 +436,12 @@ the required mode isn't available.  INLINE is passed to
 \\makeatother")
 
 (defvar esh-latexify-block-envs
-  `(("^[ \t]*%%[ \t]*ESH: \\([-+a-zA-Z0-9]+\\)[ \t]*\n[ \t]*\\\\begin{\\([^}]+\\)}.*\n" "\\begin{ESHBlock}\n"
+  `(("^[ \t]*%%[ \t]*ESH: \\([^ \t\n]+\\)[ \t]*\n[ \t]*\\\\begin{\\([^}]+\\)}.*\n" "\\begin{ESHBlock}\n"
      ,(lambda () (concat "\n[ \t]*\\\\end{" (match-string 2) "}")) "\n\\end{ESHBlock}"))
   "List of replaceable environments.")
 
 (defvar esh--latexify-preamble-marker "^%%[ \t]*ESH-preamble-here[ \t]*$")
-(defvar esh--latexify-inline-env-declaration-re "^[ \t]*%%[ \t]*ESH-inline\\(-verb\\|-command\\):[ \t]+\\([-+a-zA-Z0-9]+\\)[ \t]+\\(.*\\)$")
+(defvar esh--latexify-inline-env-declaration-re "^[ \t]*%%[ \t]*ESH-inline-verb:[ \t]+\\([^ \t\n]+\\)[ \t]+\\(.*\\)$")
 
 (defun esh--latexify-add-preamble ()
   "Expand `esh--latexify-preamble-marker'."
@@ -450,74 +450,22 @@ the required mode isn't available.  INLINE is passed to
       (replace-match (replace-quote esh--latex-preamble) t)
     (error "%s" "Source document is missing the `%% ESH-preamble-here' line")))
 
-(defun esh--latexify-inline-verb-matcher (def-string)
+(defun esh--latexify-inline-verb-matcher (re)
   "Search for a \\verb-like delimiter from point.
-That is, a match of the form DEF-STRING?...? where ? is any
+That is, a match of the form RE?...? where ? is any
 character."
-  (when (search-forward def-string nil t)
+  (when (re-search-forward re nil t)
     (let ((form-beg (match-beginning 0))
-          (code-beg (1+ (point)))
-          (delimiter (char-to-string (char-after))))
+          (command (match-string 0))
+          (delimiter (char-to-string (char-after)))
+          (code-beg (1+ (point))))
       (unless delimiter
-        (error "No delimiter found after use of `%s'" def-string))
+        (error "No delimiter found after use of `%s'" command))
       (goto-char code-beg)
       (if (search-forward delimiter (point-at-eol) t)
-          (list form-beg (point) (buffer-substring-no-properties code-beg (1- (point))))
+          (list form-beg (point) code-beg (1- (point)) command)
         (error "No matching delimiter found after use of `%S%s'"
-               def-string delimiter)))))
-
-(defun esh--latexify-unescape (str)
-  "Unespace escaped curlies in STR."
-  (with-temp-buffer
-    (insert str)
-    (goto-char (point-min))
-    (let ((to-delete nil))
-      (while (search-forward "\\{" nil t)
-        (unless (equal (nth 1 (syntax-ppss)) (1- (point)))
-          (push (match-beginning 0) to-delete)))
-      (while to-delete
-        (delete-region (car to-delete) (1+ (pop to-delete)))))
-    (buffer-substring-no-properties (point-min) (point-max))))
-
-(defun esh--latexify-inline-command-matcher (def-string)
-  "Search for a \\texttt-like delimiter from point.
-That is, a match of the form DEF-STRING{...}.  This will work
-best with the right syntax table (so that \\ is considered an
-escape—it is in fundamental mode)."
-  (when (search-forward def-string nil t)
-    (let ((form-beg (match-beginning 0))
-          (code-beg (1+ (point))))
-      (condition-case nil
-          (progn
-            (forward-sexp)
-            (let ((code (buffer-substring-no-properties code-beg (1- (point)))))
-              (list form-beg (point) (esh--latexify-unescape code))))
-        (scan-error (error "Unmatched `{' after use of `%s'" def-string))))))
-
-;; (defun esh--latexify-inline-...-matcher (before after)
-;;   "Search for a ... delimiter from point.
-;; That is, a match of the form BEFORE…AFTER."
-;;   (when (search-forward before nil t)
-;;     (let ((form-beg (match-beginning 0))
-;;           (code-beg (point)))
-;;       (when (search-forward after nil t)
-;;         (list form-beg code-beg (match-beginning 0) (match-end 0))))))
-
-(defun esh--latexify-inline-make-matcher (type def-string)
-  "Construct an inline matcher for TYPE and DEF-STRING."
-  (pcase type
-    ;; (""
-    ;;  (pcase (split-string def-string (regexp-quote "..."))
-    ;;    (`(,before ,after)
-    ;;     (apply-partially #'esh--latexify-inline-...-matcher before after))
-    ;;    (`(,_)
-    ;;     (error "Inline pattern %S does not contain `...'" def-string))
-    ;;    (_
-    ;;     (error "Inline pattern %S contains more than one `...'" def-string))))
-    ("-verb"
-     (apply-partially #'esh--latexify-inline-verb-matcher def-string))
-    ("-command"
-     (apply-partially #'esh--latexify-inline-command-matcher def-string))))
+               command delimiter)))))
 
 (defun esh--latexify-beginning-of-document ()
   "Go past \\begin{document}."
@@ -527,32 +475,31 @@ escape—it is in fundamental mode)."
 
 (defun esh--latexify-find-inline-envs-decls ()
   "Construct a list of regexps matching user-defined inline environments.
-This looks for `esh--latexify-inline-env-declaration-re'."
+This looks for `esh--latexify-inline-env-declaration-re, and
+constructs a cons of a regular expressions matching all inline
+envs, and an alist mapping envs to mode symbols."
   (let ((envs nil))
     (while (re-search-forward esh--latexify-inline-env-declaration-re nil t)
-      (when (string= "" (match-string 2))
-        (error "Invalid ESH-inline declaration: %S" (match-string 0)))
-      (let* ((type (match-string 1))
-             (mode (intern (match-string 2)))
-             (def-string (match-string 3))
-             (matcher (esh--latexify-inline-make-matcher type def-string)))
-        (push (cons matcher mode) envs)))
-    (reverse envs)))
+      (let* ((mode (intern (match-string 1)))
+             (command (match-string 2)))
+        (push (cons command mode) envs)))
+    (cons (regexp-opt (mapcar #'car envs)) envs)))
 
 (defun esh--latexify-do-inline-envs (temp-buffers)
   "Latexify sources in esh inline environments.
 TEMP-BUFFERS is an alist of (MODE . TEMP-BUFFER)."
-  (pcase-dolist (`(,search-fn . ,mode-fn) (esh--latexify-find-inline-envs-decls))
+  (pcase-let* ((`(,envs-re . ,modes-alist) (esh--latexify-find-inline-envs-decls)))
     (esh--latexify-beginning-of-document)
     (let ((match-info nil))
-      (while (setq match-info (funcall search-fn))
+      (while (setq match-info (esh--latexify-inline-verb-matcher envs-re))
         (pcase match-info
-          (`(,form-beg ,code-beg ,code-end ,form-end)
-           (let* ((code (buffer-substring-no-properties code-beg code-end))
+          (`(,beg ,end ,code-beg ,code-end ,cmd)
+           (let* ((mode-fn (cdr (assoc cmd modes-alist)))
+                  (code (buffer-substring-no-properties code-beg code-end))
                   (temp-buffer (esh--make-temp-buffer mode-fn temp-buffers t))
                   (code-latex (esh--latexify-in-buffer code temp-buffer mode-fn)))
-             (goto-char form-beg)
-             (delete-region form-beg form-end)
+             (goto-char beg)
+             (delete-region beg end)
              (insert (concat "\\ESHInline{" code-latex "}"))))))))
   temp-buffers)
 

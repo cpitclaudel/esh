@@ -60,6 +60,7 @@
            (require 'company-coq nil t))
   (setq-default proof-splash-seen t
                 company-coq-local-symbols '(("->>" . ?↦) ("|>" . ?▹)))
+  (add-hook #'coq-mode-hook #'company-coq-mode)
   (defun prettified-coq-mode ()
     (coq-mode)
     (company-coq-mode)))
