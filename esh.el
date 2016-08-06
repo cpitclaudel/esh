@@ -192,11 +192,11 @@ about underful hboxes)."
 (defun esh--wrap-symbols (str)
   "Wrap characters of STR that use a fallback font in \\ESHSpecialChar{}."
   (let ((ref-fonts (list nil (esh--font-for-char ?a))))
-    (mapcarcat (lambda (chr)
+    (mapconcat (lambda (chr)
                  (if (memq (esh--font-for-char chr) ref-fonts)
                      (char-to-string chr)
                    (format "\\ESHSpecialChar{%c}" chr)))
-               str 'string)))
+               str "")))
 
 (defun esh--escape-for-latex (str)
   "Escape LaTeX special characters in STR."
