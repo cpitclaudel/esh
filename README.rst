@@ -66,6 +66,7 @@ Usage
 
 ::
 
+  esh2tex --init
   esh2tex [<options>...] [<input>.tex...]
   emacs -Q --script esh2tex [<options>...] [<input>.tex...]
 
@@ -118,6 +119,11 @@ Options
 * ``--usage``
 
   Show this help.
+
+* ``--init``
+
+  Don't process input files; instead, create a fairly complete ESH setup in the
+  current folder, including an basic main.tex, and simple Makefile.
 
 * ``--persist``
 

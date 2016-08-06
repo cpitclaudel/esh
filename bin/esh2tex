@@ -55,8 +55,19 @@
   (with-temp-buffer
     (insert-file-contents (expand-file-name "README.rst" esh2tex--parent-directory))
     (goto-char (point-min))
-    (while (re-search-forward "\n\\(\\.\\. code\\)?::.*\n" nil t) (replace-match ""))
+    (while (re-search-forward "\\(\\.\\. code\\)?::.*\n" nil t) (replace-match ""))
     (buffer-string)))
+
+(defun esh2tex--init ()
+  "See option --init."
+  (let ((template-dir (expand-file-name "template" esh2tex--parent-directory))
+        (fonts-dir (expand-file-name "example/fonts" esh2tex--parent-directory)))
+    (make-directory "fonts")
+    (dolist (fname (directory-files template-dir))
+      (copy-file (expand-file-name fname template-dir) fname))
+    (dolist (fname (directory-files fonts-dir))
+      (copy-file (expand-file-name fname template-dir)
+                 (expand-file-name fname "fonts")))))
 
 (defconst esh2tex--ext "\\.tex\\'")
 
@@ -100,6 +111,8 @@ doesn't end in `.tex'."
              (setq esh-client-pass-Q-to-server nil))
             ("--stdout"
              (setq esh2tex--stdout t))
+            ("--init"
+             (esh2tex--init))
             (arg
              (when (and argv esh2tex--stdout)
                (error "%s" (esh2tex--unexpected-arg-msg arg)))
