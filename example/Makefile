@@ -1,6 +1,8 @@
 # %.esh.tex: %.tex
 # 	../bin/esh2tex $< > $@
 
+CASK := $(shell command -v cask 2> /dev/null)
+
 all: xelatex
 
 xelatex: example.tex
@@ -12,7 +14,9 @@ pdflatex: example.tex
 	pdflatex -jobname=example example.esh.tex
 
 dep:
-	if [ -f
+ifndef CASK
+    $(error "cask: Not found: Please install Cask from https://github.com/cask/cask.")
+endif
 	cask install
 	cask update
 
