@@ -189,14 +189,24 @@ about underful hboxes)."
     (cons (cons specials-re "{\\\\char`\\\\\\1}")
           esh--latex-substitutions)))
 
+;; Smart version using current font. The problem is that user may choose a
+;; different monospace font in XeLaTeX and in Emacs...
+;; (defun esh--wrap-symbols (str)
+;;   "Wrap characters of STR that use a fallback font in \\ESHSpecialChar{}."
+;;   (let ((ref-fonts (list nil (esh--font-for-char ?a))))
+;;     (mapconcat (lambda (chr)
+;;                  (if (memq (esh--font-for-char chr) ref-fonts)
+;;                      (char-to-string chr)
+;;                    (format "\\ESHSpecialChar{%c}" chr)))
+;;                str "")))
+
 (defun esh--wrap-symbols (str)
   "Wrap characters of STR that use a fallback font in \\ESHSpecialChar{}."
-  (let ((ref-fonts (list nil (esh--font-for-char ?a))))
-    (mapconcat (lambda (chr)
-                 (if (memq (esh--font-for-char chr) ref-fonts)
-                     (char-to-string chr)
-                   (format "\\ESHSpecialChar{%c}" chr)))
-               str "")))
+  (mapconcat (lambda (chr)
+               (if (< chr 128)
+                   (char-to-string chr)
+                 (format "\\ESHSpecialChar{%c}" chr)))
+             str ""))
 
 (defun esh--escape-for-latex (str)
   "Escape LaTeX special characters in STR."
