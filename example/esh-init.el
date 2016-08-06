@@ -26,8 +26,7 @@
 ;;; Haskell
 
 (require 'haskell nil t)
-(setq-default haskell-font-lock-symbols t)
-;; (You may want to set the above to `nil' if you're using pdfLaTeX)
+(setq-default haskell-font-lock-symbols (not (getenv "ESH_PDFLATEX")))
 
 ;;; Racket
 

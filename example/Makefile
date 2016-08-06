@@ -10,12 +10,12 @@ xelatex: example.tex
 	xelatex -jobname=example example.esh.tex
 
 pdflatex: example.tex
-	env PDFLATEX=true ../bin/esh2tex example.tex > example.esh.tex
+	env ESH_PDFLATEX=true ../bin/esh2tex example.tex > example.esh.tex
 	pdflatex -jobname=example example.esh.tex
 
 dep:
 ifndef CASK
-    $(error "cask: Not found: Please install Cask from https://github.com/cask/cask.")
+    $(error "Cask not found: Please install Cask from https://github.com/cask/cask.")
 endif
 	cask install
 	cask update
