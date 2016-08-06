@@ -27,6 +27,7 @@
 
 (require 'haskell nil t)
 (setq-default haskell-font-lock-symbols t)
+;; (You may want to set the above to `nil' if you're using pdfLaTeX)
 
 ;;; Racket
 
@@ -64,6 +65,15 @@
     (coq-mode)
     (company-coq-mode)))
 
+;;; BSV
+
+;; Not on MELPA
+(when (require 'bsv-mode-23 "/scratch/emacs-bsv/bsv-mode-23.el" t)
+  (defun my-bsv-setup ()
+    (setq-local prettify-symbols-alist '(("<-" . ?←)))
+    (prettify-symbols-mode))
+  (add-hook 'bsv-mode-hook #'my-bsv-setup))
+
 ;;; Ur/Web
 
 ;; Not on MELPA
@@ -83,10 +93,15 @@
 ;;   (set-fontset-font ft 'unicode (font-spec :name "Ubuntu Mono"))
 ;;   (set-fontset-font ft 'unicode (font-spec :name "Symbola monospacified for Ubuntu Mono") nil 'append))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Compatibility with 24.4 ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;
+;; Compatibility ;;
+;;;;;;;;;;;;;;;;;;;
 
 (eval-and-compile
+  ;; Disable prettification when using Emacs < 24.5
   (unless (fboundp 'prettify-symbols-mode)
-    (fset 'prettify-symbols-mode #'ignore)))
+    (fset 'prettify-symbols-mode #'ignore))
+  ;; Disable prettification when using pdfLaTeX
+  (when (getenv "ESH_PDFLATEX")
+    (fset 'prettify-symbols-mode #'ignore)
+    (setq-default haskell-font-lock-symbols nil)))

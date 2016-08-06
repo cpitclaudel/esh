@@ -15,6 +15,15 @@
 % *Load custom fonts %
 %%%%%%%%%%%%%%%%%%%%%%
 
+\usepackage{iftex}
+
+\ifPDFTeX
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\def\ESHSpecialChar#1{\textvisiblespace}
+
+\else
 \usepackage{fontspec}
 
 % Load XITS Math (monospacified) for symbols
@@ -43,6 +52,7 @@
 \newcommand{\ESHFont}{\UbuntuMono}
 \newcommand{\ESHInlineFont}{\UbuntuMono}
 \newcommand{\ESHSpecialCharFont}{\XITSMath}
+\fi
 
 %%%%%%%%%%%%%%%%%%%%%%
 % *Customize spacing %
@@ -223,8 +233,6 @@ ESH allows line breaks to happen within inline code snippets (here is an example
 (defun esh--normalize-color (color) (upcase (if (= (aref color 0) ?#) color (apply #'color-rgb-to-hex (color-name-to-rgb color)))))
 \end{verbatim}
 
-\clearpage
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % The following requires additional packages %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -292,8 +300,6 @@ let make_lexer keywords =
       Not_found -> raise (Stream.Error ("Illegal character " ^ s))
 \end{verbatim}
 
-\clearpage
-
 \subsection*{Dafny (source: \texttt{DutchFlag.dfy} in Dafny's repo)}
 
 %% ESH: dafny-mode
@@ -312,6 +318,25 @@ method DutchFlag(a: array<Color>)
         case Red =>
           a[r], a[w] := a[w], a[r];
           r, w := r + 1, w + 1;
+\end{verbatim}
+
+\subsection*{F* (source: \texttt{Handshake.fst} in miTLS)}
+
+%% ESH: fstar-mode
+\begin{verbatim}
+val processServerFinished: KeySchedule.ks -> HandshakeLog.log -> (hs_msg * bytes) -> ST (result bytes)
+  (requires (fun h -> True))
+  (ensures (fun h_0 i h_1 -> True))
+
+let processServerFinished ks log (m, l) =
+   match m with
+   | Finished (f) ->
+     let svd = KeySchedule.ks_client_12_server_finished ks in
+     if (equalBytes svd f.fin_vd) then
+        let _ = log @@ (Finished (f)) in
+    Correct svd
+     else Error (AD_decode_error, "Finished MAC did not verify")
+   | _ -> Error (AD_decode_error, "Unexpected state")
 \end{verbatim}
 
 \subsection*{Coq (source: \texttt{ExtendedLemmas.v} in Fiat)}
@@ -336,26 +361,5 @@ Proof.
          end.
 Qed.
 \end{verbatim}
-
-\subsection*{F* (source: \texttt{Handshake.fst} in miTLS)}
-
-%% ESH: fstar-mode
-\begin{verbatim}
-val processServerFinished: KeySchedule.ks -> HandshakeLog.log -> (hs_msg * bytes) -> ST (result bytes)
-  (requires (fun h -> True))
-  (ensures (fun h_0 i h_1 -> True))
-
-let processServerFinished ks log (m, l) =
-   match m with
-   | Finished (f) ->
-     let svd = KeySchedule.ks_client_12_server_finished ks in
-     if (equalBytes svd f.fin_vd) then
-        let _ = log @@ (Finished (f)) in
-    Correct svd
-     else Error (AD_decode_error, "Finished MAC did not verify")
-   | _ -> Error (AD_decode_error, "Unexpected state")
-\end{verbatim}
-
-\clearpage
 
 \end{document}

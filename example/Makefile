@@ -1,14 +1,18 @@
-%.esh.tex: %.tex
-	../bin/esh2tex $< > $@
+# %.esh.tex: %.tex
+# 	../bin/esh2tex $< > $@
 
-%.pdf: %.esh.tex
-	xelatex -jobname=$* $<
+all: xelatex
 
-all: example.pdf
-	gnome-open example.pdf
+xelatex: example.esh.tex
+	../bin/esh2tex example.tex > example.esh.tex
+	xelatex -jobname=example example.esh.tex
+
+pdflatex: example.esh.tex
+	env PDFLATEX=true ../bin/esh2tex example.tex > example.esh.tex
+	pdflatex -jobname=example example.esh.tex
+
+clean:
+	git clean -Xf
 
 reference: example.pdf
 	cp example.pdf example.reference.pdf
-
-clean:
-	rm -f example.pdf example.esh.tex
