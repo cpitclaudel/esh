@@ -1,24 +1,24 @@
-# %.esh.tex: %.tex
-# 	../bin/esh2tex $< > $@
-
 CASK := $(shell command -v cask 2> /dev/null)
 
 all: xelatex
 
-xelatex: example.tex
-	../bin/esh2tex example.tex > example.esh.tex
+xelatex: dep example.tex
+	../bin/esh2tex example.tex
 	xelatex -jobname=example example.esh.tex
 
-pdflatex: example.tex
-	env ESH_PDFLATEX=true ../bin/esh2tex example.tex > example.esh.tex
+pdflatex: dep example.tex
+	env ESH_PDFLATEX=true ../bin/esh2tex example.tex
 	pdflatex -jobname=example example.esh.tex
 
 dep:
 ifndef CASK
-    $(error "Cask not found: Please install Cask from https://github.com/cask/cask.")
-endif
+	$(warning >> Cask not found; some languages will not be available <<)\
+	$(warning > You can install Cask from https://github.com/cask/cask <)
+else
 	cask install
 	cask update
+endif
+
 
 clean:
 	git clean -Xf

@@ -47,8 +47,8 @@
 (defvar esh2tex--persist nil
   "See option --persist.")
 
-(defvar esh2tex--write-output nil
-  "See option --write-output.")
+(defvar esh2tex--stdout nil
+  "See option --stdout.")
 
 (defun esh2tex--help ()
   "Read help from README file."
@@ -66,14 +66,16 @@ Prepares PATH by appending `.esh.tex'.  Warns and skips if PATH
 doesn't end in `.tex'."
   (if (string-match-p esh2tex--ext path)
       (let ((dest (replace-regexp-in-string esh2tex--ext ".esh.tex" path t t)))
-        (esh-client-latexify-one-to-file path dest))
-    (esh-client-stderr "ESH Warning: unrecognized extension in %S (not `.tex')\n" path)))
+        (with-temp-file dest
+          (let ((standard-output (current-buffer)))
+            (esh-client-latexify-one path))))
+    (esh-client-stderr "ESH Warning: skipping %S (unrecognized extension)\n" path)))
 
 (defun esh2tex--unexpected-arg-msg (arg)
   "Construct an unexpected ARG error message."
   (concat (format "esh2tex: Unexpected argument %S." arg)
           (unless (string-match-p "^-" arg)
-            "  Are you missing --write-output?")))
+            "  Are you using --stdout with multiple input files?")))
 
 (defun esh2tex--main ()
   "Main entry point."
@@ -96,14 +98,14 @@ doesn't end in `.tex'."
              (setq esh-client-use-cask nil))
             ("--no-Q"
              (setq esh-client-pass-Q-to-server nil))
-            ("--write-output"
-             (setq esh2tex--write-output t))
+            ("--stdout"
+             (setq esh2tex--stdout t))
             (arg
-             (when (and argv (not esh2tex--write-output))
+             (when (and argv esh2tex--stdout)
                (error "%s" (esh2tex--unexpected-arg-msg arg)))
-             (if esh2tex--write-output
-                 (esh2tex--latexify-one-to-file arg)
-               (esh-client-latexify-one arg))
+             (if esh2tex--stdout
+                 (esh-client-latexify-one arg)
+               (esh2tex--latexify-one-to-file arg))
              (setq at-least-one t))))
         (unless at-least-one
           (error "No input files given")))

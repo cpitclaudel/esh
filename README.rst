@@ -66,10 +66,11 @@ Usage
 
 ::
 
-  esh2tex [<options>...] [<input>]
-  emacs -Q --script esh2tex [<options>...] [<input>]
+  esh2tex [<options>...] [<input>.tex...]
+  emacs -Q --script esh2tex [<options>...] [<input>.tex...]
 
-``<input>`` should be an UTF-8 encoded text file; output goes to standard out.
+``<input>.tex`` should be an UTF-8 encoded text file; output goes to
+``<input>.esh.tex``. ``--init`` is special; see `Options`_.
 
 
 In ``<input>``, you may indicate source blocks like this:
@@ -120,12 +121,16 @@ Options
 
 * ``--persist``
 
-  Leave server running after processing ``<input>``.  Don't forget to
+  Leave server running after processing ``<input>.tex``.  Don't forget to
   ``--kill-server`` if you make changes to your ``esh-init.el``!
 
 * ``--kill-server``
 
   Kill previously-started instances of the ESH server.
+
+* ``--stdout``
+
+  Write to stdout, instead of writing to ``<input>.esh.tex``.
 
 * ``--no-cask``
 
