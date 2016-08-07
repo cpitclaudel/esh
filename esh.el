@@ -200,19 +200,8 @@ about underful hboxes)."
     (cons (cons specials-re "{\\\\char`\\\\\\1}")
           esh--latex-substitutions)))
 
-;; Smart version using current font. The problem is that user may choose a
-;; different monospace font in XeLaTeX and in Emacs...
-;; (defun esh--wrap-symbols (str)
-;;   "Wrap characters of STR that use a fallback font in \\ESHSpecialChar{}."
-;;   (let ((ref-fonts (list nil (esh--font-for-char ?a))))
-;;     (mapconcat (lambda (chr)
-;;                  (if (memq (esh--font-for-char chr) ref-fonts)
-;;                      (char-to-string chr)
-;;                    (format "\\ESHSpecialChar{%c}" chr)))
-;;                str "")))
-
 (defun esh--wrap-symbols (str)
-  "Wrap characters of STR that use a fallback font in \\ESHSpecialChar{}."
+  "Wrap non-ASCII characters of STR in \\ESHSpecialChar{}."
   (mapconcat (lambda (chr)
                (if (< chr 128)
                    (char-to-string chr)
@@ -392,8 +381,8 @@ the required mode isn't available.  INLINE is passed to
 % \\ESHInlineFont is for inline code samples
 \\providecommand*{\\ESHInlineFont}{\\ESHFont}
 
-% \\ESHSpecialCharFont is applied to characters not included in Emacs' default font
-\\providecommand*{\\ESHSpecialCharFont}{\\ttfamily}
+% \\ESHFallbackFont is applied to characters not covered by \\ESHFont
+\\providecommand*{\\ESHFallbackFont}{\\ESHFont}
 
 % Environments
 %%%%%%%%%%%%%%
@@ -415,8 +404,28 @@ the required mode isn't available.  INLINE is passed to
   \\settowidth\\ESHtempdim{#1}%
   \\makebox[\\ESHtempdim][c]{#2}}
 
-% \\ESHSpecialChar is used for special characters (those not found in the default font)
-\\providecommand*{\\ESHSpecialChar}[1]{\\ESHCenterInWidthOf{\\ESHFont{a}}{\\ESHSpecialCharFont#1}}
+\\RequirePackage{iftex}
+\\ifXeTeX
+  % \\ESHWithFallback{#A} prints #A in \\ESHFont if possible, falling back to \\ESHFallbackFont
+  % Adapted from https://tug.org/pipermail/xetex/2011-November/022319.html
+  \\def\\ESHWithFallback#1{%
+    \\begingroup
+      \\def\\found{\\ESHFont#1}%
+      \\def\\notfound{\\ESHFallbackFont#1}%
+      \\ifnum\\XeTeXfonttype\\font>0%
+        \\ifnum\\XeTeXcharglyph`#1>0\\found\\else\\notfound\\fi
+      \\else
+        \\setbox0=\\hbox{\\tracinglostchars=0\\kern1sp#1\\expandafter}%
+        \\ifnum\\lastkern=1\\notfound\\else\\found\\fi
+      \\fi
+    \\endgroup}
+\\else
+  % Fall back to just using \\ESHFallbackFont
+  \\def\\ESHWithFallback#1{\\ESHFallbackFont#1}
+\\fi
+
+% \\ESHSpecialChar is used by ESH to indicate non-ascii characters, which may need a fallback font
+\\providecommand*{\\ESHSpecialChar}[1]{\\ESHCenterInWidthOf{\\ESHFont{a}}{\\ESHWithFallback{#1}}}
 
 % \\ESHRaise implements monospace sub/superscripts
 \\providecommand*{\\ESHRaise}[2]{\\rlap{\\raisebox{#1}{\\scriptsize#2}}\\hphantom{#2}}

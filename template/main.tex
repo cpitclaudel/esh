@@ -8,11 +8,11 @@
 
 \usepackage{fontspec}
 
-% https://github.com/cpitclaudel/monospacifier
+% https://github.com/khaledhosny/xits-math/
 \newfontfamily{\XITSMath}[Path=fonts/,
-                          UprightFont=*_monospacified_for_UbuntuMono.ttf,
-                          BoldFont=*-Bold_monospacified_for_UbuntuMono.ttf,
-                          Mapping=tex-ansi]{XITSMath}
+                          UprightFont=*.otf,
+                          BoldFont=*bold.otf,
+                          Mapping=tex-ansi]{xits-math}
 
 % http://font.ubuntu.com/
 \newfontfamily{\UbuntuMono}[Path=fonts/,
@@ -24,7 +24,7 @@
 
 \newcommand{\ESHFont}{\UbuntuMono}
 \newcommand{\ESHInlineFont}{\UbuntuMono}
-\newcommand{\ESHSpecialCharFont}{\XITSMath}
+\newcommand{\ESHFallbackFont}{\XITSMath}
 
 %% ESH-preamble-here
 

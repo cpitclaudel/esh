@@ -207,7 +207,14 @@ You'll probably want to use XeLaTeX of LuaLaTeX for this to work well;
 otherwise, ``pdfLaTeX`` will be confused by the Unicode symbols, and probably
 won't find a font to display them anyway.
 
-You'll also want to redefine the ``\ESHSpecialChar`` command, too (see below).
+You'll probably want to redefine the ``\ESHFallbackFont`` command, too (see
+below); something like this:
+
+.. code:: latex
+
+   \usepackage{fontspec}
+   \newfontfamily{\Symbola}{Symbola}
+   \newcommand{\ESHFallbackFont}{\Symbola}
 
 Defining inline environments
 ----------------------------
@@ -252,12 +259,12 @@ Changing fonts:
 
    ;; Use Ubuntu Mono for inline code
    \newfontfamily{\UbuntuMono}[Mapping=tex-ansi]{Ubuntu Mono}
-   \DeclareTextFontCommand{\ESHInlineFont}{\UbuntuMono}
+   \newcommand{\ESHInlineFont}{\UbuntuMono}
 
-   ;; Use Symbola for special characters:
+   ;; Use Symbola for special characters
    \usepackage{fontspec}
    \newfontfamily{\Symbola}{Symbola}
-   \DeclareTextFontCommand{\ESHSpecialCharFont}{\Symbola}
+   \newcommand{\ESHFallbackFont}{\Symbola}
 
 Customizing spacing:
 
@@ -298,14 +305,15 @@ Fixing font issues
 ------------------
 
 If you're having font issues, try switching to XeLaTeX or LuaLaTeX.  ESH wraps
-each character out of the ASCII range within a ``\SpecialChar{}`` command, which
-internally uses ``\SpecialCharFont``.  You may want to redefine it to a font
-with good Unicode coverage:
+each non-ASCII character in an ``\ESHSpecialChar{}`` command, which internally
+uses ``\ESHFallbackFont``: you may want to redefine that to a font with good
+Unicode coverage:
 
 .. code:: latex
 
+   \usepackage{fontspec}
    \newfontfamily{\XITSMath}{XITS Math}
-   \newcommand{\ESHSpecialCharFont}{\XITSMath}
+   \newcommand{\ESHFallbackFont}{\XITSMath}
 
 Using a different version of Emacs
 ----------------------------------
