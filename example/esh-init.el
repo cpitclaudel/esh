@@ -59,7 +59,8 @@
 (when (and (require 'proof-site nil t)
            (require 'company-coq nil t))
   (setq-default proof-splash-seen t
-                company-coq-local-symbols '(("->>" . ?↦) ("|>" . ?▹)))
+                company-coq-local-symbols '(("->>" . ?↦) ("|>" . ?▹))
+                company-coq-disabled-features '(code-folding))
   (add-hook #'coq-mode-hook #'company-coq-mode)
   (defun prettified-coq-mode ()
     (coq-mode)

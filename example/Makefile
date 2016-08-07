@@ -1,5 +1,7 @@
 CASK := $(shell command -v cask 2> /dev/null)
 
+.PHONY: all xelatex pdflatex dep clean reference
+
 all: xelatex
 
 xelatex: dep example.tex
@@ -18,7 +20,6 @@ else
 	cask install
 	cask update
 endif
-
 
 clean:
 	git clean -Xf
