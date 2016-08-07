@@ -2,9 +2,9 @@
  Emacs Syntax Highlighting for LaTeX
 =====================================
 
-This programs processes TeX source files, adding syntax-highlighting macros to
-the contents of specially-delimited environments and macros.  For example,
-esh2tex transforms this block:
+This programs processes TeX source files, adding syntax-highlighting to the
+contents of specially-delimited environments and macros.  For example,
+``esh2tex`` transforms this block:
 
 .. code:: latex
 
@@ -21,10 +21,10 @@ into something like that:
    \-  \color{8CC4FF}{int} \color{FCE94F}{main}() \{ \color{B4FA70}{return} 0; \}
    \end{ESHBlock}
 
-See the ``example`` folder of the GitHub repository for a full example.  One of
-the best parts is that your document can keep pretending to use ``lstlistings``,
-``minted``, ``fancyvrb``, ``verbatim`` etc. while using ESH, and thus still be
-compilable by people who don't have ESH.
+Curious? Check out our
+`demo PDF <https://github.mit.edu/cpitcla/esh/raw/master/example/reference.pdf>`_
+and give it a try! Plus, since ESH works with special comments, your documents
+remain compilable by people who don't have it.
 
 
 Setup
@@ -32,9 +32,9 @@ Setup
 
 **Dependencies:** Emacs > 24.2; XeLaTeX (recommended); Cask (optional)
 
-**Setup:** Clone the repository somewhere, and add ``<wherever>/bin`` to your path
-(alternatively, just use ``<wherever>/bin/esh2tex`` explicitly).  This program
-is tested only on GNU/Linux.
+**Setup:** Clone the repository somewhere, and add ``<wherever>/bin`` to your
+path (alternatively, just call ``<wherever>/bin/esh2tex`` explicitly).  This
+program is tested only on GNU/Linux.
 
 **Sanity check:** Running ``make`` in the ``example`` directory of the Git repo
 should produce a (partially) syntax-highlighted ``example.pdf``.

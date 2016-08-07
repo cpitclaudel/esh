@@ -25,4 +25,4 @@ clean:
 	git clean -Xf
 
 reference: xelatex
-	cp example.pdf example.reference.pdf
+	cp example.pdf reference.pdf
