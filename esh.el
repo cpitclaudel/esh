@@ -464,7 +464,7 @@ character."
       (goto-char code-beg)
       (if (search-forward delimiter (point-at-eol) t)
           (list form-beg (point) code-beg (1- (point)) command)
-        (error "No matching delimiter found after use of `%S%s'"
+        (error "No matching delimiter found after use of `%s%s'"
                command delimiter)))))
 
 (defun esh--latexify-beginning-of-document ()
@@ -479,17 +479,26 @@ This looks for `esh--latexify-inline-env-declaration-re, and
 constructs a cons of a regular expressions matching all inline
 envs, and an alist mapping envs to mode symbols."
   (let ((envs nil))
+    (goto-char (point-min))
     (while (re-search-forward esh--latexify-inline-env-declaration-re nil t)
       (let* ((mode (intern (match-string 1)))
              (command (match-string 2)))
         (push (cons command mode) envs)))
     (cons (regexp-opt (mapcar #'car envs)) envs)))
 
-(defun esh--latexify-do-inline-envs (temp-buffers)
+(defun esh--latexify-do-inline-envs (master-buffer temp-buffers)
   "Latexify sources in esh inline environments.
-TEMP-BUFFERS is an alist of (MODE . TEMP-BUFFER)."
-  (pcase-let* ((`(,envs-re . ,modes-alist) (esh--latexify-find-inline-envs-decls)))
-    (esh--latexify-beginning-of-document)
+Read definitions from MASTER-BUFFER if non nil, current buffer
+otherwise.  TEMP-BUFFERS is be an alist of (MODE . TEMP-BUFFER).
+If MASTER-BUFFER is nil and there's no \\begin{document},
+complain loudly: otherwise, we'll risk making replacements in the
+document's preamble."
+  (pcase-let* ((`(,envs-re . ,modes-alist)
+                (with-current-buffer (or master-buffer (current-buffer))
+                  (esh--latexify-find-inline-envs-decls))))
+    (if master-buffer
+        (goto-char (point-min))
+      (esh--latexify-beginning-of-document))
     (let ((match-info nil))
       (while (setq match-info (esh--latexify-inline-verb-matcher envs-re))
         (pcase match-info
@@ -509,7 +518,6 @@ CODE-START and CODE-END are markers.  TEMP-BUFFERS is an alist
 of (MODE . TEMP-BUFFER)."
   (pcase-dolist (`(,old-start ,new-start ,old-end ,new-end)
                  esh-latexify-block-envs)
-    (esh--latexify-beginning-of-document)
     (goto-char (point-min))
     (while (re-search-forward old-start nil t)
       (goto-char (match-end 0))
@@ -531,34 +539,50 @@ of (MODE . TEMP-BUFFER)."
           (insert (esh--latexify-in-buffer code temp-buffer mode-fn))))))
   temp-buffers)
 
-(defun esh2tex-current-buffer ()
-  "Fontify contents of all esh environments.
-Replace `esh--latexify-preamble-marker' by
-`esh--latex-preamble', then latexify sources in environments
-delimited by `esh-latexify-block-envs' and user-defined inline
-groups."
+(defun esh2tex-current-buffer (&optional master)
+  "Fontify contents of all ESH environments.
+Replace `esh--latexify-preamble-marker' by `esh--latex-preamble',
+then latexify sources in environments delimited by
+`esh-latexify-block-envs' and user-defined inline groups.  With
+non-nil MASTER, read ESH settings from there and don't complain
+about missing \\\\begin{document}s."
   (interactive)
   (save-excursion
-    (esh--latexify-add-preamble)
+    (with-current-buffer (or master (current-buffer))
+      (esh--latexify-add-preamble))
     (let* ((temp-buffers nil)
            (code-start (make-marker))
            (code-end (make-marker)))
       (unwind-protect
           (progn
             (setq temp-buffers
-                  (esh--latexify-do-inline-envs temp-buffers))
+                  (esh--latexify-do-inline-envs master temp-buffers))
             (setq temp-buffers
                   (esh--latexify-do-block-envs code-start code-end temp-buffers)))
         (set-marker code-start nil)
         (set-marker code-end nil)
         (mapcar (lambda (p) (kill-buffer (cdr p))) temp-buffers)))))
 
-(defun esh-latexify-file (path)
-  "Fontify contents of all ESH environments in PATH."
-  (with-temp-buffer
-    (insert-file-contents path)
-    (esh2tex-current-buffer)
-    (buffer-string)))
+(defun esh--same-file-p (f1 f2)
+  "Check if F1 and F2 are the same files."
+  (string= (file-truename f1) (file-truename f2)))
+
+(defun esh-latexify-file (path &optional master)
+  "Fontify contents of all ESH environments in PATH.
+With non-nil MASTER, read ESH settings from there."
+  (let ((master-buffer (when (and master (not (esh--same-file-p path master)))
+                         (generate-new-buffer " *temp*"))))
+    (unwind-protect
+        (with-temp-buffer
+          (when master-buffer
+            (with-current-buffer master-buffer
+              (insert-file-contents master)
+              (current-buffer)))
+          (insert-file-contents path)
+          (esh2tex-current-buffer master-buffer)
+          (buffer-string))
+      (when (and master (buffer-live-p master-buffer))
+        (kill-buffer master-buffer)))))
 
 (provide 'esh)
 ;;; esh.el ends here

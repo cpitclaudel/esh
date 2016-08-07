@@ -89,9 +89,9 @@ DISPLAY and PRELUDE are forwarded."
   `(progn
      (esh-server-init ,display ,prelude)))
 
-(defun esh-client--rpc-latexify-form (path)
-  "Construct a form to latexify PATH on server."
-  `(esh-server-latexify ,path))
+(defun esh-client--rpc-latexify-form (path master)
+  "Construct a form to latexify PATH with MASTER on server."
+  `(esh-server-latexify ,path ,master))
 
 ;;; Running forms on server
 
@@ -203,8 +203,8 @@ each `esh-server-eval' query."
 
 ;;; Main entry point
 
-(defun esh-client-latexify-one (path)
-  "Latexify PATH.
+(defun esh-client-latexify-one (path &optional master)
+  "Latexify PATH, optionally loading ESH settings from MASTER.
 This starts an Emacs daemon, and runs the latexification code on
 it.  If a daemon is available, it is reused.  Originally, the
 only reason a daemon was needed was that it's hard to make Emacs'
@@ -212,7 +212,7 @@ initial frame invisible.  Now, it's also used to make things
 faster.  Output goes to `standard-output'."
   (esh-client--ensure-server) ;; To prevent progress messages from interleaving
   (esh-client--with-progress-msg (format "Highlighting %S" path)
-    (princ (esh-client--run (esh-client--rpc-latexify-form path)))))
+    (princ (esh-client--run (esh-client--rpc-latexify-form path master)))))
 
 (provide 'esh-client)
 ;;; esh-client.el ends here

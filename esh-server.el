@@ -109,12 +109,13 @@ error checking here; we expect this to be invoked through
                               (display . ,display)
                               (visibility . nil))))))
 
-(defun esh-server-latexify (path)
+(defun esh-server-latexify (path &optional master)
   "Latexify PATH and return the result as a string.
-No error checking here; we expect this to be invoked through
+With non-nil MASTER, read ESH settings from there.  No error
+checking here; we expect this to be invoked through
 `esh-server-eval'."
   (with-selected-frame esh--server-frame
-    (esh-latexify-file path)))
+    (esh-latexify-file path master)))
 
 (provide 'esh-server)
 ;;; esh-server.el ends here

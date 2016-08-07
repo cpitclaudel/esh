@@ -50,6 +50,9 @@
 (defvar esh2tex--stdout nil
   "See option --stdout.")
 
+(defvar esh2tex--master-file nil
+  "See option --master.")
+
 (defun esh2tex--help ()
   "Read help from README file."
   (with-temp-buffer
@@ -62,12 +65,16 @@
   "See option --init."
   (let ((template-dir (expand-file-name "template" esh2tex--parent-directory))
         (fonts-dir (expand-file-name "example/fonts" esh2tex--parent-directory)))
-    (make-directory "fonts")
-    (dolist (fname (directory-files template-dir))
-      (copy-file (expand-file-name fname template-dir) fname))
-    (dolist (fname (directory-files fonts-dir))
-      (copy-file (expand-file-name fname template-dir)
-                 (expand-file-name fname "fonts")))))
+    (pcase-dolist (`(,src-dir . ,dst-dir) `((,template-dir . "")
+                                            (,fonts-dir . "fonts")))
+      (make-directory dst-dir t)
+      (dolist (fname (directory-files src-dir))
+        (unless (file-directory-p fname)
+          (copy-file (expand-file-name fname src-dir)
+                     (expand-file-name fname dst-dir))))
+      (with-temp-file "Makefile"
+        (insert (format "ESH2TEX := %S\n" esh2tex--script-full-path))
+        (insert-file-contents "Makefile")))))
 
 (defconst esh2tex--ext "\\.tex\\'")
 
@@ -79,7 +86,7 @@ doesn't end in `.tex'."
       (let ((dest (replace-regexp-in-string esh2tex--ext ".esh.tex" path t t)))
         (with-temp-file dest
           (let ((standard-output (current-buffer)))
-            (esh-client-latexify-one path))))
+            (esh-client-latexify-one path esh2tex--master-file))))
     (esh-client-stderr "ESH Warning: skipping %S (unrecognized extension)\n" path)))
 
 (defun esh2tex--unexpected-arg-msg (arg)
@@ -93,11 +100,12 @@ doesn't end in `.tex'."
   (unless argv
     (setq argv '("--usage")))
   (unwind-protect
-      (let ((at-least-one nil))
+      (let ((complain-about-missing-input t))
         (while argv
           (pcase (pop argv)
             ("--usage"
-             (princ (esh2tex--help)))
+             (princ (esh2tex--help))
+             (setq complain-about-missing-input nil))
             ("--debug-on-error"
              (setq debug-on-error t)
              (setq esh-client-debug-server t))
@@ -111,16 +119,21 @@ doesn't end in `.tex'."
              (setq esh-client-pass-Q-to-server nil))
             ("--stdout"
              (setq esh2tex--stdout t))
+            ("--master"
+             (unless argv
+               (error "--master takes one argument"))
+             (setq esh2tex--master-file (pop argv)))
             ("--init"
-             (esh2tex--init))
+             (esh2tex--init)
+             (setq complain-about-missing-input nil))
             (arg
              (when (and argv esh2tex--stdout)
                (error "%s" (esh2tex--unexpected-arg-msg arg)))
              (if esh2tex--stdout
-                 (esh-client-latexify-one arg)
+                 (esh-client-latexify-one arg esh2tex--master-file)
                (esh2tex--latexify-one-to-file arg))
-             (setq at-least-one t))))
-        (unless at-least-one
+             (setq complain-about-missing-input nil))))
+        (when complain-about-missing-input
           (error "No input files given")))
     (unless esh2tex--persist
       (esh-client-kill-server))))
