@@ -30,14 +30,14 @@
 \else
 \usepackage{fontspec}
 
-% Load XITS Math (monospacified) for symbols
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Load XITS Math for symbols
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% https://github.com/cpitclaudel/monospacifier
+% https://github.com/khaledhosny/xits-math/releases
 \newfontfamily{\XITSMath}[Path=fonts/,
-                          UprightFont=*_monospacified_for_UbuntuMono.ttf,
-                          BoldFont=*-Bold_monospacified_for_UbuntuMono.ttf,
-                          Mapping=tex-ansi]{XITSMath}
+                          UprightFont=*.otf,
+                          BoldFont=*bold.otf,
+                          Mapping=tex-ansi]{xits-math}
 
 % Load Ubuntu Mono for code
 %%%%%%%%%%%%%%%%%%%%%%%%%%%

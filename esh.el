@@ -398,9 +398,14 @@ the required mode isn't available.  INLINE is passed to
 % Note the extra pair of braces in the definition
 \\providecommand*{\\ESHInline}[1]{{\\ESHInlineBasicSetup#1}}
 
+% \\ESHCenterInWidthOf{#A}{#B} prints #B centered in a box as large as #A.
+\\newdimen\\ESHtempdim
+\\providecommand*{\\ESHCenterInWidthOf}[2]{%
+  \\settowidth\\ESHtempdim{#1}%
+  \\makebox[\\ESHtempdim][c]{#2}}
+
 % \\ESHSpecialChar is used for special characters (those not found in the default font)
-% Note the extra pair of braces in the definition
-\\providecommand*{\\ESHSpecialChar}[1]{{\\ESHSpecialCharFont#1}}
+\\providecommand*{\\ESHSpecialChar}[1]{\\ESHCenterInWidthOf{\\ESHFont{a}}{\\ESHSpecialCharFont#1}}
 
 % \\ESHRaise implements monospace sub/superscripts
 \\providecommand*{\\ESHRaise}[2]{\\rlap{\\raisebox{#1}{\\scriptsize#2}}\\hphantom{#2}}

@@ -66,15 +66,6 @@
     (coq-mode)
     (company-coq-mode)))
 
-;;; BSV
-
-;; Not on MELPA
-(when (require 'bsv-mode-23 "/scratch/emacs-bsv/bsv-mode-23.el" t)
-  (defun my-bsv-setup ()
-    (setq-local prettify-symbols-alist '(("<-" . ?←)))
-    (prettify-symbols-mode))
-  (add-hook 'bsv-mode-hook #'my-bsv-setup))
-
 ;;; Ur/Web
 
 ;; Not on MELPA
@@ -83,16 +74,6 @@
 ;;     (setq-local prettify-symbols-alist '(("::" . ?∷) ("=>" . ?⇒)))
 ;;     (prettify-symbols-mode))
 ;;   (add-hook 'urweb-mode-hook #'my-urweb-setup))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Uncomment and edit the following to improve handling of fallback ;;
-;; fonts (see the manual for more information)                      ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; (set-face-attribute 'default nil :family "Ubuntu Mono")
-;; (dolist (ft (fontset-list))
-;;   (set-fontset-font ft 'unicode (font-spec :name "Ubuntu Mono"))
-;;   (set-fontset-font ft 'unicode (font-spec :name "Symbola monospacified for Ubuntu Mono") nil 'append))
 
 ;;;;;;;;;;;;;;;;;;;
 ;; Compatibility ;;

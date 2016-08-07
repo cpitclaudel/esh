@@ -282,31 +282,22 @@ Adding ``esh2tex`` comments in ``org-mode``
 
 See `README.org-mode.rst <README.org-mode.rst>`_.
 
-Fixing font inconsistencies
----------------------------
 
-If you're having font issues, try switching to XeLaTeX or LuaLaTeX.  ESH uses
-Emacs' display engine to guess which characters need to use a fallback font;
-this will work well if you use the same fonts in your ``esh-init.el``:
 
-.. code:: emacs-lisp
 
-   (set-face-attribute 'default nil :family "Ubuntu Mono")
-   (dolist (ft (fontset-list))
-     (set-fontset-font ft 'unicode (font-spec :name "Ubuntu Mono"))
-     (set-fontset-font ft 'unicode (font-spec :name "Symbola") nil 'append))
 
-and in your XeLaTeX document:
+Fixing font issues
+------------------
+
+If you're having font issues, try switching to XeLaTeX or LuaLaTeX.  ESH wraps
+each character out of the ASCII range within a ``\SpecialChar{}`` command, which
+internally uses ``\SpecialCharFont``.  You may want to redefine it to a font
+with good Unicode coverage:
 
 .. code:: latex
 
-   \usepackage{fontspec}
-   \newfontfamily{\Symbola}{Symbola}
-   \newfontfamily{\UbuntuMono}{Ubuntu Mono}
-
-   \newcommand{\ESHFont}{\UbuntuMono}
-   \DeclareTextFontCommand{\ESHInline}{\UbuntuMono}
-   \DeclareTextFontCommand{\ESHSpecialChar}{\Symbola}
+   \newfontfamily{\XITSMath}{XITS Math}
+   \newcommand{\ESHSpecialCharFont}{\XITSMath}
 
 Using a different version of Emacs
 ----------------------------------
