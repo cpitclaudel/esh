@@ -71,10 +71,10 @@
       (dolist (fname (directory-files src-dir))
         (unless (file-directory-p fname)
           (copy-file (expand-file-name fname src-dir)
-                     (expand-file-name fname dst-dir))))
-      (with-temp-file "Makefile"
-        (insert (format "ESH2TEX := %S\n" esh2tex--script-full-path))
-        (insert-file-contents "Makefile")))))
+                     (expand-file-name fname dst-dir)))))
+    (with-temp-file "Makefile"
+      (insert (format "ESH2TEX := %S\n" esh2tex--script-full-path))
+      (insert-file-contents "Makefile"))))
 
 (defconst esh2tex--ext "\\.tex\\'")
 
