@@ -62,6 +62,17 @@
   "Compute which font displays CHAR."
   (car (internal-char-font nil char)))
 
+(defun esh-add-keywords (forms)
+  "Pass FORMS to `font-lock-add-keywords'.
+See `font-lock-keywords' for information about the format of
+elements of FORMS.  This function does essentially the same thing
+as `font-lock-add-keywords', with nicer indentation, a simpler
+call signature, and a workaround for an Emacs bug."
+  (declare (indent 0))
+  ;; Work around Emacs bug #24176
+  (setq font-lock-major-mode major-mode)
+  (font-lock-add-keywords nil forms))
+
 ;;; Segmenting a buffer
 
 ;; FIXME this splits by properties including overlays, but then it ignores them
