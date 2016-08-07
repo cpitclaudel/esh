@@ -125,6 +125,10 @@ Options
   Don't process input files; instead, create a fairly complete ESH setup in the
   current folder, including an basic ``main.tex`` and simple ``Makefile``.
 
+* ``--master <file>``
+
+  Load ESH inline macro definitions from ``<file>`` instead of ``<input>``.
+
 * ``--persist``
 
   Leave server running after processing ``<input>.tex``.  Don't forget to
@@ -277,14 +281,18 @@ Overriding the ``ESHBlock`` environment:
 All these tricks, and more, are demonstrated in the ``example/example.tex``
 subfolder of the repository.
 
-Adding ``esh2tex`` comments in ``org-mode``
--------------------------------------------
+Using a master file
+-------------------
+
+ESH normally errors out if it can't find a preamble declaration in the current
+file.  To process a fragment, such as a part of a larger document, pass the path
+to your master file using the ``--master`` option (ESH needs it to find inline
+patterns).
+
+Using ``esh2tex`` with ``org-mode``
+-----------------------------------
 
 See `README.org-mode.rst <README.org-mode.rst>`_.
-
-
-
-
 
 Fixing font issues
 ------------------
