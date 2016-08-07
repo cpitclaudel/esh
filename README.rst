@@ -123,7 +123,7 @@ Options
 * ``--init``
 
   Don't process input files; instead, create a fairly complete ESH setup in the
-  current folder, including an basic main.tex, and simple Makefile.
+  current folder, including an basic ``main.tex`` and simple ``Makefile``.
 
 * ``--persist``
 
@@ -157,6 +157,7 @@ Options
 
   Print stack traces for errors.
 
+
 Notes
 =====
 
@@ -170,7 +171,6 @@ Notes
   ``--persist`` to leave a server running after the first run and reuse it on
   subsequent runs.
 
-See https://github.com/cpitclaudel/esh2tex for more information.
 
 Tips and suggestions
 ====================

@@ -1,15 +1,17 @@
 CASK := $(shell command -v cask 2> /dev/null)
 
-%.esh.tex: %.tex
-	../bin/esh2tex "$<"
+.PHONY: dep default clean git-clean
+
+%.esh.tex: %.tex esh-init.el Cask
+	${ESH2TEX} "$<"
+
+# %.pdf: %.esh.tex
+# 	rubber --module xelatex --jobname="$*" "$<"
 
 %.pdf: %.esh.tex
-	rubber --module xelatex --jobname="$@" "$<"
+	xelatex -jobname="$*" "$<"
 
-%.pdf: %.esh.tex
-	xelatex -jobname="$@" "$<"
-
-all: main.pdf
+default: main.pdf
 
 dep:
 ifndef CASK
@@ -20,7 +22,7 @@ else
 endif
 
 clean:
-	rm *.esh.*
+	rm -f *.esh.*
 
 git-clean:
 	git clean -Xf
