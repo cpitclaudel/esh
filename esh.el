@@ -509,7 +509,8 @@ envs, and an alist mapping envs to mode symbols."
       (let* ((mode (intern (match-string 1)))
              (command (match-string 2)))
         (push (cons command mode) envs)))
-    (cons (regexp-opt (mapcar #'car envs)) envs)))
+    (when envs
+      (cons (regexp-opt (mapcar #'car envs)) envs))))
 
 (defun esh--latexify-do-inline-envs (master-buffer temp-buffers)
   "Latexify sources in esh inline environments.
@@ -518,23 +519,23 @@ otherwise.  TEMP-BUFFERS is be an alist of (MODE . TEMP-BUFFER).
 If MASTER-BUFFER is nil and there's no \\begin{document},
 complain loudly: otherwise, we'll risk making replacements in the
 document's preamble."
-  (pcase-let* ((`(,envs-re . ,modes-alist)
-                (with-current-buffer (or master-buffer (current-buffer))
-                  (esh--latexify-find-inline-envs-decls))))
-    (if master-buffer
-        (goto-char (point-min))
-      (esh--latexify-beginning-of-document))
-    (let ((match-info nil))
-      (while (setq match-info (esh--latexify-inline-verb-matcher envs-re))
-        (pcase match-info
-          (`(,beg ,end ,code-beg ,code-end ,cmd)
-           (let* ((mode-fn (cdr (assoc cmd modes-alist)))
-                  (code (buffer-substring-no-properties code-beg code-end))
-                  (temp-buffer (esh--make-temp-buffer mode-fn temp-buffers t))
-                  (code-latex (esh--latexify-in-buffer code temp-buffer mode-fn)))
-             (goto-char beg)
-             (delete-region beg end)
-             (insert (concat "\\ESHInline{" code-latex "}"))))))))
+  (pcase (with-current-buffer (or master-buffer (current-buffer))
+           (esh--latexify-find-inline-envs-decls))
+    (`(,envs-re . ,modes-alist)
+     (if master-buffer
+         (goto-char (point-min))
+       (esh--latexify-beginning-of-document))
+     (let ((match-info nil))
+       (while (setq match-info (esh--latexify-inline-verb-matcher envs-re))
+         (pcase match-info
+           (`(,beg ,end ,code-beg ,code-end ,cmd)
+            (let* ((mode-fn (cdr (assoc cmd modes-alist)))
+                   (code (buffer-substring-no-properties code-beg code-end))
+                   (temp-buffer (esh--make-temp-buffer mode-fn temp-buffers t))
+                   (code-latex (esh--latexify-in-buffer code temp-buffer mode-fn)))
+              (goto-char beg)
+              (delete-region beg end)
+              (insert (concat "\\ESHInline{" code-latex "}")))))))))
   temp-buffers)
 
 (defun esh--latexify-do-block-envs (code-start code-end temp-buffers)
