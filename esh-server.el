@@ -30,6 +30,9 @@
 (defvar esh-server--backtrace nil
   "Backtrace of last error during `esh-server-eval'.")
 
+(defvar esh-server-initializing nil
+  "Non-nil while the ESH server is initializing.")
+
 (defvar esh--server-frame nil
   "Global variable holding the invisible ESH frame.")
 
@@ -103,7 +106,9 @@ error checking here; we expect this to be invoked through
 `esh-server-eval'."
   (setq-default load-prefer-newer t)
   (setq-default text-quoting-style 'grave)
-  (when prelude (load-file prelude))
+  (when prelude
+    (let ((esh-server-initializing t))
+      (load-file prelude)))
   (ignore (setq esh--server-frame
                 (make-frame `((window-system . x)
                               (display . ,display)
