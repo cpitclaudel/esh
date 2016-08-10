@@ -384,19 +384,12 @@ the required mode isn't available.  INLINE is passed to
 % \\ESHFallbackFont is applied to characters not covered by \\ESHFont
 \\providecommand*{\\ESHFallbackFont}{\\ESHFont}
 
-% Environments
-%%%%%%%%%%%%%%
+% Utils
+%%%%%%%
+
 
 % \\ESHNoHyphens disables hyphenation
-\\providecommand*{\\ESHNoHyphens}{\\righthyphenmin=62\\lefthyphenmin=62}
-
-% \\ESHInlineBasicSetup is used by \\ESHInline
-\\providecommand*{\\ESHInlineBasicSetup}{%
-  \\obeyspaces\\ESHNoHyphens\\ESHInlineFont}
-
-% \\ESHInline is used for inline code
-% Note the extra pair of braces in the definition
-\\providecommand*{\\ESHInline}[1]{{\\ESHInlineBasicSetup#1}}
+\\providecommand*{\\ESHNoHyphens}{\\hyphenpenalty=10000}
 
 % \\ESHCenterInWidthOf{#A}{#B} prints #B centered in a box as large as #A.
 \\newdimen\\ESHtempdim
@@ -406,11 +399,11 @@ the required mode isn't available.  INLINE is passed to
 
 \\RequirePackage{iftex}
 \\ifXeTeX
-  % \\ESHWithFallback{#A} prints #A in \\ESHFont if possible, falling back to \\ESHFallbackFont
+  % \\ESHWithFallback{#A} prints #A in the current font if possible, falling back to \\ESHFallbackFont
   % Adapted from https://tug.org/pipermail/xetex/2011-November/022319.html
   \\def\\ESHWithFallback#1{%
     \\begingroup
-      \\def\\found{\\ESHFont#1}%
+      \\def\\found{#1}%
       \\def\\notfound{\\ESHFallbackFont#1}%
       \\ifnum\\XeTeXfonttype\\font>0%
         \\ifnum\\XeTeXcharglyph`#1>0\\found\\else\\notfound\\fi
@@ -425,7 +418,7 @@ the required mode isn't available.  INLINE is passed to
 \\fi
 
 % \\ESHSpecialChar is used by ESH to indicate non-ascii characters, which may need a fallback font
-\\providecommand*{\\ESHSpecialChar}[1]{\\ESHCenterInWidthOf{\\ESHFont{a}}{\\ESHWithFallback{#1}}}
+\\providecommand*{\\ESHSpecialChar}[1]{\\ESHCenterInWidthOf{\\ESHFont{a}}{\\ESHFont\\ESHWithFallback{#1}}}
 
 % \\ESHRaise implements monospace sub/superscripts
 \\providecommand*{\\ESHRaise}[2]{\\rlap{\\raisebox{#1}{\\scriptsize#2}}\\hphantom{#2}}
@@ -433,12 +426,23 @@ the required mode isn't available.  INLINE is passed to
 % \\ESHObeySpaces is a variant of \\obeyspaces that forbids line breaks
 {\\catcode`\\-=\\active
  \\catcode`\\ =\\active
- % The \hbox prevents line breaks around source hyphens
+ % The hbox prevents line breaks around source hyphens
  \\gdef\\ESHObeySpaces{% Must be a \\gdef to escape the surrounding group
    \\catcode`\\-=\\active\\def-{\\hbox{\\char`\\-}\\nobreak}\\catcode`\\ =\\active\\def {\\nobreakspace}}}
 
 % \\ESHDimenMinus is a regular minus (useful in arguments to \\ESHRaise).
 {\\catcode`\\-=12\\gdef\\ESHDimenMinus{-}}
+
+% Environments
+%%%%%%%%%%%%%%
+
+% \\ESHInlineBasicSetup is used by \\ESHInline
+\\providecommand*{\\ESHInlineBasicSetup}{%
+  \\obeyspaces\\ESHNoHyphens\\ESHInlineFont}
+
+% \\ESHInline is used for inline code
+% Note the extra pair of braces in the definition
+\\providecommand*{\\ESHInline}[1]{{\\protect\\ESHInlinePtrue\\ESHInlineBasicSetup#1\\protect\\ESHInlinePfalse}}
 
 % \\ESHBlockBasicSetup is used by \\ESHBlock
 \\providecommand*{\\ESHBlockBasicSetup}{%
