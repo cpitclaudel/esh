@@ -336,8 +336,8 @@ With non-fbound MODE-FN, don't run font-lock on STR."
       (esh--latexify-current-buffer))))
 
 (defconst esh--missing-mode-template
-  (concat ">>> (void-function %S); did you forget to install"
-          " or load (`require') a dependency? <<<%s"))
+  (concat ">>> (void-function %S); did you forget to `require'"
+          " a dependency, or to restart the server? <<<%s"))
 
 (defun esh--missing-mode-error-msg (mode inline)
   "Construct an error message about missing MODE.
