@@ -387,6 +387,7 @@ the required mode isn't available.  INLINE is passed to
 % Utils
 %%%%%%%
 
+\\newif\\ifESHInlineP
 
 % \\ESHNoHyphens disables hyphenation
 \\providecommand*{\\ESHNoHyphens}{\\hyphenpenalty=10000}
@@ -418,10 +419,18 @@ the required mode isn't available.  INLINE is passed to
 \\fi
 
 % \\ESHSpecialChar is used by ESH to indicate non-ascii characters, which may need a fallback font
-\\providecommand*{\\ESHSpecialChar}[1]{\\ESHCenterInWidthOf{\\ESHFont{a}}{\\ESHFont\\ESHWithFallback{#1}}}
+% Resulting character is monospacified, except in ESHInline
+\\providecommand*{\\ESHSpecialChar}[1]{%
+  \\def\\ESHOriginal{\\ESHFont\\ESHWithFallback{#1}}%
+  \\def\\ESHMonospacified{\\ESHCenterInWidthOf{\\ESHFont{a}}{\\ESHOriginal}}%
+  \\protect\\ifESHInlineP\\ESHOriginal\\else\\ESHMonospacified\\fi}
 
-% \\ESHRaise implements monospace sub/superscripts
-\\providecommand*{\\ESHRaise}[2]{\\rlap{\\raisebox{#1}{\\scriptsize#2}}\\hphantom{#2}}
+% \\ESHRaise implements sub/superscripts, monospacified unless in ESHInline
+% Result is monospacified, except in ESHInline
+\\providecommand*{\\ESHRaise}[2]{%
+  \\def\\ESHOriginal{\\raisebox{#1}{\\scriptsize#2}}%
+  \\def\\ESHMonospacified{\\rlap{\\ESHOriginal}\\hphantom{#2}}%
+  \\protect\\ifESHInlineP\\ESHOriginal\\else\\ESHMonospacified\\fi}
 
 % \\ESHObeySpaces is a variant of \\obeyspaces that forbids line breaks
 {\\catcode`\\-=\\active

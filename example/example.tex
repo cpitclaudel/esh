@@ -316,7 +316,7 @@ method DutchFlag(a: array<Color>)
   var r, w, b := 0, 0, a.Length;
   while w != b
     invariant 0 <= r <= w <= b <= a.Length;
-    invariant forall i :: 0 <= i < r ==> a[i] == Red
+    invariant forall i :: 0 <= i < r  ==>  a[i] == Red
     invariant multiset(a[..]) == old(multiset(a[..]))
   {   match a[w]
         case Red =>
