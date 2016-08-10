@@ -110,7 +110,8 @@ doesn't end in `.tex'."
              (setq debug-on-error t)
              (setq esh-client-debug-server t))
             ("--kill-server"
-             (esh-client-kill-server))
+             (esh-client-kill-server)
+             (setq complain-about-missing-input nil))
             ("--persist"
              (setq esh2tex--persist t))
             ("--no-cask"
