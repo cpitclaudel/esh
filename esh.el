@@ -300,7 +300,7 @@ about underful hboxes)."
          ;; Ensure that no newlines are added inside commands (instead the
          ;; newline is added to the end of the template), and add an mbox to
          ;; prevent TeX from complaining about underfull boxes.
-         (setq latex-str "\\hfill")
+         (setq latex-str "")
          (let ((mbox (pcase val (`empty "\\mbox{}"))))
            (setq template (concat template mbox "\n"))))
         (_ (error "Unexpected property %S" property))))
