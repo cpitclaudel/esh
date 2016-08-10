@@ -191,33 +191,33 @@ about underful hboxes)."
 (defvar esh--latex-props '(display invisible newline))
 (defvar esh--latex-face-attrs '(:underline :background :foreground :weight :slant))
 
-(defvar esh--latex-specials '(?\\ ?^ ?$ ?~ ?% ?& ?{ ?} ?_ ?# ?< ?>))
-(defvar esh--latex-substitutions '()) ;; None needed thanks to \obeyspaces and \obeylines
+(eval-and-compile
+  (defvar esh--latex-specials
+    '((?$ . "\\$") (?% . "\\%") (?& . "\\&") (?{ . "\\{") (?} . "\\}") (?_ . "\\_") (?# . "\\#")
+      (?` . "{`}") (?' . "{'}") (?< . "{<}") (?> . "{>}") ;; A few ligatures
+      (?\\ . "\\textbackslash{}") (?^ . "\\textasciicircum{}") (?~ . "\\textasciitilde{}"))))
 
-(defun esh--latex-substitutions ()
-  "Construct a list of (REGEXP . REPLACE) to sanitize Latex code."
-  (let ((specials-re (concat "\\(" (regexp-opt-charset esh--latex-specials) "\\)")))
-    (cons (cons specials-re "{\\\\char`\\\\\\1}")
-          esh--latex-substitutions)))
+(defvar esh--latex-specials-re
+  (eval-when-compile
+    (regexp-opt-charset (mapcar #'car esh--latex-specials))))
 
-(defun esh--wrap-symbols (str)
-  "Wrap non-ASCII characters of STR in \\ESHSpecialChar{}."
-  (mapconcat (lambda (chr)
-               (if (< chr 128)
-                   (char-to-string chr)
-                 (format "\\ESHSpecialChar{%c}" chr)))
-             str ""))
+(defun esh--latex-substitute-special (m)
+  "Get replacement for LaTeX special M."
+  ;; If this become slows, use a vector and index by (aref m 0)
+  (cdr (assq (aref m 0) esh--latex-specials)))
+
+(defun esh--latex-substitute-specials (str)
+  "Escape LaTeX specials in STR."
+  (replace-regexp-in-string
+   esh--latex-specials-re #'esh--latex-substitute-special str t t))
+
+(defun esh--wrap-non-ascii (str)
+  "Wrap non-ASCII characters of STR in \\ESHSpecialChar{}." ;; TODO benchmark against trivial loop
+  (replace-regexp-in-string "[^\000-\177]" "\\\\ESHSpecialChar{\\&}" str t))
 
 (defun esh--escape-for-latex (str)
   "Escape LaTeX special characters in STR."
-  (with-temp-buffer
-    (insert (substring-no-properties str))
-    (pcase-dolist (`(,from . ,to) (esh--latex-substitutions))
-      (goto-char (point-min))
-      (while (re-search-forward from nil t)
-        (replace-match to t)))
-    (setq str (buffer-substring-no-properties (point-min) (point-max))))
-  (esh--wrap-symbols str))
+  (esh--wrap-non-ascii (esh--latex-substitute-specials str)))
 
 (defun esh--normalize-underline (underline)
   "Normalize UNDERLINE."
