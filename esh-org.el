@@ -36,7 +36,7 @@ See `org-latex-src-block' about SRC-BLOCK and INFO."
            (caption (org-element-property :caption src-block))
            (caption-str (org-latex--caption/label-string src-block info))
            (code (org-export-format-code-default src-block info))
-           (esh-tag (concat "%% ESH: " lang "-mode\n"))
+           (esh-tag (concat "%% ESH: " lang "\n"))
            (code-block (concat "\\begin{verbatim}\n" code "\\end{verbatim}\n")))
       (if float
           (concat "\\begin{figure}[" (if (string= float "t") "H" float) "]\n"
