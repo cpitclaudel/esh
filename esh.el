@@ -802,9 +802,12 @@ NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
   (esh--mark-newlines)
   (mapcar #'esh--htmlify-span (esh--buffer-spans)))
 
-(defconst esh--html-class-re
-  "\\_<esh-\\(inline\\|block\\)-\\([^ ]+\\)\\_>"
-  "Regexp matching classes of tags to be processed by ESH.")
+(defvar esh--html-src-class-prefix "src-"
+  "HTML class prefix indicating a fontifiable tag.")
+
+(defvar esh--html-src-class-re nil
+  "Regexp matching classes of tags to be processed by ESH.
+Dynamically set.")
 
 (defun esh--htmlify-do-tree (node temp-buffers)
   "Highlight code in annotated descendants of NODE.
@@ -832,20 +835,25 @@ Hook may e.g. make modifications to the buffer.")
 
 (defun esh2html-current-buffer ()
   "Fontify contents of all ESH blocks in current document.
-Highlight sources in any environments containing the “esh-block”
-or “esh-inline” special classes."
+Highlight sources in any environments containing a class matching
+`esh--html-src-class-prefix', such as `src-c', `src-ocaml', etc."
   (interactive)
   (run-hook-with-args esh-html-before-parse-hook)
   (goto-char (point-min))
   (let ((temp-buffers nil))
     (unwind-protect
-        (let ((tree (libxml-parse-html-region (point-min) (point-max))))
+        (let ((tree (libxml-parse-html-region (point-min) (point-max)))
+              (esh--html-src-class-re (format "\\_<%s-\\([^ ]+\\)\\_>"
+                                           esh--html-src-class-prefix)))
           (erase-buffer)
           (esh--htmlify-serialize (esh--htmlify-do-tree tree temp-buffers) t))
       (mapcar (lambda (p) (kill-buffer (cdr p))) temp-buffers))))
 
-(defun esh-htmlify-file (path)
-  "Fontify contents of all ESH environments in PATH."
+(defun esh-htmlify-file (path master)
+  "Fontify contents of all ESH environments in PATH.
+MASTER should be nil."
+  (when master
+    (error "--master option not supported in HTML mode"))
   (with-temp-buffer
     (insert-file-contents path)
     (esh2html-current-buffer)
