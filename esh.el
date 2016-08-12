@@ -283,16 +283,24 @@ Wraps into \\ESH(Block|Inline)SpecialChar{}."
 (defun esh--normalize-weight (weight)
   "Normalize WEIGHT."
   (pcase weight
-    ((or `thin `ultralight `ultra-light `extralight
-         `extra-light `light `book `demilight
-         `semilight `semi-light)
-     'light)
-    ((or `normal `medium `regular)
-     'regular)
-    ((or `demi `demibold `semibold `semi-bold
-         `bold `extrabold `extra-bold `black
-         `ultrabold `ultra-bold)
-     'bold)))
+    ((or `thin `ultralight `ultra-light) 100)
+    ((or `extralight `extra-light) 200)
+    ((or `light) 300)
+    ((or `demilight `semilight `semi-light `book) 400)
+    ((or `normal `medium `regular) 500)
+    ((or `demi `demibold `semibold `semi-bold) 600)
+    ((or `bold) 700)
+    ((or `extrabold `extra-bold `black) 800)
+    ((or `ultrabold `ultra-bold) 900)))
+
+(defun esh--normalize-weight-coarse (weight)
+  "Normalize WEIGHT to 3 values."
+  (let ((weight (esh--normalize-weight weight)))
+    (when (numberp weight)
+      (cond
+       ((< weight 500) 'light)
+       ((> weight 500) 'bold)
+       (t 'regular)))))
 
 (defun esh--latexify-raise (str amount)
   "Issue a LaTeX command to raise STR by AMOUNT."
@@ -322,7 +330,7 @@ Exact behavior is dependent on value of `esh--inline'."
                  (if val (format "\\textcolor[HTML]{%s}{%s}" val template)
                    template))
                 (:weight
-                 (format (pcase (esh--normalize-weight val)
+                 (format (pcase (esh--normalize-weight-coarse val)
                            (`light "\\textlf{%s}")
                            (`regular "\\textmd{%s}")
                            (`bold "\\textbf{%s}")
@@ -659,6 +667,178 @@ With non-nil MASTER, read ESH settings from there."
           (buffer-string))
       (when (and master (buffer-live-p master-buffer))
         (kill-buffer master-buffer)))))
+
+;;; Producing HTML
+
+(defconst esh--html-specials '((?< . "&lt;")
+                            (?> . "&gt;")
+                            (?& . "&amp;")
+                            (?\" . "&quot;")))
+
+(defconst esh--html-specials-re
+  (regexp-opt-charset (mapcar #'car esh--html-specials)))
+
+(defun esh--html-substitute-special (m)
+  "Get replacement for HTML special M."
+  (cdr (assq (aref m 0) esh--html-specials)))
+
+(defun esh--html-substitute-specials (str)
+  "Escape HTML specials in STR."
+  (replace-regexp-in-string
+   esh--html-specials-re #'esh--html-substitute-special str t t))
+
+(defconst esh--html-void-tags '(area base br col embed hr img input
+                                  link menuitem meta param source track wbr))
+
+(defun esh--htmlify-serialize (node escape-specials)
+  "Write NODE as HTML string to current buffer.
+With non-nil ESCAPE-SPECIALS, quote special HTML characters in
+NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
+  (pcase node
+    ((pred stringp)
+     (insert (if escape-specials
+                 (esh--html-substitute-specials node)
+               node)))
+    (`(comment nil ,comment)
+     ;; "--" isn't allowed in comments, so no need for escaping
+     (insert "<!--" comment "-->"))
+    (`(,tag ,attributes . ,children)
+     (unless escape-specials
+       (error "Must escape specials in %S" escape-specials))
+     (let ((tag-name (symbol-name tag))
+           (escape-specials (not (memq tag '(script style)))))
+       (insert "<" tag-name)
+       (pcase-dolist (`(,attr . ,val) attributes)
+         (insert " " (symbol-name attr) "=\"")
+         (esh--htmlify-serialize val escape-specials)
+         (insert "\""))
+       (if (memq tag esh--html-void-tags)
+           (insert " />")
+         (insert ">")
+         (dolist (c children)
+           (esh--htmlify-serialize c escape-specials))
+         (insert "</" tag-name ">"))))
+    (_ (error "Unprintable node %S" node))))
+
+(defvar esh--html-props '(display invisible newline))
+(defvar esh--html-face-attrs '(:underline :background :foreground :weight :slant))
+
+(defun esh--htmlify-plug-hole (term filler)
+  "Replace instances of `hole' in TERM with FILLER."
+  (cond
+   ((eq term 'hole) filler)
+   ((symbolp term) term)
+   ((listp term) (mapcar #'esh--htmlify-plug-hole term))
+   (t (error "Invalid SEXP %S" term))))
+
+(defun esh--htmlify-span (span)
+  "Render SPAN as an HTML tree."
+  (let ((styles nil)
+        (text (substring-no-properties span))
+        (props-alist (esh--extract-props esh--html-props span))
+        (attrs-alist (esh--extract-face-attributes esh--html-face-attrs span)))
+    (pcase-dolist (`(,attribute . ,val) (esh--filter-cdr 'unspecified attrs-alist))
+      (when val
+        (pcase attribute
+          (:foreground
+           (when (setq val (esh--normalize-color val))
+             (push (concat "color: #" val) styles)))
+          (:background
+           (when (setq val (esh--normalize-color val))
+             (push (concat "background-color: #" val) styles)))
+          (:weight
+           (if (setq val (esh--normalize-weight val))
+               (push (format "font-weight: %d" val) styles)
+             (error "Unexpected weight %S" val)))
+          (:slant
+           (if (memq val '(italic oblique normal))
+               (push (concat "font-style: " (symbol-name val)) styles)
+             (error "Unexpected slant %S" val)))
+          (:underline
+           (pcase (esh--normalize-underline val)
+             (`(,color . ,type)
+              (push "text-decoration: underline" styles)
+              (when (eq type 'wave)
+                (push "text-decoration-style: wavy" styles))
+              (when (setq color (esh--normalize-color color))
+                (push (concat "text-decoration-color: #" color) styles)))
+             (_ (error "Unexpected underline %S" val))))
+          (_ (error "Unexpected attribute %S" attribute)))))
+    (pcase-dolist (`(,property . ,val) (esh--filter-cdr nil props-alist))
+      (pcase property
+        (`display
+         (pcase val
+           (`(raise ,amount)
+            ;; FIXME
+            )
+           (_ (error "Unexpected display property %S" val))))
+        (`invisible
+         (when val (setq text "")))
+        (`newline
+         ;; Ensure that no newlines are added inside commands.
+         ;; FIXME background color extending past end of line
+         (setq styles nil))
+        (_ (error "Unexpected property %S" property))))
+    (if (or (null text) (equal text "")) ""
+      `(span ,(when styles
+                `((style . ,(mapconcat #'identity styles ";"))))
+             ,text))))
+
+(defun esh--htmlify-current-buffer ()
+  "Export current buffer to HTML."
+  (esh--commit-compositions)
+  (esh--mark-newlines)
+  (mapcar #'esh--htmlify-span (esh--buffer-spans)))
+
+(defconst esh--html-class-re
+  "\\_<esh-\\(inline\\|block\\)-\\([^ ]+\\)\\_>"
+  "Regexp matching classes of tags to be processed by ESH.")
+
+(defun esh--htmlify-do-tree (node temp-buffers)
+  "Highlight code in annotated descendants of NODE.
+TEMP-BUFFERS is an alist of (MODE . TEMP-BUFFER)."
+  (pcase node
+    ((pred stringp) node)
+    (`(,tag ,attributes . ,children)
+     (let ((class (cdr (assq 'class attributes))))
+       (if (and class (string-match esh--html-class-re class))
+           (let* ((mode-fn (intern (match-string 2)))
+                  (esh--inline (equal (match-string 1) "inline"))
+                  (temp-buffer (esh--make-temp-buffer mode-fn temp-buffers)))
+             (unless (stringp children)
+               (error "Code block has children: %S" node))
+             `(,tag ,attributes
+                    ,(esh--highlight-in-buffer children temp-buffer mode-fn
+                                            #'esh--htmlify-current-buffer)))
+         `(,tag ,attributes
+                ,(mapcar (lambda (c)
+                           (esh--htmlify-do-tree c temp-buffers))
+                         children)))))))
+
+(defvar esh-html-before-parse-hook nil
+  "Hook called before parsing input HTML.
+Hook may e.g. make modifications to the buffer.")
+
+(defun esh2html-current-buffer ()
+  "Fontify contents of all ESH blocks in current document.
+Highlight sources in any environments containing the “esh-block”
+or “esh-inline” special classes."
+  (interactive)
+  (run-hook-with-args esh-html-before-parse-hook)
+  (goto-char (point-min))
+  (let ((temp-buffers nil))
+    (unwind-protect
+        (let ((tree (libxml-parse-html-region (point-min) (point-max))))
+          (erase-buffer)
+          (esh--htmlify-serialize (esh--htmlify-do-tree tree temp-buffers) t))
+      (mapcar (lambda (p) (kill-buffer (cdr p))) temp-buffers))))
+
+(defun esh-htmlify-file (path)
+  "Fontify contents of all ESH environments in PATH."
+  (with-temp-buffer
+    (insert-file-contents path)
+    (esh2html-current-buffer)
+    (buffer-string)))
 
 (provide 'esh)
 ;;; esh.el ends here
