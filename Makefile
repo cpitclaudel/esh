@@ -1,6 +1,8 @@
 EMACS ?= emacs
 CASK = env --unset INSIDE_EMACS EMACS=$(EMACS) cask
 
+default: elc
+
 pkg-file:
 	$(CASK) pkg-file
 
