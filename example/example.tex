@@ -102,17 +102,17 @@
 \def\prettylisp{\verb}
 \def\normallisp{\verb}
 
-%% ESH-inline-verb: c-mode \cverb
-%% ESH-inline-verb: java-mode \javaverb
-%% ESH-inline-verb: python-mode \pythonverb
-%% ESH-inline-verb: emacs-lisp-mode \normallisp
-%% ESH-inline-verb: prettified-emacs-lisp-mode \prettylisp
+%% ESH-inline-verb: c \cverb
+%% ESH-inline-verb: java \javaverb
+%% ESH-inline-verb: python \pythonverb
+%% ESH-inline-verb: emacs-lisp \normallisp
+%% ESH-inline-verb: prettified-emacs-lisp \prettylisp
 
 \begin{document}
 
 \section*{C (source: \texttt{xfaces.c} in Emacs)}
 
-%% ESH: c-mode
+%% ESH: c
 \begin{verbatim}
 #if defined HAVE_X_WINDOWS && defined USE_X_TOOLKIT
 
@@ -134,7 +134,7 @@ x_update_menu_appearance (struct frame *f)
 
 \section*{Emacs lisp (source: \texttt{esh.el} in this library)}
 
-%% ESH: emacs-lisp-mode
+%% ESH: emacs-lisp
 \begin{verbatim}
 (require 'seq)
 (require 'color)
@@ -154,7 +154,7 @@ x_update_menu_appearance (struct frame *f)
 
 \section*{Python (source: \texttt{monospacifier.py})}
 
-%% ESH: python-mode
+%% ESH: python
 \begin{verbatim}
 class AllowWideCharsGlyphScaler(GlyphScaler):
     def __init__(self, cell_width, avg_width):
@@ -174,7 +174,7 @@ class AllowWideCharsGlyphScaler(GlyphScaler):
 
 \section*{Perl (source: YAGOpt)}
 
-%% ESH: perl-mode
+%% ESH: perl
 \begin{verbatim}
 #&getopt("f:bar") ||
 #	die &usage("script","f:bar","oo","[files ...]");
@@ -195,7 +195,7 @@ sub getopt {
 
 \section*{Ruby (source: \texttt{parser.rb} in Ruby's standard library)}
 
-%% ESH: ruby-mode
+%% ESH: ruby
 \begin{verbatim}
 class NotWellFormedError < Error
   attr_reader :line, :element
@@ -232,7 +232,7 @@ ESH works inline as well:
 
 ESH allows line breaks to happen within inline code snippets (here is an example: \javaverb|private static volatile int counter = 0|), but not in code blocks:
 
-%% ESH: emacs-lisp-mode
+%% ESH: emacs-lisp
 \begin{verbatim}
 (defun esh--normalize-color (color) (upcase (if (= (aref color 0) ?#) color (apply #'color-rgb-to-hex (color-name-to-rgb color)))))
 \end{verbatim}
@@ -249,7 +249,7 @@ is the Emacs Lisp equivalent of Python's virtualenvs).
 
 \subsection*{Haskell (source: \texttt{Monoid.hs} in Haskell's standard library)}
 
-%% ESH: haskell-mode
+%% ESH: haskell
 \begin{verbatim}
 -- | The dual of a 'Monoid', obtained by swapping the arguments of 'mappend'.
 newtype Dual a = Dual { getDual :: a }
@@ -270,7 +270,7 @@ instance Monoid (Endo a) where
 
 \subsection*{Racket (source: \texttt{misc.rkt} in Racket's standard library)}
 
-%% ESH: racket-mode
+%% ESH: racket
 \begin{verbatim}
 (define-syntax define-syntax-rule
   (lambda (stx)
@@ -289,7 +289,7 @@ instance Monoid (Endo a) where
 
 \subsection*{OCaml (source: \texttt{genlex.ml} in OCaml's standard library)}
 
-%% ESH: tuareg-mode
+%% ESH: tuareg
 \begin{verbatim}
 (** The lexer **)
 let make_lexer keywords =
@@ -306,7 +306,7 @@ let make_lexer keywords =
 
 \subsection*{Dafny (source: \texttt{DutchFlag.dfy} in Dafny's repo)}
 
-%% ESH: dafny-mode
+%% ESH: dafny
 \begin{verbatim}
 method DutchFlag(a: array<Color>)
   requires a != null modifies a
@@ -326,7 +326,7 @@ method DutchFlag(a: array<Color>)
 
 \subsection*{F* (source: \texttt{Handshake.fst} in miTLS)}
 
-%% ESH: fstar-mode
+%% ESH: fstar
 \begin{verbatim}
 val processServerFinished: KeySchedule.ks -> HandshakeLog.log -> (hs_msg * bytes) -> ST (result bytes)
   (requires (fun h -> True))
@@ -345,7 +345,7 @@ let processServerFinished ks log (m, l) =
 
 \subsection*{Coq (source: \texttt{ExtendedLemmas.v} in Fiat; requires a local Proof General setup)}
 
-%% ESH: prettified-coq-mode
+%% ESH: prettified-coq
 \begin{verbatim}
 Lemma ProgOk_Chomp_lemma :
   forall `{FacadeWrapper (Value av) A} (ev: Env av) (key: StringMap.key)

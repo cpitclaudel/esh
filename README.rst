@@ -8,7 +8,7 @@ contents of specially-delimited environments and macros.  For example,
 
 .. code:: latex
 
-   %% ESH: c-mode
+   %% ESH: c
    \begin{verbatim}
      int main() { return 0; }
    \end{verbatim}
@@ -50,7 +50,7 @@ In ``minimal.tex`` put the following:
    \documentclass{minimal}
    %% ESH-preamble-here
    \begin{document}
-     %% ESH: c-mode
+     %% ESH: c
      \begin{verbatim}
      int main() { return 0; }
      \end{verbatim}
@@ -78,14 +78,14 @@ In ``<input>``, you may indicate source blocks like this:
 
 .. code:: latex
 
-   %% ESH: <mode>
+   %% ESH: <lang>
    \begin{...}
      ...
    \end{...}
 
-``<mode>`` should be the name of an Emacs major mode; the name of the
-environment does not matter.
-
+``<lang>-mode`` should be the name of an Emacs major mode (in fact, any function
+will do, as long as it ends in ``mode``); the name of the environment (``...``)
+does not matter.
 
 Additionally, ``<input>`` should include a special comment:
 
@@ -102,7 +102,7 @@ following special comment:
 
 .. code:: latex
 
-   %% ESH-inline-verb: <mode> <command-name>
+   %% ESH-inline-verb: <lang> <source-marker>
 
 For example, the following will highlight each occurrence of ``\verb|...|`` as C
 code, and each occurrence of ``\python|...|`` as Python code:
@@ -110,8 +110,8 @@ code, and each occurrence of ``\python|...|`` as Python code:
 .. code:: latex
 
    \def\python{\verb} % To remain compatible with plain LaTeX
-   %% ESH-inline: c-mode \verb
-   %% ESH-inline: python-mode \python
+   %% ESH-inline: c \verb
+   %% ESH-inline: python \python
 
 Options
 =======

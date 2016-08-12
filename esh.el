@@ -58,6 +58,22 @@
             (cons prop (get-text-property 0 prop str)))
           props))
 
+(defun esh--same-file-p (f1 f2)
+  "Check if F1 and F2 are the same files."
+  (string= (file-truename f1) (file-truename f2)))
+
+(defvar esh--name-to-mode-alist nil
+  "Alist of block name → mode name.
+
+For example, this could include (\"ocaml\" . \"tuareg\") to use
+`tuareg-mode' for code blocks tagged “src-ocaml”.")
+
+(defun esh--resolve-mode-fn (fn-name)
+  "Translate FN-NAME to a function symbol.
+Uses `esh--name-to-mode-alist'."
+  (let ((translated (cdr (assoc fn-name esh--name-to-mode-alist))))
+    (intern (concat (or translated fn-name) "-mode"))))
+
 (defun esh-add-keywords (forms &optional how)
   "Pass FORMS and HOW to `font-lock-add-keywords'.
 See `font-lock-keywords' for information about the format of
@@ -68,10 +84,6 @@ call signature, and a workaround for an Emacs bug."
   ;; Work around Emacs bug #24176
   (setq font-lock-major-mode major-mode)
   (font-lock-add-keywords nil forms how))
-
-(defun esh--same-file-p (f1 f2)
-  "Check if F1 and F2 are the same files."
-  (string= (file-truename f1) (file-truename f2)))
 
 ;;; Segmenting a buffer
 
@@ -349,7 +361,7 @@ Exact behavior is dependent on value of `esh--inline'."
                     (setq color (esh--normalize-color color))
                     ;; There are subtle spacing issues with \\ESHUnder, so don't
                     ;; use it unless a the underline needs to be colored.
-                    (let* ((prefix (if color "\\u" "\\ESHUnder"))
+                    (let* ((prefix (if color "\\ESHUnder" "\\u"))
                            (command (format "%s%S" prefix type))
                            (color-arg (if color (format "{\\color{%s}}" color) "")))
                       (format "%s%s{%s}" command color-arg template)))
@@ -562,7 +574,7 @@ envs, and an alist mapping envs to mode symbols."
   (let ((envs nil))
     (goto-char (point-min))
     (while (re-search-forward esh--latexify-inline-env-declaration-re nil t)
-      (let* ((mode (intern (match-string 1)))
+      (let* ((mode (esh--resolve-mode-fn (match-string 1)))
              (command (match-string 2)))
         (push (cons command mode) envs)))
     (when envs
@@ -610,7 +622,7 @@ of (MODE . TEMP-BUFFER)."
       (set-marker code-start (point))
       (when (string= "" (match-string-no-properties 1))
         (error "Invalid ESH header: %S" (match-string-no-properties 0)))
-      (let ((mode-fn (intern (match-string-no-properties 1)))
+      (let ((mode-fn (esh--resolve-mode-fn (match-string-no-properties 1)))
             (old-end (cond ((stringp old-end) old-end)
                            ((functionp old-end) (funcall old-end)))))
         (replace-match new-start t t)
@@ -801,9 +813,8 @@ TEMP-BUFFERS is an alist of (MODE . TEMP-BUFFER)."
     ((pred stringp) node)
     (`(,tag ,attributes . ,children)
      (let ((class (cdr (assq 'class attributes))))
-       (if (and class (string-match esh--html-class-re class))
-           (let* ((mode-fn (intern (match-string 2)))
-                  (esh--inline (equal (match-string 1) "inline"))
+       (if (and class (string-match esh--html-src-class-re class))
+           (let* ((mode-fn (esh--resolve-mode-fn (match-string 2)))
                   (temp-buffer (esh--make-temp-buffer mode-fn temp-buffers)))
              (unless (stringp children)
                (error "Code block has children: %S" node))

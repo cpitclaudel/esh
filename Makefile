@@ -10,6 +10,8 @@ update:
 	$(CASK) install
 	$(CASK) update
 
+clean: clean-elc
+
 clean-elc:
 	$(CASK) clean-elc
 

@@ -15,7 +15,7 @@ Add the following to the beginning of your org file::
 
 Then before each Org source block::
 
-  #+LATEX: %% ESH: <mode>
+  #+LATEX: %% ESH: <lang>
 
 Inline code
 ===========
@@ -76,7 +76,7 @@ Full example
 
      Here's a block of code:
 
-     #+LATEX: %% ESH: c++-mode
+     #+LATEX: %% ESH: c++
      #+BEGIN_SRC c++
      int main() {
        return 0;
