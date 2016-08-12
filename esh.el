@@ -37,7 +37,7 @@
 
 (defun esh--normalize-color (color)
   "Return COLOR as a hex string."
-  (unless (member color '("unspecified-fg" "unspecified-bg" ""))
+  (unless (member color '("unspecified-fg" "unspecified-bg" "" nil))
     (let ((color (if (= (aref color 0) ?#) color
                    (apply #'color-rgb-to-hex (color-name-to-rgb color)))))
       (substring (upcase color) 1))))
@@ -58,10 +58,6 @@
             (cons prop (get-text-property 0 prop str)))
           props))
 
-(defun esh--font-for-char (char)
-  "Compute which font displays CHAR."
-  (car (internal-char-font nil char)))
-
 (defun esh-add-keywords (forms &optional how)
   "Pass FORMS and HOW to `font-lock-add-keywords'.
 See `font-lock-keywords' for information about the format of
@@ -72,6 +68,10 @@ call signature, and a workaround for an Emacs bug."
   ;; Work around Emacs bug #24176
   (setq font-lock-major-mode major-mode)
   (font-lock-add-keywords nil forms how))
+
+(defun esh--same-file-p (f1 f2)
+  "Check if F1 and F2 are the same files."
+  (string= (file-truename f1) (file-truename f2)))
 
 ;;; Segmenting a buffer
 
@@ -111,7 +111,8 @@ Does not take inheritance into account."
         ((listp face)
          (if (plist-member face attribute)
              (plist-get face attribute)
-           'unspecified))))
+           'unspecified))
+        (t (error "Invalid face %S" face))))
 
 (defun esh--single-face-attribute (face attribute)
   "Read ATTRIBUTE from (potentially anonymous) FACE.
@@ -186,6 +187,47 @@ about underful hboxes)."
                        (if (eq (point-at-bol 0) (match-beginning 0))
                            'empty 'non-empty))))
 
+;;; Fontifying
+
+(defun esh--font-lock-ensure ()
+  "Wrapper around `font-lock-ensure'."
+  (if (fboundp 'font-lock-ensure)
+      (font-lock-ensure)
+    (with-no-warnings (font-lock-fontify-buffer))))
+
+(defconst esh--missing-mode-template
+  (concat ">>> (void-function %S); did you forget to `require'"
+          " a dependency, or to restart the server? <<<%s"))
+
+(defvar esh--inline nil
+  "Dynamic variable indicating the current context.
+nil in blocks, t in inline snippets.")
+
+(defun esh--missing-mode-error-msg (mode)
+  "Construct an error message about missing MODE.
+With non-nil `esh--inline', suffix message with blanks instead of newlines."
+  (propertize (format esh--missing-mode-template mode (if esh--inline "  " "\n"))
+              'face 'error 'font-lock-face 'error))
+
+(defmacro esh--make-temp-buffer (mode buffers)
+  "Get temp buffer for MODE from BUFFERS.
+If no such buffer exist, create one and add it to BUFFERS.  In
+all cases, the buffer is erased, and a message is added to it if
+the required mode isn't available."
+  (let ((buf (make-symbol "buf")))
+    `(save-match-data
+       (let ((,buf (cdr (assq ,mode ,buffers))))
+         (unless ,buf
+           (setq ,buf (generate-new-buffer " *temp*"))
+           (with-current-buffer ,buf
+             (funcall (if (fboundp ,mode) ,mode #'fundamental-mode)))
+           (push (cons ,mode ,buf) ,buffers))
+         (with-current-buffer ,buf
+           (erase-buffer)
+           (unless (fboundp ,mode)
+             (insert (esh--missing-mode-error-msg ,mode))))
+         ,buf))))
+
 ;;; Producing LaTeX
 
 (defvar esh--latex-props '(display invisible newline))
@@ -195,7 +237,10 @@ about underful hboxes)."
   (defvar esh--latex-specials
     '((?$ . "\\$") (?% . "\\%") (?& . "\\&") (?{ . "\\{") (?} . "\\}") (?_ . "\\_") (?# . "\\#")
       (?` . "{`}") (?' . "{'}") (?< . "{<}") (?> . "{>}") ;; A few ligatures
-      (?\\ . "\\textbackslash{}") (?^ . "\\textasciicircum{}") (?~ . "\\textasciitilde{}"))))
+      (?\\ . "\\textbackslash{}") (?^ . "\\textasciicircum{}") (?~ . "\\textasciitilde{}")
+      ;; Explicit replacements instead of catcodes
+      ;; Actual replacements are changed using dynamic binding
+      (?\s . nil) (?- . nil))))
 
 (defvar esh--latex-specials-re
   (eval-when-compile
@@ -204,16 +249,24 @@ about underful hboxes)."
 (defun esh--latex-substitute-special (m)
   "Get replacement for LaTeX special M."
   ;; If this become slows, use a vector and index by (aref m 0)
-  (cdr (assq (aref m 0) esh--latex-specials)))
+  (or (cdr (assq (aref m 0) esh--latex-specials))
+      (pcase m
+        (" " (if esh--inline "\\ " "~"))
+        ("-" (if esh--inline "-" "\\ESHBlockDash{}")))))
 
 (defun esh--latex-substitute-specials (str)
-  "Escape LaTeX specials in STR."
+  "Escape LaTeX specials in STR.
+Results for “ ” and “-” depend on `esh--inline'."
   (replace-regexp-in-string
    esh--latex-specials-re #'esh--latex-substitute-special str t t))
 
 (defun esh--wrap-non-ascii (str)
-  "Wrap non-ASCII characters of STR in \\ESHSpecialChar{}." ;; TODO benchmark against trivial loop
-  (replace-regexp-in-string "[^\000-\177]" "\\\\ESHSpecialChar{\\&}" str t))
+  "Wrap non-ASCII characters of STR.
+Wraps into \\ESH(Block|Inline)SpecialChar{}."
+  ;; TODO benchmark against trivial loop
+  (let ((rep (format "\\\\ESH%sSpecialChar{\\&}"
+                     (if esh--inline "Inline" "Block"))))
+    (replace-regexp-in-string "[^\000-\177]" rep str t)))
 
 (defun esh--escape-for-latex (str)
   "Escape LaTeX special characters in STR."
@@ -241,8 +294,15 @@ about underful hboxes)."
          `ultrabold `ultra-bold)
      'bold)))
 
+(defun esh--latexify-raise (str amount)
+  "Issue a LaTeX command to raise STR by AMOUNT."
+  (format "\\ESH%sRaise{%gex}{%s}"
+          (if esh--inline "Inline" "Block")
+          amount str))
+
 (defun esh--latexify-span (span)
-  "Render SPAN as a LaTeX string."
+  "Render SPAN as a LaTeX string.
+Exact behavior is dependent on value of `esh--inline'."
   (let ((template "%s")
         (latex-str (esh--escape-for-latex span))
         (props-alist (esh--extract-props esh--latex-props span))
@@ -276,13 +336,16 @@ about underful hboxes)."
                            (_ (error "Unexpected slant %S" val)))
                          template))
                 (:underline
-                 (format (pcase (esh--normalize-underline val)
-                           ;; FIXME colored waves
-                           (`(_ . wave) "\\uwave{%s}")
-                           (`(nil . line) "\\uline{%s}")
-                           (`(color . line) "\\colorlet{saved}{.}\\uline{\\color{saved}%s}")
-                           (_ (error "Unexpected underline %S" val)))
-                         template))
+                 (pcase (esh--normalize-underline val)
+                   (`(,color . ,type)
+                    (setq color (esh--normalize-color color))
+                    ;; There are subtle spacing issues with \\ESHUnder, so don't
+                    ;; use it unless a the underline needs to be colored.
+                    (let* ((prefix (if color "\\u" "\\ESHUnder"))
+                           (command (format "%s%S" prefix type))
+                           (color-arg (if color (format "{\\color{%s}}" color) "")))
+                      (format "%s%s{%s}" command color-arg template)))
+                   (_ (error "Unexpected underline %S" val))))
                 (_ (error "Unexpected attribute %S" attribute))))))
     (pcase-dolist (`(,property . ,val) (esh--filter-cdr nil props-alist))
       (pcase property
@@ -290,8 +353,7 @@ about underful hboxes)."
          (setq template
                (pcase val
                  (`(raise ,amount)
-                  (let ((sign (if (>= amount 0) "" "\\ESHDimenMinus")))
-                    (format "\\ESHRaise{%s%gex}{%s}" sign (abs amount) template)))
+                  (esh--latexify-raise template amount))
                  (_ (error "Unexpected display property %S" val)))))
         (`invisible
          ;; FIXME remove template too?
@@ -314,63 +376,41 @@ but leading dashes also behave strangely due to the \\hbox in
 all lines."
   (replace-regexp-in-string "^" "\\-" str t t))
 
+(defun esh--latexify-obeylines (str)
+  "Suffix each line of STR with a \\par.
+Do this instead of using catcodes, for robustness."
+  (replace-regexp-in-string "\n" "\\par\n" str t t))
+
 (defun esh--latexify-current-buffer ()
-  "Export current buffer to LaTeX."
+  "Export current buffer to LaTeX.
+With non-nil `esh--inline', protect beginnings of lines
+and add “\\par”s."
   (esh--commit-compositions)
   (esh--mark-newlines)
-  (esh--latexify-protect-bols (mapconcat #'esh--latexify-span (esh--buffer-spans) "")))
+  (let* ((str (mapconcat #'esh--latexify-span (esh--buffer-spans) "")))
+    (if esh--inline str
+      (esh--latexify-obeylines (esh--latexify-protect-bols str)))))
 
-(defun esh--font-lock-ensure ()
-  "Wrapper around `font-lock-ensure'."
-  (if (fboundp 'font-lock-ensure)
-      (font-lock-ensure)
-    (with-no-warnings (font-lock-fontify-buffer))))
-
-(defun esh--latexify-in-buffer (str buffer mode-fn)
-  "Insert STR in BUFFER, fontify it, and latexify it.
-With non-fbound MODE-FN, don't run font-lock on STR."
+(defun esh--highlight-in-buffer (str buffer mode-fn convert-fn)
+  "Insert STR in BUFFER, fontify it, and convert it.
+With non-fbound MODE-FN, don't run font-lock on STR.  Calls
+CONVERT-FN, whose return value nay depend on `esh--inline'."
   (save-match-data
     (with-current-buffer buffer
       (insert str)
       (when (fboundp mode-fn) (esh--font-lock-ensure))
-      (esh--latexify-current-buffer))))
-
-(defconst esh--missing-mode-template
-  (concat ">>> (void-function %S); did you forget to `require'"
-          " a dependency, or to restart the server? <<<%s"))
-
-(defun esh--missing-mode-error-msg (mode inline)
-  "Construct an error message about missing MODE.
-With non-nil INLINE, suffix message with blanks instead of newlines."
-  (propertize (format esh--missing-mode-template mode (if inline "  " "\n"))
-              'face 'error 'font-lock-face 'error))
-
-(defmacro esh--make-temp-buffer (mode buffers inline)
-  "Get temp buffer for MODE from BUFFERS.
-If no such buffer exist, create one and add it to BUFFERS.  In
-all cases, the buffer is erased, and a message is added to it if
-the required mode isn't available.  INLINE is passed to
-`esh--missing-mode-error-msg'."
-  (let ((buf (make-symbol "buf")))
-    `(save-match-data
-       (let ((,buf (cdr (assq ,mode ,buffers))))
-         (unless ,buf
-           (setq ,buf (generate-new-buffer " *temp*"))
-           (with-current-buffer ,buf
-             (funcall (if (fboundp ,mode) ,mode #'fundamental-mode)))
-           (push (cons ,mode ,buf) ,buffers))
-         (with-current-buffer ,buf
-           (erase-buffer)
-           (unless (fboundp ,mode)
-             (insert (esh--missing-mode-error-msg ,mode ,inline))))
-         ,buf))))
+      (funcall convert-fn))))
 
 (defvar esh--latex-preamble
   "% Packages
 %%%%%%%%%%
 
-\\RequirePackage{xcolor}
-\\RequirePackage[normalem]{ulem}
+\\RequirePackage{xcolor} % TeXLive-recommended
+\\RequirePackage[normalem]{ulem} % TeXLive-recommended
+
+\\RequirePackage{relsize} % TeXLive-latex-extra
+\\renewcommand{\\RSsmallest}{1pt}
+\\renewcommand{\\RSlargest}{50pt}
 
 % Fonts
 %%%%%%%
@@ -387,16 +427,17 @@ the required mode isn't available.  INLINE is passed to
 % Utils
 %%%%%%%
 
-\\newif\\ifESHInlineP
-
 % \\ESHNoHyphens disables hyphenation
 \\providecommand*{\\ESHNoHyphens}{\\hyphenpenalty=10000}
 
+% \\ESHBlockDash is a dash disallowing line breaks
+\\providecommand*{\\ESHBlockDash}{\\hbox{-}\\nobreak}
+
 % \\ESHCenterInWidthOf{#A}{#B} prints #B centered in a box as large as #A.
-\\newdimen\\ESHtempdim
-\\providecommand*{\\ESHCenterInWidthOf}[2]{%
-  \\settowidth\\ESHtempdim{#1}%
-  \\makebox[\\ESHtempdim][c]{#2}}
+\\newdimen\\ESHtempdim%
+\\providecommand*{\\ESHCenterInWidthOf}[2]
+  {\\settowidth\\ESHtempdim{#1}%
+   \\makebox[\\ESHtempdim][c]{#2}}
 
 \\RequirePackage{iftex}
 \\ifXeTeX
@@ -418,59 +459,53 @@ the required mode isn't available.  INLINE is passed to
   \\def\\ESHWithFallback#1{\\ESHFallbackFont#1}
 \\fi
 
-% \\ESHSpecialChar is used by ESH to indicate non-ascii characters, which may need a fallback font
-% Resulting character is monospacified, except in ESHInline
-\\providecommand*{\\ESHSpecialChar}[1]{%
-  \\def\\ESHOriginal{\\ESHFont\\ESHWithFallback{#1}}%
-  \\def\\ESHMonospacified{\\ESHCenterInWidthOf{\\ESHFont{a}}{\\ESHOriginal}}%
-  \\protect\\ifESHInlineP\\ESHOriginal\\else\\ESHMonospacified\\fi}
+% \\ESHInlineSpecialChar and \\ESHBlockSpecialChar are used by ESH to indicate
+% non-ascii characters, which may need a fallback font.
+\\DeclareRobustCommand*{\\ESHInlineSpecialChar}[1]
+  {{\\ESHFont\\ESHWithFallback{#1}}}
+\\DeclareRobustCommand*{\\ESHBlockSpecialChar}[1]
+  {{\\ESHCenterInWidthOf{\\ESHFont{a}}{\\ESHInlineSpecialChar{#1}}}}
 
-% \\ESHRaise implements sub/superscripts, monospacified unless in ESHInline
-% Result is monospacified, except in ESHInline
-\\providecommand*{\\ESHRaise}[2]{%
-  \\def\\ESHOriginal{\\raisebox{#1}{\\scriptsize#2}}%
-  \\def\\ESHMonospacified{\\rlap{\\ESHOriginal}\\hphantom{#2}}%
-  \\protect\\ifESHInlineP\\ESHOriginal\\else\\ESHMonospacified\\fi}
+% \\ESHInlineRaise and \\ESHBlockRaise implement sub/superscripts
+\\DeclareRobustCommand*{\\ESHInlineRaise}[2]
+  {\\raisebox{#1}{\\relsize{-2}#2}}
+\\DeclareRobustCommand*{\\ESHBlockRaise}[2]
+  {\\rlap{\\ESHInlineRaise{#1}{#2}}\\hphantom{#2}}
 
-% \\ESHObeySpaces is a variant of \\obeyspaces that forbids line breaks
-{\\catcode`\\-=\\active
- \\catcode`\\ =\\active
- % The hbox prevents line breaks around source hyphens
- \\gdef\\ESHObeySpaces{% Must be a \\gdef to escape the surrounding group
-   \\catcode`\\-=\\active\\def-{\\hbox{\\char`\\-}\\nobreak}\\catcode`\\ =\\active\\def {\\nobreakspace}}}
-
-% \\ESHDimenMinus is a regular minus (useful in arguments to \\ESHRaise).
-{\\catcode`\\-=12\\gdef\\ESHDimenMinus{-}}
+\\makeatletter
+% ESHUnderline produces a straight underline
+\\DeclareRobustCommand*{\\ESHUnderline}[1]
+  {\\bgroup\\markoverwith{#1\\rule[-0.5ex]{2pt}{0.4pt}}\\ULon}
+% ESHUnderwave produces a wavy underline
+\\DeclareRobustCommand*{\\ESHUnderwave}[1]
+  {\\bgroup\\markoverwith{#1\\lower3.5\\p@\\hbox{\\sixly\\char58}}\\ULon}
+\\makeatother
 
 % Environments
 %%%%%%%%%%%%%%
 
 % \\ESHInlineBasicSetup is used by \\ESHInline
-\\providecommand*{\\ESHInlineBasicSetup}{%
-  \\obeyspaces\\ESHNoHyphens\\ESHInlineFont}
+\\providecommand*{\\ESHInlineBasicSetup}{\\ESHNoHyphens\\ESHInlineFont}
 
 % \\ESHInline is used for inline code
 % Note the extra pair of braces in the definition
-\\providecommand*{\\ESHInline}[1]{{\\protect\\ESHInlinePtrue\\ESHInlineBasicSetup#1\\protect\\ESHInlinePfalse}}
+\\providecommand*{\\ESHInline}[1]{{\\ESHInlineBasicSetup#1}}
 
 % \\ESHBlockBasicSetup is used by \\ESHBlock
-\\providecommand*{\\ESHBlockBasicSetup}{%
-  \\setlength{\\parindent}{0pt}\\setlength{\\parskip}{0pt}
-  \\obeylines\\ESHObeySpaces\\ESHNoHyphens\\ESHFont
-  \\spaceskip=\\fontdimen2\\font\\xspaceskip=0pt}
+\\providecommand*{\\ESHBlockBasicSetup}
+  {\\setlength{\\parindent}{0pt}\\setlength{\\parskip}{0pt}
+   \\ESHNoHyphens\\ESHFont\\spaceskip=\\fontdimen2\\font
+   \\xspaceskip=0pt}
 
 \\makeatletter
 % \\ESHSkip is the amount to skip before and after an ESHBlock
 \\@ifundefined{ESHSkip}{\\newlength{\\ESHSkip}\\setlength{\\ESHSkip}{\\baselineskip}}{}
 
 % \\ESHBlock is used for code blocks
-\\@ifundefined{ESHBlock}{%
-  \\newenvironment{ESHBlock}{%
-    \\ESHBlockBasicSetup\\par\\addvspace{\\ESHSkip}%
-  }{%
-    \\par\\addvspace{\\ESHSkip}
-  }
-}{}
+\\@ifundefined{ESHBlock}
+  {\\newenvironment{ESHBlock}
+     {\\ESHBlockBasicSetup\\par\\addvspace{\\ESHSkip}}
+     {\\par\\addvspace{\\ESHSkip}}}{}
 \\makeatother")
 
 (defvar esh-latexify-block-envs
@@ -542,13 +577,17 @@ document's preamble."
        (while (setq match-info (esh--latexify-inline-verb-matcher envs-re))
          (pcase match-info
            (`(,beg ,end ,code-beg ,code-end ,cmd)
-            (let* ((mode-fn (cdr (assoc cmd modes-alist)))
+            (let* ((esh--inline t)
+                   (mode-fn (cdr (assoc cmd modes-alist)))
                    (code (buffer-substring-no-properties code-beg code-end))
-                   (temp-buffer (esh--make-temp-buffer mode-fn temp-buffers t))
-                   (code-latex (esh--latexify-in-buffer code temp-buffer mode-fn)))
+                   (temp-buffer (esh--make-temp-buffer mode-fn temp-buffers)))
               (goto-char beg)
               (delete-region beg end)
-              (insert (concat "\\ESHInline{" code-latex "}")))))))))
+              (insert (concat "\\ESHInline{"
+                              (esh--highlight-in-buffer
+                               code temp-buffer mode-fn
+                               #'esh--latexify-current-buffer)
+                              "}")))))))))
   temp-buffers)
 
 (defun esh--latexify-do-block-envs (code-start code-end temp-buffers)
@@ -571,11 +610,13 @@ of (MODE . TEMP-BUFFER)."
         (goto-char (match-beginning 0))
         (set-marker code-end (point))
         (replace-match new-end t t)
-        (let* ((code (buffer-substring-no-properties code-start code-end))
-               (temp-buffer (esh--make-temp-buffer mode-fn temp-buffers nil)))
+        (let* ((esh--inline nil)
+               (code (buffer-substring-no-properties code-start code-end))
+               (temp-buffer (esh--make-temp-buffer mode-fn temp-buffers)))
           (goto-char code-start)
           (delete-region code-start code-end)
-          (insert (esh--latexify-in-buffer code temp-buffer mode-fn))))))
+          (insert (esh--highlight-in-buffer code temp-buffer mode-fn
+                                         #'esh--latexify-current-buffer))))))
   temp-buffers)
 
 (defun esh2tex-current-buffer (&optional master)
@@ -601,10 +642,6 @@ about missing \\\\begin{document}s."
         (set-marker code-start nil)
         (set-marker code-end nil)
         (mapcar (lambda (p) (kill-buffer (cdr p))) temp-buffers)))))
-
-(defun esh--same-file-p (f1 f2)
-  "Check if F1 and F2 are the same files."
-  (string= (file-truename f1) (file-truename f2)))
 
 (defun esh-latexify-file (path &optional master)
   "Fontify contents of all ESH environments in PATH.
