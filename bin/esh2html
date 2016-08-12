@@ -20,32 +20,32 @@
 
 ;;; Commentary:
 
-;; Run `esh2tex --usage' or `esh2html --usage' for help.
+;; Run `esh2html --usage' or `esh2html --usage' for help.
 
 ;;; Code:
 
 (eval-and-compile
-  (defconst esh2tex--script-full-path
+  (defconst esh2html--script-full-path
     (or (and load-in-progress load-file-name)
         (bound-and-true-p byte-compile-current-file)
         (buffer-file-name))
     "Full path of this script.")
 
-  (defconst esh2tex--parent-directory
+  (defconst esh2html--parent-directory
     (file-name-directory
      (directory-file-name
-      (file-name-directory esh2tex--script-full-path)))
+      (file-name-directory esh2html--script-full-path)))
     "Full path to parent directory of this script.")
 
-  (add-to-list 'load-path esh2tex--parent-directory)
+  (add-to-list 'load-path esh2html--parent-directory)
   (require 'esh-cli))
 
-(esh-cli--main 'tex)
+(esh-cli--main 'html)
 
 ;; Local Variables:
 ;; checkdoc-arguments-in-order-flag: nil
-;; nameless-current-name: "esh2tex"
+;; nameless-current-name: "esh2html"
 ;; End:
 
-(provide 'esh2tex)
-;;; esh2tex ends here
+(provide 'esh2html)
+;;; esh2html ends here
