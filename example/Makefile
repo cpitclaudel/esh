@@ -1,15 +1,19 @@
 CASK := $(shell command -v cask 2> /dev/null)
+ARGS ?=
 
 .PHONY: all xelatex pdflatex dep clean reference
 
 all: xelatex
 
+html: dep example.tex
+	../bin/esh2html ${ARGS} example.html
+
 xelatex: dep example.tex
-	../bin/esh2tex example.tex
+	../bin/esh2tex ${ARGS} example.tex
 	xelatex -jobname=example example.esh.tex
 
 pdflatex: dep example.tex
-	env ESH_PDFLATEX=true ../bin/esh2tex example.tex
+	env ESH_PDFLATEX=true ../bin/esh2tex ${ARGS} example.tex
 	pdflatex -jobname=example example.esh.tex
 
 dep:
