@@ -81,7 +81,7 @@ instead of when starting the server due to the better error
 reporting (see docstring of `esh-client--ensure-server-1')."
   `(progn
      (require 'esh-server)
-     (esh-server-eval ',form ,dest)))
+     (esh-server-eval ',form ,dest ,esh-client-debug-server)))
 
 (defun esh-client--rpc-server-init-form (display &optional prelude)
   "Construct a form to initialize the ESH server.

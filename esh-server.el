@@ -33,6 +33,11 @@
 (defvar esh-server-initializing nil
   "Non-nil while the ESH server is initializing.")
 
+(defvar esh-server--capture-backtraces nil
+  "Whether to capture backtraces.
+Capturing a backtrace can be very costly, because arguments can
+be huge — so only do it if requested.")
+
 (defvar esh--server-frame nil
   "Global variable holding the invisible ESH frame.")
 
@@ -70,7 +75,9 @@ unless it's nicely handled somewhere else."
     (pcase args
       (`(exit ,retv) retv)
       (`(error ,error-args)
-       (setq esh-server--backtrace (esh-server--backtrace))
+       (when esh-server--capture-backtraces
+         ;; Capturing backtraces can be very costly
+         (setq esh-server--backtrace (esh-server--backtrace)))
        (signal (car error-args) (cdr error-args))))))
 
 (defun esh-server--writeout (file form)
@@ -79,10 +86,11 @@ unless it's nicely handled somewhere else."
     (insert (prin1-to-string form))
     (write-region (point-min) (point-max) file)))
 
-(defun esh-server-eval (form file)
+(defun esh-server-eval (form file &optional capture-backtraces)
   "Eval FORM and write result or error to FILE.
 Written value can be `read' from FILE; it is either a
-list (success RESULT) or a cons (error ERR BACKTRACE)."
+list (success RESULT) or a cons (error ERR BACKTRACE).  BACKTRACE
+will be non-nil only if CAPTURE-BACKTRACES was non-nil."
   (condition-case err
       (let* (;; Make sure that we'll intercept all errors
              (debug-on-quit t)
@@ -94,6 +102,8 @@ list (success RESULT) or a cons (error ERR BACKTRACE)."
              (max-lisp-eval-depth (+ 50 max-lisp-eval-depth))
              ;; Register ourselves as the debugger
              (debugger #'esh-server--handle-error)
+             ;; Possibly turn backtraces on
+             (esh-server--capture-backtraces capture-backtraces)
              ;; Compute result
              (result (eval form)))
         (esh-server--writeout file `(success ,result)))
@@ -119,6 +129,10 @@ error checking here; we expect this to be invoked through
 With non-nil MASTER, read ESH settings from there.  No error
 checking here; we expect this to be invoked through
 `esh-server-eval'."
+  ;; (require 'profiler)
+  ;; (profiler-start 'cpu)
+  ;; (prog1
+  ;; (profiler-write-profile (profiler-cpu-profile) "esh.profile"))
   (with-selected-frame esh--server-frame
     (pcase format
       (`tex (esh-latexify-file path master))
