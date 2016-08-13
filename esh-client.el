@@ -198,8 +198,9 @@ each `esh-server-eval' query."
   (interactive)
   (let ((socket-fname (esh-client--server-running-p)))
     (when socket-fname
-      (signal-process (server-eval-at esh-client--server-name '(emacs-pid)) 'kill)
-      (ignore-errors (delete-file socket-fname)))))
+      (unwind-protect
+          (signal-process (server-eval-at esh-client--server-name '(emacs-pid)) 'kill)
+        (ignore-errors (delete-file socket-fname))))))
 
 ;;; Main entry point
 
