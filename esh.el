@@ -221,19 +221,28 @@ With non-nil `esh--inline', suffix message with blanks instead of newlines."
   (propertize (format esh--missing-mode-template mode (if esh--inline "  " "\n"))
               'face 'error 'font-lock-face 'error))
 
-(defmacro esh--make-temp-buffer (mode buffers)
-  "Get temp buffer for MODE from BUFFERS.
+(defvar-local esh--temp-buffers nil
+  "Alist of (MODE . BUFFER).
+These are temporary buffers, used for highlighting.")
+
+(defun esh--kill-temp-buffers ()
+  "Kill buffers in `esh--temp-buffers'."
+  (mapc #'kill-buffer (mapcar #'cdr esh--temp-buffers))
+  (setq esh--temp-buffers nil))
+
+(defmacro esh--make-temp-buffer (mode)
+  "Get temp buffer for MODE from `esh--temp-buffers'.
 If no such buffer exist, create one and add it to BUFFERS.  In
 all cases, the buffer is erased, and a message is added to it if
 the required mode isn't available."
   (let ((buf (make-symbol "buf")))
     `(save-match-data
-       (let ((,buf (cdr (assq ,mode ,buffers))))
+       (let ((,buf (cdr (assq ,mode esh--temp-buffers))))
          (unless ,buf
            (setq ,buf (generate-new-buffer " *temp*"))
            (with-current-buffer ,buf
              (funcall (if (fboundp ,mode) ,mode #'fundamental-mode)))
-           (push (cons ,mode ,buf) ,buffers))
+           (push (cons ,mode ,buf) esh--temp-buffers))
          (with-current-buffer ,buf
            (erase-buffer)
            (unless (fboundp ,mode)
@@ -580,13 +589,12 @@ envs, and an alist mapping envs to mode symbols."
     (when envs
       (cons (regexp-opt (mapcar #'car envs)) envs))))
 
-(defun esh--latexify-do-inline-envs (master-buffer temp-buffers)
+(defun esh--latexify-do-inline-envs (master-buffer)
   "Latexify sources in esh inline environments.
 Read definitions from MASTER-BUFFER if non nil, current buffer
-otherwise.  TEMP-BUFFERS is be an alist of (MODE . TEMP-BUFFER).
-If MASTER-BUFFER is nil and there's no \\begin{document},
-complain loudly: otherwise, we'll risk making replacements in the
-document's preamble."
+otherwise.  If MASTER-BUFFER is nil and there's no
+\\begin{document}, complain loudly: otherwise, we'll risk making
+replacements in the document's preamble."
   (pcase (with-current-buffer (or master-buffer (current-buffer))
            (esh--latexify-find-inline-envs-decls))
     (`(,envs-re . ,modes-alist)
@@ -600,20 +608,18 @@ document's preamble."
             (let* ((esh--inline t)
                    (mode-fn (cdr (assoc cmd modes-alist)))
                    (code (buffer-substring-no-properties code-beg code-end))
-                   (temp-buffer (esh--make-temp-buffer mode-fn temp-buffers)))
+                   (temp-buffer (esh--make-temp-buffer mode-fn)))
               (goto-char beg)
               (delete-region beg end)
               (insert (concat "\\ESHInline{"
                               (esh--highlight-in-buffer
                                code temp-buffer mode-fn
                                #'esh--latexify-current-buffer)
-                              "}")))))))))
-  temp-buffers)
+                              "}"))))))))))
 
-(defun esh--latexify-do-block-envs (code-start code-end temp-buffers)
+(defun esh--latexify-do-block-envs (code-start code-end)
   "Latexify sources in esh block environments.
-CODE-START and CODE-END are markers.  TEMP-BUFFERS is an alist
-of (MODE . TEMP-BUFFER)."
+CODE-START and CODE-END are markers."
   (pcase-dolist (`(,old-start ,new-start ,old-end ,new-end)
                  esh-latexify-block-envs)
     (goto-char (point-min))
@@ -632,12 +638,11 @@ of (MODE . TEMP-BUFFER)."
         (replace-match new-end t t)
         (let* ((esh--inline nil)
                (code (buffer-substring-no-properties code-start code-end))
-               (temp-buffer (esh--make-temp-buffer mode-fn temp-buffers)))
+               (temp-buffer (esh--make-temp-buffer mode-fn)))
           (goto-char code-start)
           (delete-region code-start code-end)
           (insert (esh--highlight-in-buffer code temp-buffer mode-fn
-                                         #'esh--latexify-current-buffer))))))
-  temp-buffers)
+                                         #'esh--latexify-current-buffer)))))))
 
 (defun esh2tex-current-buffer (&optional master)
   "Fontify contents of all ESH environments.
@@ -650,18 +655,15 @@ about missing \\\\begin{document}s."
   (save-excursion
     (with-current-buffer (or master (current-buffer))
       (esh--latexify-add-preamble))
-    (let* ((temp-buffers nil)
-           (code-start (make-marker))
+    (let* ((code-start (make-marker))
            (code-end (make-marker)))
       (unwind-protect
           (progn
-            (setq temp-buffers
-                  (esh--latexify-do-inline-envs master temp-buffers))
-            (setq temp-buffers
-                  (esh--latexify-do-block-envs code-start code-end temp-buffers)))
+            (esh--latexify-do-inline-envs master)
+            (esh--latexify-do-block-envs code-start code-end))
         (set-marker code-start nil)
         (set-marker code-end nil)
-        (mapcar (lambda (p) (kill-buffer (cdr p))) temp-buffers)))))
+        (esh--kill-temp-buffers)))))
 
 (defun esh-latexify-file (path &optional master)
   "Fontify contents of all ESH environments in PATH.
@@ -809,9 +811,9 @@ NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
   "Regexp matching classes of tags to be processed by ESH.
 Dynamically set.")
 
-(defun esh--htmlify-do-tree (node temp-buffers)
-  "Highlight code in annotated descendants of NODE.
-TEMP-BUFFERS is an alist of (MODE . TEMP-BUFFER)."
+
+(defun esh--htmlify-do-tree (node)
+  "Highlight code in annotated descendants of NODE."
   (pcase node
     ((pred stringp) node)
     (`(,tag ,attributes . ,children)
@@ -826,8 +828,8 @@ TEMP-BUFFERS is an alist of (MODE . TEMP-BUFFER)."
                                             #'esh--htmlify-current-buffer)))
          `(,tag ,attributes
                 ,(mapcar (lambda (c)
-                           (esh--htmlify-do-tree c temp-buffers))
                          children)))))))
+                            (esh--htmlify-do-tree c))
 
 (defvar esh-html-before-parse-hook nil
   "Hook called before parsing input HTML.
@@ -838,16 +840,15 @@ Hook may e.g. make modifications to the buffer.")
 Highlight sources in any environments containing a class matching
 `esh--html-src-class-prefix', such as `src-c', `src-ocaml', etc."
   (interactive)
-  (run-hook-with-args esh-html-before-parse-hook)
+  (run-hook-with-args 'esh-html-before-parse-hook)
   (goto-char (point-min))
-  (let ((temp-buffers nil))
-    (unwind-protect
-        (let ((tree (libxml-parse-html-region (point-min) (point-max)))
-              (esh--html-src-class-re (format "\\_<%s-\\([^ ]+\\)\\_>"
-                                           esh--html-src-class-prefix)))
-          (erase-buffer)
-          (esh--htmlify-serialize (esh--htmlify-do-tree tree temp-buffers) t))
-      (mapcar (lambda (p) (kill-buffer (cdr p))) temp-buffers))))
+  (unwind-protect
+      (let ((tree (libxml-parse-html-region (point-min) (point-max)))
+            (esh--html-src-class-re (format "\\_<%s\\([^ ]+\\)\\_>"
+                                         esh--html-src-class-prefix)))
+        (erase-buffer)
+        (esh--htmlify-serialize (esh--htmlify-do-tree tree) t))
+    (esh--kill-temp-buffers)))
 
 (defun esh-htmlify-file (path master)
   "Fontify contents of all ESH environments in PATH.
