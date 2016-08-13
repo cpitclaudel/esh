@@ -62,7 +62,7 @@
   "Check if F1 and F2 are the same files."
   (string= (file-truename f1) (file-truename f2)))
 
-(defvar esh--name-to-mode-alist nil
+(defvar esh-name-to-mode-alist nil
   "Alist of block name → mode name.
 
 For example, this could include (\"ocaml\" . \"tuareg\") to use
@@ -70,8 +70,8 @@ For example, this could include (\"ocaml\" . \"tuareg\") to use
 
 (defun esh--resolve-mode-fn (fn-name)
   "Translate FN-NAME to a function symbol.
-Uses `esh--name-to-mode-alist'."
-  (let ((translated (cdr (assoc fn-name esh--name-to-mode-alist))))
+Uses `esh-name-to-mode-alist'."
+  (let ((translated (cdr (assoc fn-name esh-name-to-mode-alist))))
     (intern (concat (or translated fn-name) "-mode"))))
 
 (defun esh-add-keywords (forms &optional how)
@@ -288,6 +288,13 @@ Wraps into \\ESH(Block|Inline)SpecialChar{}."
   (let ((rep (format "\\\\ESH%sSpecialChar{\\&}"
                      (if esh--inline "Inline" "Block"))))
     (replace-regexp-in-string "[^\000-\177]" rep str t)))
+
+(defun esh--mark-non-ascii ()
+  "Tag non-ASCII characters of current buffer.
+Puts text property `non-ascii' on non-ascii stretches."
+  (goto-char (point-min))
+  (while (re-search-forward "[^\000-\177]+" nil t)
+    (put-text-property (match-beginning 0) (match-end 0) 'non-ascii t)))
 
 (defun esh--escape-for-latex (str)
   "Escape LaTeX special characters in STR."
@@ -734,20 +741,13 @@ NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
          (insert "</" tag-name ">"))))
     (_ (error "Unprintable node %S" node))))
 
-(defvar esh--html-props '(display invisible newline))
+(defvar esh--html-props '(display invisible non-ascii newline))
 (defvar esh--html-face-attrs '(:underline :background :foreground :weight :slant))
-
-(defun esh--htmlify-plug-hole (term filler)
-  "Replace instances of `hole' in TERM with FILLER."
-  (cond
-   ((eq term 'hole) filler)
-   ((symbolp term) term)
-   ((listp term) (mapcar #'esh--htmlify-plug-hole term))
-   (t (error "Invalid SEXP %S" term))))
 
 (defun esh--htmlify-span (span)
   "Render SPAN as an HTML tree."
   (let ((styles nil)
+        (non-ascii nil)
         (text (substring-no-properties span))
         (props-alist (esh--extract-props esh--html-props span))
         (attrs-alist (esh--extract-face-attributes esh--html-face-attrs span)))
@@ -788,20 +788,31 @@ NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
            (_ (error "Unexpected display property %S" val))))
         (`invisible
          (when val (setq text "")))
+        (`non-ascii
+         (when val (setq non-ascii t)))
         (`newline
          ;; Ensure that no newlines are added inside commands.
          ;; FIXME background color extending past end of line
          (setq styles nil))
         (_ (error "Unexpected property %S" property))))
-    (if (or (null text) (equal text "")) ""
-      `(span ,(when styles
-                `((style . ,(mapconcat #'identity styles ";"))))
-             ,text))))
+    (cond
+     ((equal text "") "")
+     ((and (null styles) (not non-ascii)) text)
+     (t
+      (let ((attrs nil))
+        (when styles
+          (push `(style . ,(mapconcat #'identity styles ";")) attrs))
+        (when non-ascii
+          ;; Need nested divs to align wide character properly
+          (push `(class . "non-ascii") attrs)
+          (setq text `(span nil (span nil ,text))))
+        `(span ,attrs ,text))))))
 
 (defun esh--htmlify-current-buffer ()
   "Export current buffer to HTML."
   (esh--commit-compositions)
   (esh--mark-newlines)
+  (esh--mark-non-ascii)
   (mapcar #'esh--htmlify-span (esh--buffer-spans)))
 
 (defvar esh--html-src-class-prefix "src-"
@@ -811,25 +822,36 @@ NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
   "Regexp matching classes of tags to be processed by ESH.
 Dynamically set.")
 
+(defvar esh-html-default-languages-alist nil
+  "Alist of tag → language string.
+For example, (code . \"emacs-lisp\") would highlight all `code'
+tags with no ESH attribute as Emacs Lisp.")
+
+(defun esh--htmlify-guess-lang (tag attributes)
+  "Guess highlighting language based on TAG and ATTRIBUTES."
+  (or (let ((class (cdr (assq 'class attributes))))
+        (when (and class (string-match esh--html-src-class-re class))
+          (match-string 1 class)))
+      (cdr (assq tag esh-html-default-languages-alist))))
 
 (defun esh--htmlify-do-tree (node)
   "Highlight code in annotated descendants of NODE."
   (pcase node
     ((pred stringp) node)
     (`(,tag ,attributes . ,children)
-     (let ((class (cdr (assq 'class attributes))))
-       (if (and class (string-match esh--html-src-class-re class))
-           (let* ((mode-fn (esh--resolve-mode-fn (match-string 2)))
-                  (temp-buffer (esh--make-temp-buffer mode-fn temp-buffers)))
-             (unless (stringp children)
+     (let ((lang (esh--htmlify-guess-lang tag attributes)))
+       (if lang
+           (let* ((mode-fn (esh--resolve-mode-fn lang))
+                  (temp-buffer (esh--make-temp-buffer mode-fn)))
+             (unless (and (stringp (car children)) (null (cdr children)))
                (error "Code block has children: %S" node))
              `(,tag ,attributes
-                    ,(esh--highlight-in-buffer children temp-buffer mode-fn
-                                            #'esh--htmlify-current-buffer)))
+                    ,@(esh--highlight-in-buffer (car children) temp-buffer mode-fn
+                                             #'esh--htmlify-current-buffer)))
          `(,tag ,attributes
-                ,(mapcar (lambda (c)
-                         children)))))))
+                ,@(mapcar (lambda (c)
                             (esh--htmlify-do-tree c))
+                          children)))))))
 
 (defvar esh-html-before-parse-hook nil
   "Hook called before parsing input HTML.
