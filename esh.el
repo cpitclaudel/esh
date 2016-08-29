@@ -289,10 +289,12 @@ Wraps into \\ESH(Block|Inline)SpecialChar{}."
 
 (defun esh--mark-non-ascii ()
   "Tag non-ASCII characters of current buffer.
-Puts text property `non-ascii' on non-ascii stretches."
+Puts text property `non-ascii' on non-ascii characters."
   (goto-char (point-min))
-  (while (re-search-forward "[^\000-\177]+" nil t)
-    (put-text-property (match-beginning 0) (match-end 0) 'non-ascii t)))
+  (let ((counter 0)) ;; Need property values to be distinct
+    (while (re-search-forward "[^\000-\177]" nil t)
+      (setq counter (1+ counter))
+      (put-text-property (match-beginning 0) (match-end 0) 'non-ascii counter))))
 
 (defun esh--escape-for-latex (str)
   "Escape LaTeX special characters in STR."
@@ -748,6 +750,7 @@ NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
 (defun esh--htmlify-span (span)
   "Render SPAN as an HTML tree."
   (let ((styles nil)
+        (raised nil)
         (non-ascii nil)
         (text (substring-no-properties span))
         (props-alist (esh--extract-props esh--html-props span))
@@ -784,8 +787,8 @@ NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
         (`display
          (pcase val
            (`(raise ,amount)
-            ;; FIXME
-            )
+            (setq raised t)
+            (push (format "bottom: %gem" amount) styles))
            (_ (error "Unexpected display property %S" val))))
         (`invisible
          (when val (setq text "")))
@@ -793,21 +796,23 @@ NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
          (when val (setq non-ascii t)))
         (`newline
          ;; Ensure that no newlines are added inside commands.
-         ;; FIXME background color extending past end of line
+         ;; FIXME handle background colors extending past end of line
          (setq styles nil))
         (_ (error "Unexpected property %S" property))))
     (cond
      ((equal text "") "")
      ((and (null styles) (not non-ascii)) text)
      (t
-      (let ((attrs nil))
-        (when styles
-          (push `(style . ,(mapconcat #'identity styles ";")) attrs))
-        (when non-ascii
-          ;; Need nested divs to align wide character properly
-          (push `(class . "non-ascii") attrs)
-          (setq text `(span nil (span nil ,text))))
-        `(span ,attrs ,text))))))
+      (let ((attrs (when styles
+                     `((style . ,(mapconcat #'identity styles ";"))))))
+        (setq text `(span ,attrs ,text)))
+      (when non-ascii ;; Need nested divs to align wide character properly
+        (setq text `(span ((class . "non-ascii")) (span nil ,text))))
+      (when raised
+        (setq text `(span ((class . "raised"))
+                          (span ((class . "raised-text")) ,text)
+                          (span ((class . "raised-phantom")) ,text))))
+      text))))
 
 (defun esh--htmlify-current-buffer ()
   "Export current buffer to HTML."
