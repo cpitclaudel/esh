@@ -863,6 +863,13 @@ tags with no ESH attribute as Emacs Lisp.")
   "Hook called before parsing input HTML.
 Hook may e.g. make modifications to the buffer.")
 
+(defun esh--html-read-tag (tag)
+  "Read HTML TAG at point in current buffer."
+  (when (looking-at (format "<%s [^>]+>" (regexp-quote tag)))
+    (goto-char (match-end 0))
+    (skip-chars-forward " \n\t")
+    (buffer-substring-no-properties (match-beginning 0) (point))))
+
 (defun esh2html-current-buffer ()
   "Fontify contents of all ESH blocks in current document.
 Highlight sources in any environments containing a class matching
@@ -871,10 +878,14 @@ Highlight sources in any environments containing a class matching
   (run-hook-with-args 'esh-html-before-parse-hook)
   (goto-char (point-min))
   (unwind-protect
-      (let ((tree (libxml-parse-html-region (point-min) (point-max)))
-            (esh--html-src-class-re (format "\\_<%s\\([^ ]+\\)\\_>"
-                                         esh--html-src-class-prefix)))
+      (let* ((xml-decl (esh--html-read-tag "?xml"))
+             (doctype (esh--html-read-tag "!doctype"))
+             (tree (libxml-parse-html-region (point) (point-max)))
+             (esh--html-src-class-re (format "\\_<%s\\([^ ]+\\)\\_>"
+                                          esh--html-src-class-prefix)))
         (erase-buffer)
+        (dolist (tag (list xml-decl doctype))
+          (when tag (insert tag)))
         (esh--htmlify-serialize (esh--htmlify-do-tree tree) t))
     (esh--kill-temp-buffers)))
 
