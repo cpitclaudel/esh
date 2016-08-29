@@ -110,8 +110,8 @@ code, and each occurrence of ``\python|...|`` as Python code:
 .. code:: latex
 
    \def\python{\verb} % To remain compatible with plain LaTeX
-   %% ESH-inline: c \verb
-   %% ESH-inline: python \python
+   %% ESH-inline-verb: c \verb
+   %% ESH-inline-verb: python \python
 
 Options
 =======
@@ -125,9 +125,14 @@ Options
   Don't process input files; instead, create a fairly complete ESH setup in the
   current folder, including an basic ``main.tex`` and simple ``Makefile``.
 
-* ``--master <file>``
+* ``--fragment``
 
-  Load ESH inline macro definitions from ``<file>`` instead of ``<input>``.
+  Treat <input> as a fragment: don't read definitions of inline macros, don't
+  complain if ``ESH-preamble-here`` is missing, and don't complain if
+  ``\begin{document}`` can't be found (instead, process everything).  This is
+  convenient if you like to split your LaTeX documents by section or chapter.
+  Since inline macro definitions won't parsed in this mode, you'll have to
+  specify them in ``esh-init``; see below.
 
 * ``--persist``
 
@@ -224,10 +229,10 @@ Here are a few examples of inline environments:
 .. code:: latex
 
    \def\cppverb{\verb}
-   %% ESH-inline-verb: c++-mode \cppverb
+   %% ESH-inline-verb: c++ \cppverb
 
    \def\pythonverb{\lstinline[language=python]}
-   %% ESH-inline-verb: python-mode \pythonverb
+   %% ESH-inline-verb: python \pythonverb
 
 Adding these lines to your preamble lets you use ``\pythonverb|yield 1|`` or
 ``\cppverb/*p++ |= *q++/`` in the body of your document.  With plain ``xelatex``
@@ -288,13 +293,31 @@ Overriding the ``ESHBlock`` environment:
 All these tricks, and more, are demonstrated in the ``example/example.tex``
 subfolder of the repository.
 
-Using a master file
--------------------
+Processing fragments
+--------------------
 
 ESH normally errors out if it can't find a preamble declaration in the current
-file.  To process a fragment, such as a part of a larger document, pass the path
-to your master file using the ``--master`` option (ESH needs it to find inline
-patterns).
+file.  You can suppress this error by passing --fragment.  This also disables
+processing of inline declarations, because these inline declarations are
+probably be in another file anyway.
+
+Instead, set ``esh-latex-inline-markers-alist`` in your ``esh-init.el``. Here is
+an example showing how to translate ESH-inline declarations:
+
+.. code:: latex
+
+   %% ESH-inline-verb: c++ \verb
+   %% ESH-inline-verb: python \cppverb
+
+.. code:: elisp
+
+   (setq esh-latex-inline-markers-alist
+         '(("\\verb" . python-mode)
+           ("\\cppverb" . c++-mode)))
+
+First of each pair is the delimiter; second of each pair is the (full) mode
+name, without quotes.  Don't forget the double backslashes (``\\verb``).  This
+snippet goes into your ``.esh-init.el`` file.
 
 Using ``esh2tex`` with ``org-mode``
 -----------------------------------

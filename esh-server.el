@@ -124,9 +124,10 @@ error checking here; we expect this to be invoked through
                               (display . ,display)
                               (visibility . nil))))))
 
-(defun esh-server-process (path format &optional master)
+(defun esh-server-process (path format &optional fragment-p)
   "Latexify PATH in FORMAT and return the result as a string.
-With non-nil MASTER, read ESH settings from there.  No error
+With non-nil FRAGMENT-P, don't read inline env declarations and
+don't complain about a missing \\begin{document}.  No error
 checking here; we expect this to be invoked through
 `esh-server-eval'."
   ;; (require 'profiler)
@@ -135,8 +136,8 @@ checking here; we expect this to be invoked through
   ;; (profiler-write-profile (profiler-cpu-profile) "esh.profile"))
   (with-selected-frame esh--server-frame
     (pcase format
-      (`tex (esh-latexify-file path master))
-      (`html (esh-htmlify-file path master))
+      (`tex (esh-latexify-file path fragment-p))
+      (`html (esh-htmlify-file path fragment-p))
       (_ (error "Unknown format %S" format)))))
 
 (provide 'esh-server)

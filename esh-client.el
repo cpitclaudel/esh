@@ -89,9 +89,9 @@ DISPLAY and PRELUDE are forwarded."
   `(progn
      (esh-server-init ,display ,prelude)))
 
-(defun esh-client--rpc-process-form (path format master)
-  "Construct a form to process PATH.FORMAT with MASTER on server."
-  `(esh-server-process ,path ',format ,master))
+(defun esh-client--rpc-process-form (path format fragment-p)
+  "Construct a form to process PATH.FORMAT as FRAGMENT-P on server."
+  `(esh-server-process ,path ',format ,fragment-p))
 
 ;;; Running forms on server
 
@@ -204,8 +204,8 @@ each `esh-server-eval' query."
 
 ;;; Main entry point
 
-(defun esh-client-process-one (path format &optional master)
-  "Latexify PATH in FORMAT, optionally loading ESH settings from MASTER.
+(defun esh-client-process-one (path format &optional fragment-p)
+  "Latexify PATH in FORMAT, optionally as a FRAGMENT-P.
 This starts an Emacs daemon, and runs the latexification code on
 it.  If a daemon is available, it is reused.  Originally, the
 only reason a daemon was needed was that it's hard to make Emacs'
@@ -213,7 +213,7 @@ initial frame invisible.  Now, it's also used to make things
 faster.  Output goes to `standard-output'."
   (esh-client--ensure-server) ;; To prevent progress messages from interleaving
   (esh-client--with-progress-msg (format "Highlighting %S" path)
-                       (princ (esh-client--run (esh-client--rpc-process-form path format master)))))
+    (princ (esh-client--run (esh-client--rpc-process-form path format fragment-p)))))
 
 (provide 'esh-client)
 ;;; esh-client.el ends here

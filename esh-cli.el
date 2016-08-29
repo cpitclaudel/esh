@@ -46,8 +46,8 @@
 (defvar esh-cli--stdout nil
   "See option --stdout.")
 
-(defvar esh-cli--master-file nil
-  "See option --master.")
+(defvar esh-cli--fragment-p nil
+  "See option --fragment.")
 
 (defun esh-cli--help ()
   "Read help from README file."
@@ -85,7 +85,7 @@ skips if PATH doesn't end in .FORMAT."
         (let ((dest (replace-regexp-in-string ext-re new-ext path t t)))
           (with-temp-file dest
             (let ((standard-output (current-buffer)))
-              (esh-client-process-one path format esh-cli--master-file))))
+              (esh-client-process-one path format esh-cli--fragment-p))))
       (esh-client-stderr "ESH Warning: skipping %S (unrecognized extension)\n" path))))
 
 (defun esh-cli--unexpected-arg-msg (arg)
@@ -119,10 +119,8 @@ skips if PATH doesn't end in .FORMAT."
              (setq esh-client-pass-Q-to-server nil))
             ("--stdout"
              (setq esh-cli--stdout t))
-            ("--master"
-             (unless argv
-               (error "--master takes one argument"))
-             (setq esh-cli--master-file (pop argv)))
+            ("--fragment"
+             (setq esh-cli--fragment-p t))
             ("--init"
              (esh-cli--init)
              (setq complain-about-missing-input nil))
@@ -130,7 +128,7 @@ skips if PATH doesn't end in .FORMAT."
              (when (and argv esh-cli--stdout)
                (error "%s" (esh-cli--unexpected-arg-msg arg)))
              (if esh-cli--stdout
-                 (esh-client-process-one arg format esh-cli--master-file)
+                 (esh-client-process-one arg format esh-cli--fragment-p)
                (esh-cli--process-one-to-file arg format))
              (setq complain-about-missing-input nil))))
         (when complain-about-missing-input
