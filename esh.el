@@ -146,19 +146,23 @@ Faces is a list of (possibly anonymous) faces."
         (setq attr (merge-face-attribute attribute attr merge-with))))
     attr))
 
+(defun esh--faceprop-face-attribute (faceprop attribute)
+  "Look at FACEPROP and find out value of face ATTRIBUTE."
+  (unless (listp faceprop)
+    (setq faceprop (list faceprop)))
+  (esh--faces-attribute faceprop attribute))
+
 (defun esh--str-face-attribute (str attribute)
   "Look at STR and find out value of face ATTRIBUTE."
-  (let ((face-or-faces (get-text-property 0 'face str)))
-    (unless (listp face-or-faces)
-      (setq face-or-faces (list face-or-faces)))
-    (cons attribute (esh--faces-attribute face-or-faces attribute))))
+  (cons attribute (esh--faceprop-face-attribute
+                   (get-text-property 0 'face str) attribute)))
 
 (defun esh--extract-face-attributes (face-attributes text)
   "Extract FACE-ATTRIBUTES from TEXT."
   (mapcar (apply-partially #'esh--str-face-attribute text)
           face-attributes))
 
-;;; Removing composition
+;;; Massaging properties
 
 (defun esh--commit-compositions ()
   "Apply compositions in current buffer.
@@ -195,7 +199,33 @@ about underful hboxes)."
                        ;; (point-at-bol 0) is beginning of previous line
                        ;; (match-beginning 0) is end of previous line
                        (if (eq (point-at-bol 0) (match-beginning 0))
-                           'empty 'non-empty))))
+                           'empty 'non-empty))
+    ;; Break up boxes spanning more than one line
+    (put-text-property (match-beginning 0) (match-end 0) 'face nil)))
+
+(defun esh--mark-boxes ()
+  "Replace :box face attributes.
+Each buffer span whose face has a :box property is modified so
+that its first character has a `begin-box' property, and its last
+character has an `end-box' property."
+  (goto-char (point-min))
+  (let ((prev-start nil)
+        (prev-box nil))
+    (pcase-dolist (`(,start . ,_) (esh--buffer-ranges-from 1 nil))
+      (let* ((face (get-text-property start 'face))
+             (box-attr (esh--faceprop-face-attribute face :box))
+             (box (unless (eq box-attr 'unspecified) box-attr))
+             (box-continues (equal box prev-box)))
+        (if box-continues
+            (setq start prev-start)
+          (when prev-box
+            (put-text-property (1- start) start 'esh-end-box prev-box))
+          (when box
+            (put-text-property start (1+ start) 'esh-begin-box box)))
+        (setq prev-box box)
+        (setq prev-start start)))
+    (when prev-box
+      (put-text-property (1- (point-max)) (point-max) 'esh-end-box t))))
 
 ;;; Fontifying
 
@@ -249,7 +279,7 @@ the required mode isn't available."
 
 ;;; Producing LaTeX
 
-(defvar esh--latex-props '(display invisible newline))
+(defvar esh--latex-props '(display invisible newline esh-begin-box esh-end-box))
 (defvar esh--latex-face-attrs '(:underline :background :foreground :weight :slant))
 
 (eval-and-compile
@@ -330,6 +360,15 @@ Puts text property `non-ascii' on non-ascii characters."
        ((> weight 500) 'bold)
        (t 'regular)))))
 
+(defun esh--normalize-box (box)
+  "Normalize face attribute BOX."
+  (pcase box
+    (`t `(1 nil nil))
+    ((pred stringp) `(1 ,box nil))
+    ((pred listp) `(,(or (plist-get box :line-width) 1)
+                    ,(plist-get box :color)
+                    ,(plist-get box :style)))))
+
 (defun esh--latexify-raise (str amount)
   "Issue a LaTeX command to raise STR by AMOUNT."
   (format "\\ESH%sRaise{%gex}{%s}"
@@ -376,7 +415,7 @@ Exact behavior is dependent on value of `esh--inline'."
                    (`(,color . ,type)
                     (setq color (esh--normalize-color color))
                     ;; There are subtle spacing issues with \\ESHUnder, so don't
-                    ;; use it unless a the underline needs to be colored.
+                    ;; use it unless the underline needs to be colored.
                     (let* ((prefix (if color "\\ESHUnder" "\\u"))
                            (command (format "%s%S" prefix type))
                            (color-arg (if color (format "{\\color{%s}}" color) "")))
@@ -394,6 +433,18 @@ Exact behavior is dependent on value of `esh--inline'."
         (`invisible
          ;; FIXME remove template too?
          (when val (setq latex-str "")))
+        (`esh-begin-box
+         (pcase (esh--normalize-box val)
+           (`(,line-width ,color ,style)
+            (setq color (esh--normalize-color color))
+            (unless (eq style nil)
+              (error "Unsupported box style %S" style))
+            (setq template
+                  (format "\\ESHBox{%s}{%gpt}{%s"
+                          (or color ".") (abs line-width) template)))
+           (_ (error "Unexpected box %S" val))))
+        (`esh-end-box
+         (setq template (concat template "}")))
         (`newline
          ;; Ensure that no newlines are added inside commands (instead the
          ;; newline is added to the end of the template), and add an mbox to
@@ -423,6 +474,7 @@ With non-nil `esh--inline', protect beginnings of lines
 and add “\\par”s."
   (esh--commit-compositions)
   (esh--mark-newlines)
+  (esh--mark-boxes)
   (let* ((str (mapconcat #'esh--latexify-span (esh--buffer-spans) "")))
     (if esh--inline str
       (esh--latexify-obeylines (esh--latexify-protect-bols str)))))
@@ -542,6 +594,20 @@ CONVERT-FN, whose return value nay depend on `esh--inline'."
   {\\newenvironment{ESHBlock}
      {\\ESHBlockBasicSetup\\par\\addvspace{\\ESHSkip}}
      {\\par\\addvspace{\\ESHSkip}}}{}
+
+% \\ESHBoxSep is the vertical padding of \\ESHFBox
+\\@ifundefined{ESHBoxSep}{\\newlength{\\ESHBoxSep}\\setlength{\\ESHBoxSep}{1pt}}{}
+
+% \\ESHFBox{#color}{#lineWidth}{#contents} wraps #contents in an border of width
+% #lineWidth and of color #color.  The box has no horizontal padding, its
+% vertical padding is determined by \\ESHBoxSep, and it doesn't affect the height
+% of the current line.
+\\newdimen\\ESHBoxTempDim%
+\\providecommand*{\\ESHBox}[3]
+  {\\setlength{\\fboxsep}{\\ESHBoxSep}%
+   \\setlength{\\fboxrule}{#2}%
+   \\setlength{\\ESHBoxTempDim}{\\dimexpr-\\fboxsep-\\fboxrule\\relax}%
+   \\vphantom{#3}\\smash{\\fbox{\\hspace*{\\ESHBoxTempDim}#3\\hspace*{\\ESHBoxTempDim}}}}
 \\makeatother")
 
 (defvar esh-latexify-block-envs
@@ -660,7 +726,7 @@ CODE-START and CODE-END are markers."
           (goto-char code-start)
           (delete-region code-start code-end)
           (insert (esh--highlight-in-buffer code temp-buffer mode-fn
-                                         #'esh--latexify-current-buffer)))))))
+                                            #'esh--latexify-current-buffer)))))))
 
 (defun esh2tex-current-buffer (fragment-p)
   "Fontify contents of all ESH environments.
@@ -695,9 +761,9 @@ about a missing \begin{document}."
 ;;; Producing HTML
 
 (defconst esh--html-specials '((?< . "&lt;")
-                            (?> . "&gt;")
-                            (?& . "&amp;")
-                            (?\" . "&quot;")))
+                               (?> . "&gt;")
+                               (?& . "&amp;")
+                               (?\" . "&quot;")))
 
 (defconst esh--html-specials-re
   (regexp-opt-charset (mapcar #'car esh--html-specials)))
@@ -712,7 +778,7 @@ about a missing \begin{document}."
    esh--html-specials-re #'esh--html-substitute-special str t t))
 
 (defconst esh--html-void-tags '(area base br col embed hr img input
-                                  link menuitem meta param source track wbr))
+                                     link menuitem meta param source track wbr))
 
 (defun esh--htmlify-serialize (node escape-specials)
   "Write NODE as HTML string to current buffer.
@@ -853,7 +919,7 @@ tags with no ESH attribute as Emacs Lisp.")
                (error "Code block has children: %S" node))
              `(,tag ,attributes
                     ,@(esh--highlight-in-buffer (car children) temp-buffer mode-fn
-                                             #'esh--htmlify-current-buffer)))
+                                                #'esh--htmlify-current-buffer)))
          `(,tag ,attributes
                 ,@(mapcar (lambda (c)
                             (esh--htmlify-do-tree c))
