@@ -1,6 +1,13 @@
 CASK := $(shell command -v cask 2> /dev/null)
 
-.PHONY: dep default clean git-clean
+# Disable builtin rules
+.SUFFIXES:
+MAKEFLAGS += --no-builtin-rules
+
+# Don't delete intermediate files
+.SECONDARY:
+
+.PHONY: default dep clean git-clean
 
 %.esh.tex: %.tex esh-init.el Cask
 	${ESH2TEX} "$<"
@@ -22,7 +29,7 @@ else
 endif
 
 clean:
-	rm -f *.esh.*
+	rm -f *.esh.* main.pdf
 
 git-clean:
 	git clean -Xf
