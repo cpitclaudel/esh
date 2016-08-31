@@ -1,6 +1,8 @@
 EMACS ?= emacs
 CASK = env --unset INSIDE_EMACS EMACS=$(EMACS) cask
 
+.PHONY: example
+
 default: elc
 
 pkg-file:
@@ -17,3 +19,6 @@ clean-elc:
 
 elc: update clean-elc pkg-file
 	$(CASK) build
+
+reference:
+	make -C example reference
