@@ -625,7 +625,7 @@ A non-nil FRAGMENT-P suppresses 'missing preamble' errors."
   (if (re-search-forward esh--latexify-preamble-marker nil t)
       (replace-match (replace-quote esh--latex-preamble) t)
     (unless fragment-p
-      (error "%s" "Source document is missing the `%% ESH-preamble-here' line"))))
+      (error "%s" "No `%% ESH-preamble-here' line found. Are you missing --fragment?"))))
 
 (defun esh--latexify-inline-verb-matcher (re)
   "Search for a \\verb-like delimiter from point.
