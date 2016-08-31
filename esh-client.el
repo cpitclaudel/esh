@@ -46,6 +46,9 @@
 (defvar esh-client-debug-server nil
   "Whether to print backtraces produced by the server.")
 
+(defvar esh-client--initialized nil
+  "Whether the server was (re)initialized.")
+
 ;;; Utils
 
 (defun esh-client--server-running-p ()
@@ -157,11 +160,22 @@ client, to work around a bug in `emacsclient'."
     (if (<= len threshold) str
       (concat "..." (substring str (- len threshold) len)))))
 
+(defun esh-client--restart-server-if-stale-init-file (server-init-fpath init-fpath)
+  "Kill server if SERVER-INIT-FPATH doesn't match INIT-FPATH."
+  (unless (member server-init-fpath `(none ,init-fpath))
+    (esh-client-stderr "Stale init file on server (%s); resetting.\n" server-init-fpath)
+    (esh-client-kill-server)
+    (esh-client--ensure-server)))
+
 (defun esh-client--init-server ()
   "Initialize ESH server."
-  (let* ((init-fpath (esh-client--init-file-path)))
-    (esh-client--with-progress-msg (format "Loading %S" (esh-client--truncate-right init-fpath 25))
-      (esh-client--run (esh-client--rpc-server-init-form (getenv "DISPLAY") init-fpath)))))
+  (setq esh-client--initialized t)
+  (let* ((init-fpath (esh-client--init-file-path))
+         (server-init-fpath (esh-client--run 'esh-server-init-fpath)))
+    (esh-client--restart-server-if-stale-init-file server-init-fpath init-fpath)
+    (unless (equal server-init-fpath init-fpath)
+      (esh-client--with-progress-msg (format "Loading %S" (esh-client--truncate-right init-fpath 25))
+        (esh-client--run (esh-client--rpc-server-init-form (getenv "DISPLAY") init-fpath))))))
 
 (defun esh-client--use-cask ()
   "Check whether cask should be used."
@@ -190,7 +204,8 @@ each `esh-server-eval' query."
   "Ensure that an ESH server is running."
   (unless (esh-client--server-running-p)
     (esh-client--with-progress-msg "Starting ESH"
-      (esh-client--busy-wait (esh-client--ensure-server-1)))
+      (esh-client--busy-wait (esh-client--ensure-server-1))))
+  (unless esh-client--initialized
     (esh-client--init-server)))
 
 (defun esh-client-kill-server ()
@@ -213,6 +228,7 @@ initial frame invisible.  Now, it's also used to make things
 faster.  Output goes to `standard-output'."
   (esh-client--ensure-server) ;; To prevent progress messages from interleaving
   (esh-client--with-progress-msg (format "Highlighting %S" path)
+    (setq path (expand-file-name path))
     (princ (esh-client--run (esh-client--rpc-process-form path format fragment-p)))))
 
 (provide 'esh-client)
