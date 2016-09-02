@@ -24,6 +24,8 @@
 
 ;;; Code:
 
+(setq-default load-prefer-newer t)
+
 (eval-and-compile
   (defconst esh2tex--script-full-path
     (or (and load-in-progress load-file-name)

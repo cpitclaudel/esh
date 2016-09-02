@@ -20,9 +20,11 @@
 
 ;;; Commentary:
 
-;; Run `esh2html --usage' or `esh2html --usage' for help.
+;; Run `esh2tex --usage' or `esh2html --usage' for help.
 
 ;;; Code:
+
+(setq-default load-prefer-newer t)
 
 (eval-and-compile
   (defconst esh2html--script-full-path

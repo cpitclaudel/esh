@@ -24,10 +24,10 @@
 
 ;;; Code:
 
-(require 'esh-client)
-
 (setq-default load-prefer-newer t)
 (setq-default text-quoting-style 'grave)
+
+(require 'esh-client)
 
 (eval-and-compile
   (defconst esh-cli--script-full-path
