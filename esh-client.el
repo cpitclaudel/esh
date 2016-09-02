@@ -86,11 +86,11 @@ reporting (see docstring of `esh-client--ensure-server-1')."
      (require 'esh-server)
      (esh-server-eval ',form ,dest ,esh-client-debug-server)))
 
-(defun esh-client--rpc-server-init-form (display &optional prelude)
+(defun esh-client--rpc-server-init-form (display &optional init-info)
   "Construct a form to initialize the ESH server.
-DISPLAY and PRELUDE are forwarded."
+DISPLAY and INIT-INFO are forwarded."
   `(progn
-     (esh-server-init ,display ,prelude)))
+     (esh-server-init ,display ',init-info)))
 
 (defun esh-client--rpc-process-form (path format fragment-p)
   "Construct a form to process PATH.FORMAT as FRAGMENT-P on server."
@@ -160,22 +160,33 @@ client, to work around a bug in `emacsclient'."
     (if (<= len threshold) str
       (concat "..." (substring str (- len threshold) len)))))
 
-(defun esh-client--restart-server-if-stale-init-file (server-init-fpath init-fpath)
-  "Kill server if SERVER-INIT-FPATH doesn't match INIT-FPATH."
-  (unless (member server-init-fpath `(none ,init-fpath))
-    (esh-client-stderr "Stale init file on server (%s); resetting.\n" server-init-fpath)
+(defun esh-client--compute-init-info ()
+  "Compute an initialization pair for the server.
+This is a cons of (INIT-FILE . MTIME)."
+  (let* ((init-fpath (esh-client--init-file-path))
+         (mtime (when (and init-fpath (file-exists-p init-fpath))
+                  (nth 5 (file-attributes init-fpath)))))
+    (cons init-fpath mtime)))
+
+(defun esh-client--restart-server-if-stale-init-file (server-init-info expected-init-info)
+  "Kill server if init file is stale.
+That is, if SERVER-INIT-INFO does not match EXPECTED-INIT-INFO."
+  (unless (member server-init-info `(none ,expected-init-info))
+    (esh-client-stderr "Stale init file on server (%s); resetting.\n"
+             (car server-init-info))
     (esh-client-kill-server)
     (esh-client--ensure-server)))
 
 (defun esh-client--init-server ()
   "Initialize ESH server."
   (setq esh-client--initialized t)
-  (let* ((init-fpath (esh-client--init-file-path))
-         (server-init-fpath (esh-client--run 'esh-server-init-fpath)))
-    (esh-client--restart-server-if-stale-init-file server-init-fpath init-fpath)
-    (unless (equal server-init-fpath init-fpath)
-      (esh-client--with-progress-msg (format "Loading %S" (esh-client--truncate-right init-fpath 25))
-        (esh-client--run (esh-client--rpc-server-init-form (getenv "DISPLAY") init-fpath))))))
+  (let* ((init-info (esh-client--compute-init-info))
+         (server-init-info (esh-client--run 'esh-server-init-info)))
+    (esh-client--restart-server-if-stale-init-file server-init-info init-info)
+    (unless (equal server-init-info init-info)
+      (esh-client--with-progress-msg
+       (format "Loading %S" (esh-client--truncate-right (car init-info) 40))
+       (esh-client--run (esh-client--rpc-server-init-form (getenv "DISPLAY") init-info))))))
 
 (defun esh-client--use-cask ()
   "Check whether cask should be used."

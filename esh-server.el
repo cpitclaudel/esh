@@ -33,8 +33,8 @@
 (defvar esh-server-initializing nil
   "Non-nil while the ESH server is initializing.")
 
-(defvar esh-server-init-fpath 'none
-  "Init file that was used to initialize the server.")
+(defvar esh-server-init-info 'none
+  "Init info (INIT-FPATH . _) that was used to initialize the server.")
 
 (defvar esh-server--capture-backtraces nil
   "Whether to capture backtraces.
@@ -112,17 +112,19 @@ will be non-nil only if CAPTURE-BACKTRACES was non-nil."
         (esh-server--writeout file `(success ,result)))
     (error (esh-server--writeout file `(error ,err ,esh-server--backtrace)))))
 
-(defun esh-server-init (display &optional init-fpath)
+(defun esh-server-init (display &optional init-info)
   "Initialize the ESH server.
-Create an invisible frame on DISPLAY after loading INIT-FPATH.  No
-error checking here; we expect this to be invoked through
+Create an invisible frame on DISPLAY after loading INIT-INFO,
+which should be a cons of (INIT-FPATH . CLIENT-PROVIDED-DATA).
+No error checking here; we expect this to be invoked through
 `esh-server-eval'."
-  (setq esh-server-init-fpath init-fpath)
+  (setq esh-server-init-info init-info)
   (setq-default load-prefer-newer t)
   (setq-default text-quoting-style 'grave)
-  (when init-fpath
-    (let ((esh-server-initializing t))
-      (load-file init-fpath)))
+  (let ((init-fpath (car init-info)))
+    (when init-fpath
+      (let ((esh-server-initializing t))
+        (load-file init-fpath))))
   (ignore (setq esh--server-frame
                 (make-frame `((window-system . x)
                               (display . ,display)

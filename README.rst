@@ -132,16 +132,17 @@ Options
   ``\begin{document}`` can't be found (instead, process everything).  This is
   convenient if you like to split your LaTeX documents by section or chapter.
   Since inline macro definitions won't parsed in this mode, you'll have to
-  specify them in ``esh-init``; see below.
+  specify them in ``esh-init.el``; see below.
 
 * ``--persist``
 
-  Leave server running after processing ``<input>.tex``.  Don't forget to
-  ``--kill-server`` if you make changes to your ``esh-init.el``!
+  Leave server running after processing ``<input>.tex``.
 
 * ``--kill-server``
 
-  Kill previously-started instances of the ESH server.
+  Kill previously-started instances of the ESH server.  (You usually do not need
+  to run this explicitly, since the server resets automatically when you edit
+  your ESH configuration).
 
 * ``--stdout``
 
@@ -317,7 +318,7 @@ an example showing how to translate ESH-inline declarations:
 
 First of each pair is the delimiter; second of each pair is the (full) mode
 name, without quotes.  Don't forget the double backslashes (``\\verb``).  This
-snippet goes into your ``.esh-init.el`` file.
+snippet goes into your ``esh-init.el`` file.
 
 Using ``esh2tex`` with ``org-mode``
 -----------------------------------
