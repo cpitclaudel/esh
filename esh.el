@@ -52,10 +52,10 @@
           (push top kept))))
     (nreverse kept)))
 
-(defun esh--extract-props (props str)
-  "Read PROPS from STR as an ALIST or (PROP . VAL)."
+(defun esh--extract-props (props pos)
+  "Read PROPS from POS as an ALIST or (PROP . VAL)."
   (mapcar (lambda (prop)
-            (cons prop (get-text-property 0 prop str)))
+            (cons prop (get-char-property pos prop)))
           props))
 
 (defvar esh-name-to-mode-alist nil
@@ -103,13 +103,12 @@ properties."
         (setq start end)))
     (nreverse ranges)))
 
-(defun esh--buffer-spans (&optional prop)
-  "Create a stream of buffer spans.
-Buffer spans are ranges of text in which all characters have the
-same value of PROP or, if PROP is nil, of all properties."
-  (mapcar (lambda (pair)
-            (buffer-substring (car pair) (cdr pair)))
-          (esh--buffer-ranges-from 1 prop)))
+(defun esh--buffer-ranges (&optional prop)
+  "Create a stream of buffer ranges.
+Ranges are pairs of START..END positions in which all characters
+have the same value of PROP or, if PROP is nil, of all
+properties."
+  (esh--buffer-ranges-from 1 prop))
 
 ;;; Merging faces
 
@@ -146,20 +145,23 @@ Faces is a list of (possibly anonymous) faces."
         (setq attr (merge-face-attribute attribute attr merge-with))))
     attr))
 
-(defun esh--faceprop-face-attribute (faceprop attribute)
-  "Look at FACEPROP and find out value of face ATTRIBUTE."
-  (unless (listp faceprop)
-    (setq faceprop (list faceprop)))
-  (esh--faces-attribute faceprop attribute))
+(defun esh--as-list (x)
+  "Wrap X in a list, if needed."
+  (if (listp x) x (list x)))
 
-(defun esh--str-face-attribute (str attribute)
-  "Look at STR and find out value of face ATTRIBUTE."
-  (cons attribute (esh--faceprop-face-attribute
-                   (get-text-property 0 'face str) attribute)))
+(defun esh--pos-face-attribute (pos attribute)
+  "Look at POS and find out value of face ATTRIBUTE."
+  (esh--faces-attribute (append (esh--as-list (get-text-property pos 'face))
+                             (esh--as-list (get-char-property pos 'face)))
+                     attribute))
 
-(defun esh--extract-face-attributes (face-attributes text)
-  "Extract FACE-ATTRIBUTES from TEXT."
-  (mapcar (apply-partially #'esh--str-face-attribute text)
+(defun esh--pos-face-attribute-cons (pos attribute)
+  "Look at POS and form cons (ATTRIBUTE . ATTRIBUTE-VALUE)."
+  (cons attribute (esh--pos-face-attribute pos attribute)))
+
+(defun esh--extract-face-attributes (face-attributes pos)
+  "Extract FACE-ATTRIBUTES from POS."
+  (mapcar (apply-partially #'esh--pos-face-attribute-cons pos)
           face-attributes))
 
 ;;; Massaging properties
@@ -168,11 +170,11 @@ Faces is a list of (possibly anonymous) faces."
   "Apply compositions in current buffer.
 This replaced each composed string by its composition, forgetting
 the original string."
-  (let ((composed-ranges (esh--buffer-ranges-from 1 'composition)))
+  (let ((composed-ranges (esh--buffer-ranges 'composition)))
     (dolist (pair (reverse composed-ranges))
       (pcase pair
         (`(,from . ,to)
-         (let ((composition (get-text-property from 'composition))
+         (let ((composition (get-char-property from 'composition))
                (char nil))
            (pcase composition
              (`((,_ . ,c))
@@ -196,10 +198,11 @@ about underful hboxes)."
   (goto-char (point-min))
   (while (search-forward "\n" nil t)
     (put-text-property (match-beginning 0) (match-end 0) 'newline
-                       ;; (point-at-bol 0) is beginning of previous line
-                       ;; (match-beginning 0) is end of previous line
-                       (if (eq (point-at-bol 0) (match-beginning 0))
-                           'empty 'non-empty))
+                       (cons (point) ;; Prevent collapsing
+                             ;; (point-at-bol 0) is beginning of previous line
+                             ;; (match-beginning 0) is end of previous line
+                             (if (eq (point-at-bol 0) (match-beginning 0))
+                                 'empty 'non-empty)))
     ;; Break up boxes spanning more than one line
     (put-text-property (match-beginning 0) (match-end 0) 'face nil)))
 
@@ -211,9 +214,8 @@ character has an `end-box' property."
   (goto-char (point-min))
   (let ((prev-start nil)
         (prev-box nil))
-    (pcase-dolist (`(,start . ,_) (esh--buffer-ranges-from 1 nil))
-      (let* ((face (get-text-property start 'face))
-             (box-attr (esh--faceprop-face-attribute face :box))
+    (pcase-dolist (`(,start . ,_) (esh--buffer-ranges))
+      (let* ((box-attr (esh--pos-face-attribute start :box))
              (box (unless (eq box-attr 'unspecified) box-attr))
              (box-continues (equal box prev-box)))
         (if box-continues
@@ -321,10 +323,9 @@ Wraps into \\ESH(Block|Inline)SpecialChar{}."
   "Tag non-ASCII characters of current buffer.
 Puts text property `non-ascii' on non-ascii characters."
   (goto-char (point-min))
-  (let ((counter 0)) ;; Need property values to be distinct
-    (while (re-search-forward "[^\000-\177]" nil t)
-      (setq counter (1+ counter))
-      (put-text-property (match-beginning 0) (match-end 0) 'non-ascii counter))))
+  (while (re-search-forward "[^\000-\177]" nil t)
+    ;; Need property values to be distinct, hence (point)
+    (put-text-property (match-beginning 0) (match-end 0) 'non-ascii (point))))
 
 (defun esh--escape-for-latex (str)
   "Escape LaTeX special characters in STR."
@@ -375,13 +376,14 @@ Puts text property `non-ascii' on non-ascii characters."
           (if esh--inline "Inline" "Block")
           amount str))
 
-(defun esh--latexify-span (span)
-  "Render SPAN as a LaTeX string.
+(defun esh--latexify-span (range)
+  "Render RANGE as a LaTeX string.
 Exact behavior is dependent on value of `esh--inline'."
-  (let ((template "%s")
-        (latex-str (esh--escape-for-latex span))
-        (props-alist (esh--extract-props esh--latex-props span))
-        (attrs-alist (esh--extract-face-attributes esh--latex-face-attrs span)))
+  (let* ((template "%s")
+         (span (buffer-substring-no-properties (car range) (cdr range)))
+         (latex-str (esh--escape-for-latex span))
+         (props-alist (esh--extract-props esh--latex-props (car range)))
+         (attrs-alist (esh--extract-face-attributes esh--latex-face-attrs (car range))))
     (pcase-dolist (`(,attribute . ,val) (esh--filter-cdr 'unspecified attrs-alist))
       (when val
         (setq template
@@ -476,9 +478,11 @@ and add “\\par”s."
   (esh--commit-compositions)
   (esh--mark-newlines)
   (esh--mark-boxes)
-  (let* ((str (mapconcat #'esh--latexify-span (esh--buffer-spans) "")))
+  (let* ((str (mapconcat #'esh--latexify-span (esh--buffer-ranges) "")))
     (if esh--inline str
       (esh--latexify-obeylines (esh--latexify-protect-bols str)))))
+
+(defvar esh-post-highlight-hook nil) ;; FIXME document this
 
 (defun esh--highlight-in-buffer (str buffer mode-fn convert-fn)
   "Insert STR in BUFFER, fontify it, and convert it.
@@ -488,6 +492,7 @@ CONVERT-FN, whose return value nay depend on `esh--inline'."
     (with-current-buffer buffer
       (insert str)
       (when (fboundp mode-fn) (esh--font-lock-ensure))
+      (run-hook-with-args 'esh-post-highlight-hook)
       (funcall convert-fn))))
 
 (defvar esh--latex-preamble
@@ -728,7 +733,7 @@ CODE-START and CODE-END are markers."
           (goto-char code-start)
           (delete-region code-start code-end)
           (insert (esh--highlight-in-buffer code temp-buffer mode-fn
-                                            #'esh--latexify-current-buffer)))))))
+                                         #'esh--latexify-current-buffer)))))))
 
 (defun esh2tex-current-buffer (fragment-p)
   "Fontify contents of all ESH environments.
@@ -815,14 +820,14 @@ NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
 (defvar esh--html-props '(display invisible non-ascii newline))
 (defvar esh--html-face-attrs '(:underline :background :foreground :weight :slant))
 
-(defun esh--htmlify-span (span)
-  "Render SPAN as an HTML tree."
+(defun esh--htmlify-span (range)
+  "Render RANGE as an HTML tree."
   (let ((styles nil)
         (raised nil)
         (non-ascii nil)
-        (text (substring-no-properties span))
-        (props-alist (esh--extract-props esh--html-props span))
-        (attrs-alist (esh--extract-face-attributes esh--html-face-attrs span)))
+        (text (buffer-substring-no-properties (car range) (cdr range)))
+        (props-alist (esh--extract-props esh--html-props (car range)))
+        (attrs-alist (esh--extract-face-attributes esh--html-face-attrs (car range))))
     (pcase-dolist (`(,attribute . ,val) (esh--filter-cdr 'unspecified attrs-alist))
       (when val
         (pcase attribute
@@ -887,7 +892,7 @@ NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
   (esh--commit-compositions)
   (esh--mark-newlines)
   (esh--mark-non-ascii)
-  (mapcar #'esh--htmlify-span (esh--buffer-spans)))
+  (mapcar #'esh--htmlify-span (esh--buffer-ranges)))
 
 (defvar esh--html-src-class-prefix "src-"
   "HTML class prefix indicating a fontifiable tag.")
