@@ -335,8 +335,8 @@ Puts text property `non-ascii' on non-ascii characters."
   (pcase underline
     (`t '(nil . line))
     ((pred stringp) `(,underline . line))
-    (`(:color ,color) `(,color . line))
-    (`(:color ,color :style ,style) `(,color . ,style))))
+    ((pred listp) `(,(plist-get underline :color) .
+                    ,(or (plist-get underline :style) 'line)))))
 
 (defun esh--normalize-weight (weight)
   "Normalize WEIGHT."
@@ -418,7 +418,7 @@ Exact behavior is dependent on value of `esh--inline'."
                     ;; use it unless the underline needs to be colored.
                     (let* ((prefix (if color "\\ESHUnder" "\\u"))
                            (command (format "%s%S" prefix type))
-                           (color-arg (if color (format "{\\color{%s}}" color) "")))
+                           (color-arg (if color (format "{\\color[HTML]{%s}}" color) "")))
                       (format "%s%s{%s}" command color-arg template)))
                    (_ (error "Unexpected underline %S" val))))
                 (_ (error "Unexpected attribute %S" attribute))))))
@@ -450,6 +450,7 @@ Exact behavior is dependent on value of `esh--inline'."
          ;; newline is added to the end of the template), and add an mbox to
          ;; prevent TeX from complaining about underfull boxes.
          (setq latex-str "")
+         (setq val (cdr val))
          (let ((mbox (pcase val (`empty "\\mbox{}"))))
            (setq template (concat template mbox "\n"))))
         (_ (error "Unexpected property %S" property))))
@@ -566,7 +567,8 @@ CONVERT-FN, whose return value nay depend on `esh--inline'."
   {\\bgroup\\markoverwith{#1\\rule[-0.5ex]{2pt}{0.4pt}}\\ULon}
 % ESHUnderwave produces a wavy underline
 \\DeclareRobustCommand*{\\ESHUnderwave}[1]
-  {\\bgroup\\markoverwith{#1\\lower3.5\\p@\\hbox{\\sixly\\char58}}\\ULon}
+  {\\bgroup\\markoverwith{#1\\lower3.5\\p@\\hbox{\\ESHSmallWaveFont\\char58}}\\ULon}
+\\font\\ESHSmallWaveFont=lasyb10 scaled 400
 \\makeatother
 
 % Environments
