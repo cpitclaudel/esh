@@ -33,6 +33,16 @@
 ;; Can't depend on anything outside of core Emacs
 (require 'color)
 
+(defconst esh--script-full-path
+  (or (and load-in-progress load-file-name)
+      (bound-and-true-p byte-compile-current-file)
+      (buffer-file-name))
+  "Full path of this script.")
+
+(defconst esh--directory
+  (file-name-directory esh--script-full-path)
+  "Full path to directory of this script.")
+
 ;;; Misc utils
 
 (defun esh--normalize-color (color)
@@ -495,127 +505,11 @@ CONVERT-FN, whose return value nay depend on `esh--inline'."
       (run-hook-with-args 'esh-post-highlight-hook)
       (funcall convert-fn))))
 
-(defvar esh--latex-preamble
-  "% Packages
-%%%%%%%%%%
-
-\\RequirePackage{xcolor} % TeXLive-recommended
-\\RequirePackage[normalem]{ulem} % TeXLive-recommended
-
-\\RequirePackage{relsize} % TeXLive-latex-extra
-\\renewcommand{\\RSsmallest}{1pt}
-\\renewcommand{\\RSlargest}{50pt}
-
-% Fonts
-%%%%%%%
-
-% \\ESHFont is for code blocks
-\\providecommand*{\\ESHFont}{\\ttfamily}
-
-% \\ESHInlineFont is for inline code samples
-\\providecommand*{\\ESHInlineFont}{\\ESHFont}
-
-% \\ESHFallbackFont is applied to characters not covered by \\ESHFont
-\\providecommand*{\\ESHFallbackFont}{\\ESHFont}
-
-% Utils
-%%%%%%%
-
-% \\ESHNoHyphens disables hyphenation
-\\providecommand*{\\ESHNoHyphens}{\\hyphenpenalty=10000}
-
-% \\ESHBlockDash is a dash disallowing line breaks
-\\providecommand*{\\ESHBlockDash}{\\hbox{-}\\nobreak}
-
-% \\ESHCenterInWidthOf{#A}{#B} prints #B centered in a box as large as #A.
-\\newdimen\\ESHtempdim%
-\\providecommand*{\\ESHCenterInWidthOf}[2]
-  {\\settowidth\\ESHtempdim{#1}%
-   \\makebox[\\ESHtempdim][c]{#2}}
-
-\\RequirePackage{iftex}
-\\ifXeTeX
-  % \\ESHWithFallback{#A} prints #A in the current font if possible, falling back to \\ESHFallbackFont
-  % Adapted from https://tug.org/pipermail/xetex/2011-November/022319.html
-  \\def\\ESHWithFallback#1{%
-    \\begingroup
-      \\def\\found{#1}%
-      \\def\\notfound{\\ESHFallbackFont#1}%
-      \\ifnum\\XeTeXfonttype\\font>0%
-        \\ifnum\\XeTeXcharglyph`#1>0\\found\\else\\notfound\\fi
-      \\else
-        \\setbox0=\\hbox{\\tracinglostchars=0\\kern1sp#1\\expandafter}%
-        \\ifnum\\lastkern=1\\notfound\\else\\found\\fi
-      \\fi
-    \\endgroup}
-\\else
-  % Fall back to just using \\ESHFallbackFont
-  \\def\\ESHWithFallback#1{\\ESHFallbackFont#1}
-\\fi
-
-% \\ESHInlineSpecialChar and \\ESHBlockSpecialChar are used by ESH to indicate
-% non-ascii characters, which may need a fallback font.
-\\DeclareRobustCommand*{\\ESHInlineSpecialChar}[1]
-  {{\\ESHFont\\ESHWithFallback{#1}}}
-\\DeclareRobustCommand*{\\ESHBlockSpecialChar}[1]
-  {{\\ESHCenterInWidthOf{\\ESHFont{a}}{\\ESHInlineSpecialChar{#1}}}}
-
-% \\ESHInlineRaise and \\ESHBlockRaise implement sub/superscripts
-\\DeclareRobustCommand*{\\ESHInlineRaise}[2]
-  {\\raisebox{#1}{\\relsize{-2}#2}}
-\\DeclareRobustCommand*{\\ESHBlockRaise}[2]
-  {\\rlap{\\ESHInlineRaise{#1}{#2}}\\hphantom{#2}}
-
-\\makeatletter
-% ESHUnderline produces a straight underline
-\\DeclareRobustCommand*{\\ESHUnderline}[1]
-  {\\bgroup\\markoverwith{#1\\rule[-0.5ex]{2pt}{0.4pt}}\\ULon}
-% ESHUnderwave produces a wavy underline
-\\DeclareRobustCommand*{\\ESHUnderwave}[1]
-  {\\bgroup\\markoverwith{#1\\lower3.5\\p@\\hbox{\\ESHSmallWaveFont\\char58}}\\ULon}
-\\font\\ESHSmallWaveFont=lasyb10 scaled 400
-\\makeatother
-
-% Environments
-%%%%%%%%%%%%%%
-
-% \\ESHInlineBasicSetup is used by \\ESHInline
-\\providecommand*{\\ESHInlineBasicSetup}{\\ESHNoHyphens\\ESHInlineFont}
-
-% \\ESHInline is used for inline code
-% Note the extra pair of braces in the definition
-\\providecommand*{\\ESHInline}[1]{{\\ESHInlineBasicSetup#1}}
-
-% \\ESHBlockBasicSetup is used by \\ESHBlock
-\\providecommand*{\\ESHBlockBasicSetup}
-  {\\setlength{\\parindent}{0pt}\\setlength{\\parskip}{0pt}
-   \\ESHNoHyphens\\ESHFont\\spaceskip=\\fontdimen2\\font
-   \\xspaceskip=0pt}
-
-\\makeatletter
-% \\ESHSkip is the amount to skip before and after an ESHBlock
-\\@ifundefined{ESHSkip}{\\newlength{\\ESHSkip}\\setlength{\\ESHSkip}{\\baselineskip}}{}
-
-% \\ESHBlock is used for code blocks
-\\@ifundefined{ESHBlock}
-  {\\newenvironment{ESHBlock}
-     {\\ESHBlockBasicSetup\\par\\addvspace{\\ESHSkip}}
-     {\\par\\addvspace{\\ESHSkip}}}{}
-
-% \\ESHBoxSep is the vertical padding of \\ESHFBox
-\\@ifundefined{ESHBoxSep}{\\newlength{\\ESHBoxSep}\\setlength{\\ESHBoxSep}{1pt}}{}
-
-% \\ESHFBox{#color}{#lineWidth}{#contents} wraps #contents in an border of width
-% #lineWidth and of color #color.  The box has no horizontal padding, its
-% vertical padding is determined by \\ESHBoxSep, and it doesn't affect the height
-% of the current line.
-\\newdimen\\ESHBoxTempDim%
-\\providecommand*{\\ESHBox}[3]
-  {\\setlength{\\fboxsep}{\\ESHBoxSep}%
-   \\setlength{\\fboxrule}{#2}%
-   \\setlength{\\ESHBoxTempDim}{\\dimexpr-\\fboxsep-\\fboxrule\\relax}%
-   \\vphantom{#3}\\smash{\\fbox{\\hspace*{\\ESHBoxTempDim}#3\\hspace*{\\ESHBoxTempDim}}}}
-\\makeatother")
+(defun esh--latex-preamble ()
+  "Read ESH's LaTeX preamble from disk."
+  (with-temp-buffer
+    (insert-file-contents (expand-file-name "esh-preamble.tex" esh--directory))
+    (buffer-substring-no-properties (point-min) (point-max))))
 
 (defvar esh-latexify-block-envs
   `(("^[ \t]*%%[ \t]*ESH: \\([^ \t\n]+\\)[ \t]*\n[ \t]*\\\\begin{\\([^}]+\\)}.*\n" "\\begin{ESHBlock}\n"
@@ -630,7 +524,7 @@ CONVERT-FN, whose return value nay depend on `esh--inline'."
 A non-nil FRAGMENT-P suppresses 'missing preamble' errors."
   (goto-char (point-min))
   (if (re-search-forward esh--latexify-preamble-marker nil t)
-      (replace-match (replace-quote esh--latex-preamble) t)
+      (replace-match (replace-quote (esh--latex-preamble)) t)
     (unless fragment-p
       (error "%s" "No `%% ESH-preamble-here' line found. Are you missing --fragment?"))))
 
