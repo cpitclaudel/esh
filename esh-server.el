@@ -126,8 +126,7 @@ No error checking here; we expect this to be invoked through
       (let ((esh-server-initializing t))
         (load-file init-fpath))))
   (ignore (setq esh--server-frame
-                (make-frame `((window-system . x)
-                              (display . ,display)
+                (make-frame `((display . ,display)
                               (visibility . nil))))))
 
 (defun esh-server-process (path format &optional fragment-p)
