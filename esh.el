@@ -95,8 +95,6 @@ call signature, and a workaround for an Emacs bug."
 
 ;;; Segmenting a buffer
 
-;; FIXME this splits by properties including overlays, but then it ignores them
-
 (defun esh--buffer-ranges-from (start prop)
   "Create a stream of buffer ranges from START.
 Ranges are pairs of START..END positions in which all characters
@@ -270,24 +268,24 @@ These are temporary buffers, used for highlighting.")
   (mapc #'kill-buffer (mapcar #'cdr esh--temp-buffers))
   (setq esh--temp-buffers nil))
 
-(defmacro esh--make-temp-buffer (mode)
+(defun esh--make-temp-buffer (mode)
   "Get temp buffer for MODE from `esh--temp-buffers'.
 If no such buffer exist, create one and add it to BUFFERS.  In
 all cases, the buffer is erased, and a message is added to it if
 the required mode isn't available."
-  (let ((buf (make-symbol "buf")))
-    `(save-match-data
-       (let ((,buf (cdr (assq ,mode esh--temp-buffers))))
-         (unless ,buf
-           (setq ,buf (generate-new-buffer " *temp*"))
-           (with-current-buffer ,buf
-             (funcall (if (fboundp ,mode) ,mode #'fundamental-mode)))
-           (push (cons ,mode ,buf) esh--temp-buffers))
-         (with-current-buffer ,buf
-           (erase-buffer)
-           (unless (fboundp ,mode)
-             (insert (esh--missing-mode-error-msg ,mode))))
-         ,buf))))
+  (save-match-data
+    (let ((buf (cdr (assq mode esh--temp-buffers)))
+          (mode-boundp (fboundp mode)))
+      (unless buf
+        (setq buf (generate-new-buffer " *temp*"))
+        (with-current-buffer buf
+          (funcall (if mode-boundp mode #'fundamental-mode)))
+        (push (cons mode buf) esh--temp-buffers))
+      (with-current-buffer buf
+        (erase-buffer)
+        (unless mode-boundp
+          (insert (esh--missing-mode-error-msg mode))))
+      buf)))
 
 ;;; Producing LaTeX
 
@@ -494,14 +492,15 @@ and add “\\par”s."
 
 (defvar esh-post-highlight-hook nil) ;; FIXME document this
 
-(defun esh--highlight-in-buffer (str buffer mode-fn convert-fn)
+(defun esh--highlight-in-buffer (str buffer needs-highlight convert-fn)
   "Insert STR in BUFFER, fontify it, and convert it.
-With non-fbound MODE-FN, don't run font-lock on STR.  Calls
-CONVERT-FN, whose return value nay depend on `esh--inline'."
+With NEEDS-HIGHLIGHT, run font-lock on STR.  Calls CONVERT-FN
+\(whose return value may depend on `esh--inline') to do the actual
+export."
   (save-match-data
     (with-current-buffer buffer
       (insert str)
-      (when (fboundp mode-fn) (esh--font-lock-ensure))
+      (when needs-highlight (esh--font-lock-ensure))
       (run-hook-with-args 'esh-post-highlight-hook)
       (funcall convert-fn))))
 
@@ -553,7 +552,7 @@ character."
 
 (defun esh--latexify-find-inline-envs-decls ()
   "Construct a list of regexps matching user-defined inline environments.
-This looks for `esh--latexify-inline-env-declaration-re, and
+This looks for `esh--latexify-inline-env-declaration-re', and
 constructs a cons of a regular expressions matching all inline
 envs, and an alist mapping env names to mode functions."
   (let ((envs nil))
@@ -598,7 +597,7 @@ Otherwise, read inline definitions and start replacing after
              (delete-region beg end)
              (insert (concat "\\ESHInline{"
                              (esh--highlight-in-buffer
-                              code temp-buffer mode-fn
+                              code temp-buffer (fboundp mode-fn)
                               #'esh--latexify-current-buffer)
                              "}")))))))))
 
@@ -626,7 +625,7 @@ CODE-START and CODE-END are markers."
                (temp-buffer (esh--make-temp-buffer mode-fn)))
           (goto-char code-start)
           (delete-region code-start code-end)
-          (insert (esh--highlight-in-buffer code temp-buffer mode-fn
+          (insert (esh--highlight-in-buffer code temp-buffer (fboundp mode-fn)
                                          #'esh--latexify-current-buffer)))))))
 
 (defun esh2tex-current-buffer (fragment-p)
@@ -650,7 +649,7 @@ inline env definitions."
         (set-marker code-end nil)
         (esh--kill-temp-buffers)))))
 
-(defun esh-latexify-file (path &optional fragment-p)
+(defun esh-latexify-tex-file (path &optional fragment-p)
   "Fontify contents of all ESH environments in PATH.
 With non-nil FRAGMENT-P, don't read inline environments nor complain
 about a missing \begin{document}."
@@ -662,9 +661,9 @@ about a missing \begin{document}."
 ;;; Producing HTML
 
 (defconst esh--html-specials '((?< . "&lt;")
-                               (?> . "&gt;")
-                               (?& . "&amp;")
-                               (?\" . "&quot;")))
+                            (?> . "&gt;")
+                            (?& . "&amp;")
+                            (?\" . "&quot;")))
 
 (defconst esh--html-specials-re
   (regexp-opt-charset (mapcar #'car esh--html-specials)))
@@ -679,7 +678,7 @@ about a missing \begin{document}."
    esh--html-specials-re #'esh--html-substitute-special str t t))
 
 (defconst esh--html-void-tags '(area base br col embed hr img input
-                                     link menuitem meta param source track wbr))
+                                  link menuitem meta param source track wbr))
 
 (defun esh--htmlify-serialize (node escape-specials)
   "Write NODE as HTML string to current buffer.
@@ -819,8 +818,9 @@ tags with no ESH attribute as Emacs Lisp.")
              (unless (and (stringp (car children)) (null (cdr children)))
                (error "Code block has children: %S" node))
              `(,tag ,attributes
-                    ,@(esh--highlight-in-buffer (car children) temp-buffer mode-fn
-                                                #'esh--htmlify-current-buffer)))
+                    ,@(esh--highlight-in-buffer
+                       (car children) temp-buffer (fboundp mode-fn)
+                       #'esh--htmlify-current-buffer)))
          `(,tag ,attributes
                 ,@(mapcar (lambda (c)
                             (esh--htmlify-do-tree c))
