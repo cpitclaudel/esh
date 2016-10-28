@@ -93,6 +93,12 @@ call signature, and a workaround for an Emacs bug."
   (setq font-lock-major-mode major-mode)
   (font-lock-add-keywords nil forms how))
 
+(defun esh--remove-final-newline ()
+  "Remove last newline of current buffer, if present."
+  (goto-char (point-max))
+  (when (eq (char-before) ?\n)
+    (delete-char -1)))
+
 ;;; Segmenting a buffer
 
 (defun esh--buffer-ranges-from (start prop)
@@ -286,6 +292,24 @@ the required mode isn't available."
         (unless mode-boundp
           (insert (esh--missing-mode-error-msg mode))))
       buf)))
+
+(defvar esh-post-highlight-hook nil) ;; FIXME document this
+
+(defun esh--export-buffer (export-fn)
+  "Refontify current buffer, then invoke EXPORT-FN.
+EXPORT-FN should do the actual exporting; its return value may
+depend on `esh--inline'."
+  (esh--font-lock-ensure)
+  (run-hook-with-args 'esh-post-highlight-hook)
+  (funcall export-fn))
+
+(defun esh--export-str (str mode-fn export-fn)
+  "Fontify STR in a MODE-FN buffer, then invoke EXPORT-FN.
+EXPORT-FN should do the actual exporting; its return value may
+depend on `esh--inline'."
+  (with-current-buffer (esh--make-temp-buffer mode-fn)
+    (insert str)
+    (esh--export-buffer export-fn)))
 
 ;;; Producing LaTeX
 
@@ -483,26 +507,13 @@ Do this instead of using catcodes, for robustness."
   "Export current buffer to LaTeX.
 With non-nil `esh--inline', protect beginnings of lines
 and add “\\par”s."
+  (esh--remove-final-newline)
   (esh--commit-compositions)
   (esh--mark-newlines)
   (esh--mark-boxes)
   (let* ((str (mapconcat #'esh--latexify-span (esh--buffer-ranges) "")))
     (if esh--inline str
       (esh--latexify-obeylines (esh--latexify-protect-bols str)))))
-
-(defvar esh-post-highlight-hook nil) ;; FIXME document this
-
-(defun esh--highlight-in-buffer (str buffer needs-highlight convert-fn)
-  "Insert STR in BUFFER, fontify it, and convert it.
-With NEEDS-HIGHLIGHT, run font-lock on STR.  Calls CONVERT-FN
-\(whose return value may depend on `esh--inline') to do the actual
-export."
-  (save-match-data
-    (with-current-buffer buffer
-      (insert str)
-      (when needs-highlight (esh--font-lock-ensure))
-      (run-hook-with-args 'esh-post-highlight-hook)
-      (funcall convert-fn))))
 
 (defun esh--latex-preamble ()
   "Read ESH's LaTeX preamble from disk."
@@ -512,7 +523,7 @@ export."
 
 (defvar esh-latexify-block-envs
   `(("^[ \t]*%%[ \t]*ESH: \\([^ \t\n]+\\)[ \t]*\n[ \t]*\\\\begin{\\([^}]+\\)}.*\n" "\\begin{ESHBlock}\n"
-     ,(lambda () (concat "\n[ \t]*\\\\end{" (match-string 2) "}")) "\n\\end{ESHBlock}"))
+     ,(lambda () (concat "^[ \t]*\\\\end{" (match-string 2) "}")) "\\end{ESHBlock}"))
   "List of replaceable environments.")
 
 (defvar esh--latexify-preamble-marker "^%%[ \t]*ESH-preamble-here[ \t]*$")
@@ -591,14 +602,12 @@ Otherwise, read inline definitions and start replacing after
           (`(,beg ,end ,code-beg ,code-end ,cmd)
            (let* ((esh--inline t)
                   (mode-fn (cdr (assoc cmd modes-alist)))
-                  (code (buffer-substring-no-properties code-beg code-end))
-                  (temp-buffer (esh--make-temp-buffer mode-fn)))
+                  (code (buffer-substring-no-properties code-beg code-end)))
              (goto-char beg)
              (delete-region beg end)
              (insert (concat "\\ESHInline{"
-                             (esh--highlight-in-buffer
-                              code temp-buffer (fboundp mode-fn)
-                              #'esh--latexify-current-buffer)
+                             (esh--export-str code mode-fn
+                                           #'esh--latexify-current-buffer)
                              "}")))))))))
 
 (defun esh--latexify-do-block-envs (code-start code-end)
@@ -613,20 +622,17 @@ CODE-START and CODE-END are markers."
       (when (string= "" (match-string-no-properties 1))
         (error "Invalid ESH header: %S" (match-string-no-properties 0)))
       (let ((mode-fn (esh--resolve-mode-fn (match-string-no-properties 1)))
-            (old-end (cond ((stringp old-end) old-end)
-                           ((functionp old-end) (funcall old-end)))))
+            (old-end (funcall old-end))) ;; FIXME why not use a plain regexp here?
         (replace-match new-start t t)
         (re-search-forward old-end)
         (goto-char (match-beginning 0))
         (set-marker code-end (point))
         (replace-match new-end t t)
         (let* ((esh--inline nil)
-               (code (buffer-substring-no-properties code-start code-end))
-               (temp-buffer (esh--make-temp-buffer mode-fn)))
+               (code (buffer-substring-no-properties code-start code-end)))
           (goto-char code-start)
           (delete-region code-start code-end)
-          (insert (esh--highlight-in-buffer code temp-buffer (fboundp mode-fn)
-                                         #'esh--latexify-current-buffer)))))))
+          (insert (esh--export-str code mode-fn #'esh--latexify-current-buffer)))))))
 
 (defun esh2tex-current-buffer (fragment-p)
   "Fontify contents of all ESH environments.
@@ -649,7 +655,7 @@ inline env definitions."
         (set-marker code-end nil)
         (esh--kill-temp-buffers)))))
 
-(defun esh-latexify-tex-file (path &optional fragment-p)
+(defun esh2tex-tex-file (path &optional fragment-p)
   "Fontify contents of all ESH environments in PATH.
 With non-nil FRAGMENT-P, don't read inline environments nor complain
 about a missing \begin{document}."
@@ -814,13 +820,11 @@ tags with no ESH attribute as Emacs Lisp.")
      (let ((lang (esh--htmlify-guess-lang tag attributes)))
        (if lang
            (let* ((mode-fn (esh--resolve-mode-fn lang))
-                  (temp-buffer (esh--make-temp-buffer mode-fn)))
-             (unless (and (stringp (car children)) (null (cdr children)))
+                  (code (car children)))
+             (unless (and (stringp code) (null (cdr children)))
                (error "Code block has children: %S" node))
              `(,tag ,attributes
-                    ,@(esh--highlight-in-buffer
-                       (car children) temp-buffer (fboundp mode-fn)
-                       #'esh--htmlify-current-buffer)))
+                    ,@(esh--export-str code mode-fn #'esh--htmlify-current-buffer)))
          `(,tag ,attributes
                 ,@(mapcar (lambda (c)
                             (esh--htmlify-do-tree c))

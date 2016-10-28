@@ -141,7 +141,7 @@ checking here; we expect this to be invoked through
   ;; (profiler-write-profile (profiler-cpu-profile) "esh.profile"))
   (with-selected-frame esh--server-frame
     (pcase format
-      (`tex (esh-latexify-tex-file path fragment-p))
+      (`tex (esh2tex-tex-file path fragment-p))
       (`html (esh-htmlify-file path fragment-p))
       (_ (error "Unknown format %S" format)))))
 
