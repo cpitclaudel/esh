@@ -54,7 +54,7 @@
 
 (defun esh--filter-cdr (val alist)
   "Remove conses in ALIST whose `cdr' is VAL."
-  ;; This is essentially seq-filter
+  ;; FIXME phase this out once Emacs 25 is everywhere
   (let ((kept nil))
     (while alist
       (let ((top (pop alist)))
@@ -96,6 +96,7 @@ call signature, and a workaround for an Emacs bug."
 (defun esh--remove-final-newline ()
   "Remove last newline of current buffer, if present."
   (goto-char (point-max))
+  ;; There may not be a final newline in standalone mode
   (when (eq (char-before) ?\n)
     (delete-char -1)))
 
@@ -292,6 +293,15 @@ the required mode isn't available."
         (unless mode-boundp
           (insert (esh--missing-mode-error-msg mode))))
       buf)))
+
+;; (defun esh--prepare-for-export ()
+;;   "Prepare current buffer for export.
+;; Add final newline, widen, etc."
+;;   (widen)
+;;   (save-excursion
+;;     (goto-char (point-max))
+;;     (unless (eq (char-before) ?\n)
+;;       (insert "\n"))))
 
 (defvar esh-post-highlight-hook nil) ;; FIXME document this
 
@@ -523,7 +533,7 @@ and add “\\par”s."
 
 (defvar esh-latexify-block-envs
   `(("^[ \t]*%%[ \t]*ESH: \\([^ \t\n]+\\)[ \t]*\n[ \t]*\\\\begin{\\([^}]+\\)}.*\n" "\\begin{ESHBlock}\n"
-     ,(lambda () (concat "^[ \t]*\\\\end{" (match-string 2) "}")) "\\end{ESHBlock}"))
+     ,(lambda () (concat "^[ \t]*\\\\end{" (match-string 2) "}")) "\n\\end{ESHBlock}"))
   "List of replaceable environments.")
 
 (defvar esh--latexify-preamble-marker "^%%[ \t]*ESH-preamble-here[ \t]*$")
@@ -536,7 +546,8 @@ A non-nil FRAGMENT-P suppresses 'missing preamble' errors."
   (if (re-search-forward esh--latexify-preamble-marker nil t)
       (replace-match (replace-quote (esh--latex-preamble)) t)
     (unless fragment-p
-      (error "%s" "No `%% ESH-preamble-here' line found. Are you missing --fragment?"))))
+      (error "%s" "No `%% ESH-preamble-here' line found.
+Are you missing --fragment?"))))
 
 (defun esh--latexify-inline-verb-matcher (re)
   "Search for a \\verb-like delimiter from point.
@@ -663,6 +674,25 @@ about a missing \begin{document}."
     (insert-file-contents path)
     (esh2tex-current-buffer fragment-p)
     (buffer-string)))
+
+(defun esh--latexify-wrap (code)
+  "Wrap CODE in ESHInline or ESHBlock."
+  (format (if esh--inline "\\ESHInline{%s}" "\\begin{ESHBlock}\n%s\n\\end{ESHBlock}")
+          code))
+
+(defun esh2tex-source-file (source-path &optional inline)
+  "Fontify contents of SOURCE-PATH.
+Return result as a LaTeX string.  Non-nil INLINE specifies that
+the resulting TeX code should be wrapped in an ESHInline macro
+instead of an ESHBlock environment."
+  (let ((esh--inline inline))
+    (with-temp-buffer
+      (insert-file-contents source-path)
+      (set-visited-file-name source-path t)
+      (set-auto-mode)
+      (prog1
+          (esh--latexify-wrap (esh--export-buffer #'esh--latexify-current-buffer))
+        (set-buffer-modified-p nil)))))
 
 ;;; Producing HTML
 
@@ -860,9 +890,8 @@ Highlight sources in any environments containing a class matching
         (esh--htmlify-serialize (esh--htmlify-do-tree tree) t))
     (esh--kill-temp-buffers)))
 
-(defun esh-htmlify-file (path _fragment-p)
-  "Fontify contents of all ESH environments in PATH.
-FRAGMENT-P is ignored."
+(defun esh2html-html-file (path)
+  "Fontify contents of all ESH environments in PATH."
   (with-temp-buffer
     (insert-file-contents path)
     (esh2html-current-buffer)

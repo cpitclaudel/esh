@@ -27,7 +27,7 @@
 
 (require 'esh)
 
-(defvar esh-server--backtrace nil
+(defvar esh-server--backtrace nil ;; FIXME don't store as string
   "Backtrace of last error during `esh-server-eval'.")
 
 (defvar esh-server-initializing nil
@@ -129,21 +129,48 @@ No error checking here; we expect this to be invoked through
                 (make-frame `((display . ,display)
                               (visibility . nil))))))
 
-(defun esh-server-process (path format &optional fragment-p)
-  "Latexify PATH in FORMAT and return the result as a string.
-With non-nil FRAGMENT-P, don't read inline env declarations and
-don't complain about a missing \\begin{document}.  No error
-checking here; we expect this to be invoked through
+(defun esh-server--process-to-str (in-path in-type out-type)
+  "Process IN-PATH, IN-TYPE, OUT-TYPE; return a string."
+  (with-selected-frame esh--server-frame
+    (pcase out-type
+      (`latex
+       (pcase in-type
+         (`mixed (esh2tex-tex-file in-path nil))
+         (`mixed-fragment (esh2tex-tex-file in-path t))
+         (`source (esh2tex-source-file in-path))
+         (_ (error "Unknown input type %S" in-type))))
+      (`html
+       (pcase in-type
+         (`mixed (esh2html-html-file in-path))
+         (_ (error "Unsupported input type %S for HTML backend" in-type))))
+      (_ (error "Unknown output type %S" out-type)))))
+
+(defun esh-server-process (in-path out-path in-type out-type)
+  "Process IN-PATH, saving results to OUT-PATH.
+
+If OUT-PATH is nil, return results as a string.  IN-TYPE
+indicates the kind of document being processed.  It should be one
+of the following:
+
+* \\='mixed (a full document containing source code)
+* \\='mixed-fragment (part of a document, containing source code; in that case,
+  don't read inline env declarations and don't complain about a missing
+  \\begin{document} in LaTeX mode),
+* \\='source (a single source file)
+
+OUT-TYPE indicates the desired output format (one of \\='latex or \\='html).
+
+No error checking here; we expect this to be invoked through
 `esh-server-eval'."
   ;; (require 'profiler)
   ;; (profiler-start 'cpu)
   ;; (prog1
   ;; (profiler-write-profile (profiler-cpu-profile) "esh.profile"))
-  (with-selected-frame esh--server-frame
-    (pcase format
-      (`tex (esh2tex-tex-file path fragment-p))
-      (`html (esh-htmlify-file path fragment-p))
-      (_ (error "Unknown format %S" format)))))
+  (let ((str (esh-server--process-to-str in-path in-type out-type)))
+    (if out-path
+        (with-temp-file out-path
+          (insert str))
+      str)))
 
 (provide 'esh-server)
 ;;; esh-server.el ends here

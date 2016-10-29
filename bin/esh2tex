@@ -42,7 +42,7 @@
   (add-to-list 'load-path esh2tex--parent-directory)
   (require 'esh-cli))
 
-(esh-cli--main 'tex)
+(esh-cli--main 'latex)
 
 ;; Local Variables:
 ;; checkdoc-arguments-in-order-flag: nil

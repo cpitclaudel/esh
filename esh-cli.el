@@ -43,11 +43,14 @@
 (defvar esh-cli--persist nil
   "See option --persist.")
 
-(defvar esh-cli--stdout nil
+(defvar esh-cli--stdout-p nil
   "See option --stdout.")
 
 (defvar esh-cli--fragment-p nil
   "See option --fragment.")
+
+(defvar esh-cli--standalone-p nil
+  "See option --standalone.")
 
 (defun esh-cli--help ()
   "Read help from README file."
@@ -75,18 +78,31 @@
       (insert (format "ESH2HTML := %S\n" esh2html))
       (insert-file-contents "Makefile"))))
 
-(defun esh-cli--process-one-to-file (path format)
-  "Process PATH in FORMAT, saving output to similarly-named file.
-Prepares PATH by appending “.esh” and .FORMAT.  Warns and
-skips if PATH doesn't end in .FORMAT."
-  (let ((ext-re (concat "\\." (symbol-name format) "\\'"))
-        (new-ext (format ".esh.%S" format)))
-    (if (string-match-p ext-re path)
-        (let ((dest (replace-regexp-in-string ext-re new-ext path t t)))
-          (with-temp-file dest
-            (let ((standard-output (current-buffer)))
-              (esh-client-process-one path format esh-cli--fragment-p))))
-      (esh-client-stderr "ESH Warning: skipping %S (unrecognized extension)\n" path))))
+(defconst esh-cli--type-ext-alist '((html . "html") (latex . "tex")))
+
+(defun esh-cli--process-one (in-path out-type)
+  "Process IN-PATH in OUT-TYPE.
+Output path is computed by appending “.esh.FORMAT” to file name,
+unless `esh-cli--stdout-p' is non-nil.  Warns and skips if PATH
+doesn't end in .FORMAT, unless `esh-cli--standalone-p' is
+non-nil."
+  (let* ((ext (cdr (assoc out-type esh-cli--type-ext-alist)))
+         (ext-re (format "\\.%s\\'" ext))
+         (out-ext (format ".esh.%s" ext))
+         (in-type
+          (cond (esh-cli--standalone-p 'source)
+                (esh-cli--fragment-p 'mixed-fragment)
+                (t 'mixed)))
+         (out-path
+          (cond (esh-cli--stdout-p nil)
+                (esh-cli--standalone-p (concat in-path out-ext))
+                (t (replace-regexp-in-string ext-re out-ext in-path t t)))))
+    (if (and (not esh-cli--standalone-p) (not (string-match-p ext-re in-path)))
+        (esh-client-stderr "ESH Warning: skipping %S (unrecognized extension)
+Are you missing --standalone?\n" in-path)
+      (esh-client-process-one in-path out-path in-type out-type))))
+
+;; FIXME test this
 
 (defun esh-cli--unexpected-arg-msg (arg)
   "Construct an unexpected ARG error message."
@@ -118,18 +134,18 @@ skips if PATH doesn't end in .FORMAT."
             ("--no-Q"
              (setq esh-client-pass-Q-to-server nil))
             ("--stdout"
-             (setq esh-cli--stdout t))
+             (setq esh-cli--stdout-p t))
             ("--fragment"
              (setq esh-cli--fragment-p t))
+            ("--standalone"
+             (setq esh-cli--standalone-p t))
             ("--init"
              (esh-cli--init)
              (setq complain-about-missing-input nil))
             (arg
-             (when (and argv esh-cli--stdout)
+             (when (and argv esh-cli--stdout-p)
                (error "%s" (esh-cli--unexpected-arg-msg arg)))
-             (if esh-cli--stdout
-                 (esh-client-process-one arg format esh-cli--fragment-p)
-               (esh-cli--process-one-to-file arg format))
+             (esh-cli--process-one arg format)
              (setq complain-about-missing-input nil))))
         (when complain-about-missing-input
           (error "No input files given")))

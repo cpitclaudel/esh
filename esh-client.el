@@ -75,6 +75,10 @@ Also, don't interact in weird ways with `message' (bug #24157)."
      (prog1 ,@body
        (esh-client-stderr "  done.\n"))))
 
+(defun esh-client--princ (arg)
+  "Call `princ' on ARG, if non-nil."
+  (when arg (princ arg)))
+
 ;;; RPC forms
 
 (defun esh-client--rpc-eval-form (form dest)
@@ -92,9 +96,10 @@ DISPLAY and INIT-INFO are forwarded."
   `(progn
      (esh-server-init ,display ',init-info)))
 
-(defun esh-client--rpc-process-form (path format fragment-p)
-  "Construct a form to process PATH.FORMAT as FRAGMENT-P on server."
-  `(esh-server-process ,path ',format ,fragment-p))
+(defun esh-client--rpc-process-form (in-path out-path in-type out-type)
+  "Construct a form to process arguments on server.
+IN-PATH, OUT-PATH, IN-TYPE, OUT-TYPE: see `esh-server-process'."
+  `(esh-server-process ,in-path ,out-path ',in-type ',out-type))
 
 ;;; Running forms on server
 
@@ -230,17 +235,20 @@ each `esh-server-eval' query."
 
 ;;; Main entry point
 
-(defun esh-client-process-one (path format &optional fragment-p)
-  "Latexify PATH in FORMAT, optionally as a FRAGMENT-P.
-This starts an Emacs daemon, and runs the latexification code on
-it.  If a daemon is available, it is reused.  Originally, the
-only reason a daemon was needed was that it's hard to make Emacs'
-initial frame invisible.  Now, it's also used to make things
-faster.  Output goes to `standard-output'."
+(defun esh-client-process-one (in-path out-path in-type out-type)
+  "Call the PROCESS method on the ESH server.
+IN-PATH, OUT-PATH, IN-TYPE, OUT-TYPE: see `esh-server-process'.
+
+This function starts an Emacs daemon, and runs the latexification
+code on it.  If a daemon is available, it is reused.  Originally,
+the only reason a daemon was needed was that it's hard to make
+Emacs' initial frame invisible.  Now, it's also used to make
+things faster."
   (esh-client--ensure-server) ;; To prevent progress messages from interleaving
-  (esh-client--with-progress-msg (format "Highlighting %S" path)
-    (setq path (expand-file-name path))
-    (princ (esh-client--run (esh-client--rpc-process-form path format fragment-p)))))
+  (esh-client--with-progress-msg (format "Highlighting %S" in-path)
+    (setq in-path (expand-file-name in-path))
+    (setq out-path (and out-path (expand-file-name out-path)))
+    (esh-client--princ (esh-client--run (esh-client--rpc-process-form in-path out-path in-type out-type)))))
 
 (provide 'esh-client)
 ;;; esh-client.el ends here
