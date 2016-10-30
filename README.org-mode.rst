@@ -11,7 +11,7 @@ Make sure that ``org-latex-listings`` is nil::
 
 Add the following to the beginning of your org file::
 
-  #+LATEX_HEADER: %% ESH-preamble-here
+  #+LATEX_HEADER: \input{esh-preamble.tex}
 
 Then before each Org source block::
 
@@ -33,10 +33,10 @@ The prefix each inline code block like this::
   This is an example of C++ code: @c++ ~int main() { return 0; }~.
   This, on the other hand, is Python: @python ~def main(): return 0~.
 
-And add the following lines to your Org header::
+And add the following lines to your ``esh-init.el``::
 
-  #+LATEX_HEADER: %% ESH-inline-verb: c++-mode @c++ \verb
-  #+LATEX_HEADER: %% ESH-inline-verb: python-mode @python \verb
+  (esh-latex-add-inline-macro "@c++ \\verb" 'c++-mode)
+  (esh-latex-add-inline-macro "@python \\verb" 'python-mode)
 
 Preamble
 ========
@@ -68,9 +68,7 @@ Full example
 
 ::
 
-   #+LATEX_HEADER: %% ESH-preamble-here
-   #+LATEX_HEADER: %% ESH-inline-verb: c++-mode (c++) \verb
-   #+LATEX_HEADER: %% ESH-inline-verb: python-mode (python) \verb
+   #+LATEX_HEADER: \input{esh-preamble.tex}
 
    * Code blocks
 

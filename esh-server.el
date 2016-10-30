@@ -135,8 +135,7 @@ No error checking here; we expect this to be invoked through
     (pcase out-type
       (`latex
        (pcase in-type
-         (`mixed (esh2tex-tex-file in-path nil))
-         (`mixed-fragment (esh2tex-tex-file in-path t))
+         (`mixed (esh2tex-tex-file in-path))
          (`source (esh2tex-source-file in-path))
          (_ (error "Unknown input type %S" in-type))))
       (`html
@@ -153,9 +152,6 @@ indicates the kind of document being processed.  It should be one
 of the following:
 
 * \\='mixed (a full document containing source code)
-* \\='mixed-fragment (part of a document, containing source code; in that case,
-  don't read inline env declarations and don't complain about a missing
-  \\begin{document} in LaTeX mode),
 * \\='source (a single source file)
 
 OUT-TYPE indicates the desired output format (one of \\='latex or \\='html).

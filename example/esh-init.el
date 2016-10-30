@@ -4,6 +4,16 @@
 
 (load-theme 'tango t)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Register a few inline macros ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(esh-latex-add-inline-macro "\\cverb" 'c-mode)
+(esh-latex-add-inline-macro "\\javaverb" 'java-mode)
+(esh-latex-add-inline-macro "\\pythonverb" 'python-mode)
+(esh-latex-add-inline-macro "\\normallisp" 'emacs-lisp-mode)
+(esh-latex-add-inline-macro "\\prettylisp" 'prettified-emacs-lisp-mode)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Define a variant of Emacs-Lisp-mode that prettifies symbols ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

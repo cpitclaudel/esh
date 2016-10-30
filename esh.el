@@ -69,12 +69,18 @@
           props))
 
 (defvar esh-name-to-mode-alist nil
-  "Alist of block name → mode function.
+  "Alist of block name → mode function.")
 
-For example, this could include (\"ocaml\" . tuareg-mode) to use
-`tuareg-mode' for HTML blocks tagged “src-ocaml”, or LaTeX blocks
-tagged “ESH: ocaml”.  In other words, this list is useful for
-blocks in LaTeX mode, and for all ESH listings in HTML mode.")
+(defun esh-add-language (language mode)
+  "Teach ESH about a new LANGUAGE, highlighted with MODE.
+For example, calling (esh-add-language \"ocaml\" \\='tuareg-mode)
+allows you to use `tuareg-mode' for HTML blocks tagged
+“src-ocaml”, or for LaTeX blocks tagged “ESH: ocaml”."
+  (unless (stringp language)
+    (user-error "`esh-add-language': language %S should be a string" language))
+  (unless (symbolp mode)
+    (user-error "`esh-add-language': mode %S should be a function" mode))
+  (add-to-list 'esh-name-to-mode-alist (cons language mode)))
 
 (defun esh--resolve-mode-fn (fn-name)
   "Translate FN-NAME to a function symbol.
@@ -525,29 +531,10 @@ and add “\\par”s."
     (if esh--inline str
       (esh--latexify-obeylines (esh--latexify-protect-bols str)))))
 
-(defun esh--latex-preamble ()
-  "Read ESH's LaTeX preamble from disk."
-  (with-temp-buffer
-    (insert-file-contents (expand-file-name "esh-preamble.tex" esh--directory))
-    (buffer-substring-no-properties (point-min) (point-max))))
-
 (defvar esh-latexify-block-envs
-  `(("^[ \t]*%%[ \t]*ESH: \\([^ \t\n]+\\)[ \t]*\n[ \t]*\\\\begin{\\([^}]+\\)}.*\n" "\\begin{ESHBlock}\n"
-     ,(lambda () (concat "^[ \t]*\\\\end{" (match-string 2) "}")) "\n\\end{ESHBlock}"))
-  "List of replaceable environments.")
-
-(defvar esh--latexify-preamble-marker "^%%[ \t]*ESH-preamble-here[ \t]*$")
-(defvar esh--latexify-inline-env-declaration-re "^[ \t]*%%[ \t]*ESH-inline-verb:[ \t]+\\([^ \t\n]+\\)[ \t]+\\(.*\\)$")
-
-(defun esh--latexify-add-preamble (fragment-p)
-  "Expand `esh--latexify-preamble-marker'.
-A non-nil FRAGMENT-P suppresses 'missing preamble' errors."
-  (goto-char (point-min))
-  (if (re-search-forward esh--latexify-preamble-marker nil t)
-      (replace-match (replace-quote (esh--latex-preamble)) t)
-    (unless fragment-p
-      (error "%s" "No `%% ESH-preamble-here' line found.
-Are you missing --fragment?"))))
+  `(("^[ \t]*%%[ \t]*ESH: \\([^ \t\n]+\\)[ \t]*\n[ \t]*\\\\begin{\\([^}]+\\)}.*\n" .
+     ,(lambda () (concat "^[ \t]*\\\\end{" (match-string 2) "}"))))
+  "Alist of replaceable environments.")
 
 (defun esh--latexify-inline-verb-matcher (re)
   "Search for a \\verb-like delimiter from point.
@@ -570,128 +557,102 @@ character."
   "Go past \\begin{document}."
   (goto-char (point-min))
   (unless (search-forward "\\begin{document}" nil t)
-    (error "No \\begin{document} found.  Are you missing --fragment?")))
+    (goto-char (point-min))))
 
-(defun esh--latexify-find-inline-envs-decls ()
-  "Construct a list of regexps matching user-defined inline environments.
-This looks for `esh--latexify-inline-env-declaration-re', and
-constructs a cons of a regular expressions matching all inline
-envs, and an alist mapping env names to mode functions."
-  (let ((envs nil))
-    (goto-char (point-min))
-    (while (re-search-forward esh--latexify-inline-env-declaration-re nil t)
-      (let* ((mode (esh--resolve-mode-fn (match-string 1)))
-             (command (match-string 2)))
-        (push (cons command mode) envs)))
-    envs))
-
-(defvar esh-latex-inline-markers-alist nil
+(defvar esh-latex-inline-macro-alist nil
   "Alist of inline ESH marker → mode function.
 
 This list maps inline verb-like markers to modes.  For example,
 it could contain (\"@ocaml \\\\verb\" . tuareg-mode) to recognize
-all instances of “@ocaml \verb|...|” as OCaml code to be
+all instances of “@ocaml \\verb|...|” as OCaml code to be
 highlighted with `tuareg-mode'.  This list is ignored in HTML
 mode.  See the manual for more information.")
 
-(defun esh--latexify-do-inline-envs (fragment-p)
-  "Latexify sources in ESH inline environments.
+(defun esh-latex-add-inline-macro (macro mode)
+  "Teach ESH about an inline MACRO, highlighted with MODE.
+For example (esh-latex-add-inline-marker \"\\\\ocaml\" \\='tuareg-mode)
+recognizes all instances of “\\ocaml|...|” as OCaml code to be
+highlighted with `tuareg-mode'."
+  (add-to-list 'esh-latex-inline-macro-alist (cons macro mode)))
 
-non-nil FRAGMENT-P, assume that this file will be \\input in a
-larger document, and don't read inline env definitions.
-Otherwise, read inline definitions and start replacing after
-\\begin{document}."
-  (let* ((local-inline-envs (unless fragment-p (esh--latexify-find-inline-envs-decls)))
-         (modes-alist (append local-inline-envs esh-latex-inline-markers-alist))
+(defconst esh--latexify-inline-template "\\ESHInline{%s}")
+(defconst esh--latexify-block-template "\\begin{ESHBlock}\n%s\n\\end{ESHBlock}")
+
+(defun esh--latexify-do-inline-envs ()
+  "Latexify sources in ESH inline environments."
+  (let* ((modes-alist esh-latex-inline-macro-alist)
          (envs-re (when modes-alist (regexp-opt (mapcar #'car modes-alist)))))
-    (if fragment-p
-        (goto-char (point-min))
-      (esh--latexify-beginning-of-document))
+    (esh--latexify-beginning-of-document)
     (let ((match-info nil))
       (while (setq match-info (esh--latexify-inline-verb-matcher envs-re))
         (pcase match-info
           (`(,beg ,end ,code-beg ,code-end ,cmd)
            (let* ((esh--inline t)
                   (mode-fn (cdr (assoc cmd modes-alist)))
-                  (code (buffer-substring-no-properties code-beg code-end)))
+                  (code (buffer-substring-no-properties code-beg code-end))
+                  (tex (esh--export-str code mode-fn #'esh--latexify-current-buffer)))
              (goto-char beg)
              (delete-region beg end)
-             (insert (concat "\\ESHInline{"
-                             (esh--export-str code mode-fn
-                                           #'esh--latexify-current-buffer)
-                             "}")))))))))
+             (insert (format esh--latexify-inline-template tex)))))))))
 
-(defun esh--latexify-do-block-envs (code-start code-end)
-  "Latexify sources in esh block environments.
-CODE-START and CODE-END are markers."
-  (pcase-dolist (`(,old-start ,new-start ,old-end ,new-end)
-                 esh-latexify-block-envs)
+(defun esh--latexify-do-block-envs ()
+  "Latexify sources in esh block environments."
+  (pcase-dolist (`(,start-marker . ,end-marker-function) esh-latexify-block-envs)
     (goto-char (point-min))
-    (while (re-search-forward old-start nil t)
-      (goto-char (match-end 0))
-      (set-marker code-start (point))
+    (while (re-search-forward start-marker nil t)
       (when (string= "" (match-string-no-properties 1))
         (error "Invalid ESH header: %S" (match-string-no-properties 0)))
-      (let ((mode-fn (esh--resolve-mode-fn (match-string-no-properties 1)))
-            (old-end (funcall old-end))) ;; FIXME why not use a plain regexp here?
-        (replace-match new-start t t)
-        (re-search-forward old-end)
-        (goto-char (match-beginning 0))
-        (set-marker code-end (point))
-        (replace-match new-end t t)
-        (let* ((esh--inline nil)
-               (code (buffer-substring-no-properties code-start code-end)))
-          (goto-char code-start)
-          (delete-region code-start code-end)
-          (insert (esh--export-str code mode-fn #'esh--latexify-current-buffer)))))))
+      (let* ((esh--inline nil)
+             (block-start (match-beginning 0))
+             (code-start (match-end 0))
+             (mode-fn (esh--resolve-mode-fn (match-string-no-properties 1))))
+        ;; FIXME why not use a plain regexp here?
+        (re-search-forward (funcall end-marker-function))
+        (let* ((code-end (match-beginning 0))
+               (block-end (match-end 0))
+               (code (buffer-substring-no-properties code-start code-end))
+               (tex (esh--export-str code mode-fn #'esh--latexify-current-buffer)))
+          (goto-char block-start)
+          (delete-region block-start block-end)
+          (insert (format esh--latexify-block-template tex)))))))
 
-(defun esh2tex-current-buffer (fragment-p)
+(defun esh2tex-current-buffer ()
   "Fontify contents of all ESH environments.
-Replace `esh--latexify-preamble-marker' by `esh--latex-preamble',
-then latexify sources in environments delimited by
-`esh-latexify-block-envs' and user-defined inline groups.  With
-non-nil FRAGMENT-P (interactively, with prefix arg), assume that
-this file will be \\input in a larger document, and don't read
-inline env definitions."
+Latexify sources in environments delimited by
+`esh-latexify-block-envs' and user-defined inline groups."
   (interactive "P")
   (save-excursion
-    (esh--latexify-add-preamble fragment-p)
-    (let* ((code-start (make-marker))
-           (code-end (make-marker)))
-      (unwind-protect
-          (progn
-            (esh--latexify-do-inline-envs fragment-p)
-            (esh--latexify-do-block-envs code-start code-end))
-        (set-marker code-start nil)
-        (set-marker code-end nil)
-        (esh--kill-temp-buffers)))))
+    (unwind-protect
+        (progn
+          (esh--latexify-do-inline-envs)
+          (esh--latexify-do-block-envs))
+      (esh--kill-temp-buffers))))
 
-(defun esh2tex-tex-file (path &optional fragment-p)
-  "Fontify contents of all ESH environments in PATH.
-With non-nil FRAGMENT-P, don't read inline environments nor complain
-about a missing \begin{document}."
+(defun esh2tex-tex-file (path)
+  "Fontify contents of all ESH environments in PATH."
   (with-temp-buffer
     (insert-file-contents path)
-    (esh2tex-current-buffer fragment-p)
+    (esh2tex-current-buffer)
     (buffer-string)))
 
 (defun esh--latexify-wrap (code)
   "Wrap CODE in ESHInline or ESHBlock."
-  (format (if esh--inline "\\ESHInline{%s}" "\\begin{ESHBlock}\n%s\n\\end{ESHBlock}")
+  (format (if esh--inline
+              esh--latexify-inline-template
+            esh--latexify-block-template)
           code))
 
-(defun esh2tex-source-file (source-path &optional inline)
+(defun esh2tex-source-file (source-path)
   "Fontify contents of SOURCE-PATH.
 Return result as a LaTeX string.  Non-nil INLINE specifies that
 the resulting TeX code should be wrapped in an ESHInline macro
 instead of an ESHBlock environment."
-  (let ((esh--inline inline))
+  (let ((esh--inline (string-match-p "esh-inline" source-path)))
     (with-temp-buffer
       (insert-file-contents source-path)
       (set-visited-file-name source-path t)
       (set-auto-mode)
-      (prog1
-          (esh--latexify-wrap (esh--export-buffer #'esh--latexify-current-buffer))
+      (prog1 (esh--latexify-wrap (esh--export-buffer #'esh--latexify-current-buffer))
         (set-buffer-modified-p nil)))))
 
 ;;; Producing HTML

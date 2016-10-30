@@ -21,20 +21,19 @@ into something like that:
    \-  \color{8CC4FF}{int} \color{FCE94F}{main}() \{ \color{B4FA70}{return} 0; \}
    \end{ESHBlock}
 
-Curious? Check out our
-`demo PDF <https://github.mit.edu/cpitcla/esh/raw/master/example/reference.pdf>`_
-and give it a try! Plus, since ESH works with special comments, your documents
-remain compilable by people who don't have it.
-
+Curious? Check out our `demo PDF
+<https://github.mit.edu/cpitcla/esh/raw/master/example/reference.pdf>`_ and give
+it a try! Plus, since ESH works with special comments, your documents remain
+compilable by plain LaTeX (see `Collaborating with non-ESH users`_ below)
 
 Setup
 =====
 
-**Dependencies:** Emacs > 24.2; XeLaTeX (recommended); Cask (optional)
+**Dependencies:** Emacs > 24.2; XeLaTeX (best) or pdfLaTeX; Cask (optional)
 
 **Setup:** Clone the repository somewhere, and add ``<wherever>/bin`` to your
 path (alternatively, just call ``<wherever>/bin/esh2tex`` explicitly).  This
-program is tested only on GNU/Linux.
+program is tested only on GNU/Linux; it has been reported to work on MacOS, too.
 
 **Sanity check:** Running ``make`` in the ``example`` directory of the Git repo
 should produce a (partially) syntax-highlighted ``example.pdf``.
@@ -43,12 +42,13 @@ should produce a (partially) syntax-highlighted ``example.pdf``.
 Quickstart
 ==========
 
-In ``minimal.tex`` put the following:
+In ``minimal.tex``, put the following:
 
 .. code:: latex
 
    \documentclass{minimal}
-   %% ESH-preamble-here
+   \input{esh-preamble.tex}
+
    \begin{document}
      %% ESH: c
      \begin{verbatim}
@@ -56,8 +56,8 @@ In ``minimal.tex`` put the following:
      \end{verbatim}
    \end{document}
 
-Process with ``esh2tex minimal.tex > minimal.esh.tex``, and compile with
-``pdflatex minimal.esh.tex`` or ``xelatex minimal.esh.tex``. Run ``make`` in the
+Process with ``esh2tex minimal.tex``, then compile with ``pdflatex
+minimal.esh.tex`` or ``xelatex minimal.esh.tex``. Run ``make`` in the
 ``example/`` directory of the Git repository for a more advanced example.
 
 
@@ -68,10 +68,11 @@ Usage
 
   esh2tex --init
   esh2tex [<options>...] [<input>.tex...]
-  emacs -Q --script esh2tex [<options>...] [<input>.tex...]
+  esh2tex --standalone [<options>...] [<input>.py|c|cpp|...]
 
 ``<input>.tex`` should be an UTF-8 encoded text file; output goes to
-``<input>.esh.tex``. ``--init`` is special; see `Options`_.
+``<input>.esh.tex``. ``--init`` is special; see `Options`_.  ``<input>`` may
+also be an arbitrary source file; see ``--standalone``.
 
 
 In ``<input>``, you may indicate source blocks like this:
@@ -87,31 +88,20 @@ In ``<input>``, you may indicate source blocks like this:
 will do, as long as it ends in ``mode``); the name of the environment (``...``)
 does not matter.
 
-Additionally, ``<input>`` should include a special comment:
+Additionally, ``<input>`` should load ESH's preamble before ``\begin{document}``
+(the actual ``esh-preamble.tex`` is created automatically by ``esh2tex``):
 
 .. code:: latex
 
-   %% ESH-preamble-here
-
-in its preamble, which ``esh2tex`` will replace by appropriate set-up code
-(``\usepackage``, definition of ``ESHBlock``, etc.).
+   \input{esh-preamble.tex}
 
 
-You can enable highlighting of specific inline verb-like macros using the
-following special comment:
+``esh2tex`` does not load your personal Emacs configuration (though see
+``--no-Q``); instead, it looks for a file named ``esh-init.el`` in the current
+directory, one of its parents, or ``~/.emacs.d/``.  You can use that file to
+chose a different color theme, load extra packages, and teach ESH about inline
+macros (see `Inline syntax highlighting`_).
 
-.. code:: latex
-
-   %% ESH-inline-verb: <lang> <source-marker>
-
-For example, the following will highlight each occurrence of ``\verb|...|`` as C
-code, and each occurrence of ``\python|...|`` as Python code:
-
-.. code:: latex
-
-   \def\python{\verb} % To remain compatible with plain LaTeX
-   %% ESH-inline-verb: c \verb
-   %% ESH-inline-verb: python \python
 
 Options
 =======
@@ -125,14 +115,12 @@ Options
   Don't process input files; instead, create a fairly complete ESH setup in the
   current folder, including an basic ``main.tex`` and simple ``Makefile``.
 
-* ``--fragment``
+* ``--standalone``
 
-  Treat <input> as a fragment: don't read definitions of inline macros, don't
-  complain if ``ESH-preamble-here`` is missing, and don't complain if
-  ``\begin{document}`` can't be found (instead, process everything).  This is
-  convenient if you like to split your LaTeX documents by section or chapter.
-  Since inline macro definitions won't parsed in this mode, you'll have to
-  specify them in ``esh-init.el``; see below.
+  Treat <input> as a standalone source file: don't look for special ``%% ESH``
+  comments, highlight the entire file, and save output to ``<input>.esh.tex``.
+  This is convenient for longer source code listings, or if your collaborators
+  don't use ESH (see `Collaborating with non-ESH users`_ below).
 
 * ``--persist``
 
@@ -163,6 +151,11 @@ Options
   In general, it's much better to extract just what you need from your
   ``.emacs`` and put it in an ``esh-init.el``, as described below.
 
+* ``--no-preamble``
+
+  Do not write or overwrite ``esh-preamble.tex``.  By default, ``esh2tex``
+  recreates ``esh-preamble.tex`` on every run.
+
 * ``--debug-on-error``
 
   Print stack traces for errors.
@@ -171,11 +164,6 @@ Options
 Notes
 =====
 
-* ``esh2tex`` does not load your personal Emacs configuration (though see the
-  ``--no-Q`` option); instead, it looks for a file named ``esh-init.el`` in the
-  current directory, one of its parents, or ``~/.emacs.d/``.  You can use that
-  file to chose a different theme, load packages; this works great in
-  conjunction with the `Cask <https://github.com/cask/cask>`_ package manager.
 
 * Starting a server can be slow if your configuration file is large.  Use
   ``--persist`` to leave a server running after the first run and reuse it on
@@ -196,6 +184,32 @@ To load a different theme, include the following line in your ``esh-init.el``:
 .. code:: emacs-lisp
 
    (load-theme '<theme-name> t) ;; tango, dichromacy, leuven, adwaita...
+
+Inline syntax highlighting
+--------------------------
+
+In addition to code blocks, ESH can highlight inline macros.  Since LaTeX
+doesn't have inline comments, though, you need to define your own wrappers.
+Start by adding the following to your ``esh-init.el``:
+
+.. code:: emacs-lisp
+
+   (esh-latex-add-inline-macro "\\python" 'python-mode)
+   (esh-latex-add-inline-macro "\\cpp" 'c++-mode)
+
+These lines teach ESH about two new inline code delimiters, ``\python`` and
+``\cpp``.  This lets you use ``\python|yield 1|`` or ``\cpp/*p++ |= *q++/`` in
+the body of your documents, and have them syntax-highlighted by ``esh2tex`` in
+``python-mode`` and ``c++-mode`` respectively.
+
+If you want the document to remain compatible with plain ``xelatex``, you can
+trick ``xelatex`` into thinking that ``\python`` and ``\cpp`` are aliases of
+``\verb``:
+
+.. code:: latex
+
+   \def\python{\verb} % To remain compatible with plain LaTeX
+   \def\cpp{\verb}
 
 Using prettification
 --------------------
@@ -222,23 +236,6 @@ below); something like this:
    \newfontfamily{\Symbola}{Symbola}
    \newcommand{\ESHFallbackFont}{\Symbola}
 
-Defining inline environments
-----------------------------
-
-Here are a few examples of inline environments:
-
-.. code:: latex
-
-   \def\cppverb{\verb}
-   %% ESH-inline-verb: c++ \cppverb
-
-   \def\pythonverb{\lstinline[language=python]}
-   %% ESH-inline-verb: python \pythonverb
-
-Adding these lines to your preamble lets you use ``\pythonverb|yield 1|`` or
-``\cppverb/*p++ |= *q++/`` in the body of your document.  With plain ``xelatex``
-these will be rendered verbatim, and with ``esh2tex`` they will be highlighted.
-
 Installing extra packages
 -------------------------
 
@@ -254,7 +251,7 @@ dependencies.
 Customizing the output
 ----------------------
 
-All customizations should be done **before** the ``%% ESH-preamble-here`` line.
+All customizations should be done **before** ``\input{esh-preamble.tex}``.
 
 Changing fonts:
 
@@ -280,7 +277,6 @@ Customizing spacing:
    \newlength{\ESHSkip}
    \setlength{\ESHSkip}{2\baselineskip}
 
-
 Overriding the ``ESHBlock`` environment:
 
 .. code:: latex
@@ -294,31 +290,50 @@ Overriding the ``ESHBlock`` environment:
 All these tricks, and more, are demonstrated in the ``example/example.tex``
 subfolder of the repository.
 
-Processing fragments
---------------------
+Processing standalone source files
+----------------------------------
 
-ESH normally errors out if it can't find a preamble declaration in the current
-file.  You can suppress this error by passing --fragment.  This also disables
-processing of inline declarations, because these inline declarations are
-probably be in another file anyway.
+ESH processes the input as a LaTeX source file containing code blocks to
+highlight.  To process a plain source file, use the ``--standalone`` option::
 
-Instead, set ``esh-latex-inline-markers-alist`` in your ``esh-init.el``. Here is
-an example showing how to translate ESH-inline declarations:
+    esh2tex --standalone main.py
 
-.. code:: latex
+This is very useful to collaborate with authors who do not use ESH.
 
-   %% ESH-inline-verb: c++ \verb
-   %% ESH-inline-verb: python \cppverb
+Collaborating with non-ESH users
+--------------------------------
 
-.. code:: elisp
+ESH documents can be compiled using plain ``xelatex`` or ``pdflatex``, but then
+they won't be highlighted, and there might be small spacing differences.  To
+collaborate with non-ESH users, you can instead use the following setup:
 
-   (setq esh-latex-inline-markers-alist
-         '(("\\verb" . python-mode)
-           ("\\cppverb" . c++-mode)))
+* In your main document, include ``\input{esh-preamble.tex}``.  Make sure to
+  share this file with your collaborators (check it in your repository, for
+  example).
 
-First of each pair is the delimiter; second of each pair is the (full) mode
-name, without quotes.  Don't forget the double backslashes (``\\verb``).  This
-snippet goes into your ``esh-init.el`` file.
+* Do not use special ``% ESH`` comments; instead, save all your code snippets in
+  a separate ``listings`` directory.  In your document, replace code blocks::
+
+     %% ESH: c
+     \begin{verbatim}
+     int main() {...}
+     \end{verbatim}
+
+  by ``\input``\s::
+
+     \input{listings/main.c.esh.tex}
+
+* Use ESH to highlight your source files::
+
+    esh2tex --standalone listings/main.c
+
+  (this command produces ``listings/main.c.esh.tex``)
+
+* For inline code snippets, use ``\input`` as well; just make sure that the name
+  of your source file includes the string ``esh-inline``.
+
+As long as you share the highlighted source files with your co-authors, they
+won't need to run ESH themselves.
 
 Using ``esh2tex`` with ``org-mode``
 -----------------------------------

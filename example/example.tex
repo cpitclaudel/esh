@@ -90,23 +90,21 @@
 % Load the ESH preamble %
 %%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% ESH-preamble-here
+% This file is automatically created by esh2tex
+\input{esh-preamble.tex}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Define and register a few inline environments %
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Define and register a few inline macros %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% (These macros are registered in esh-init.el)
+% Make them all aliases of \verb to remain compatible with plain LaTeX
 
 \def\cverb{\verb}
 \def\javaverb{\verb}
 \def\pythonverb{\verb}
 \def\prettylisp{\verb}
 \def\normallisp{\verb}
-
-%% ESH-inline-verb: c \cverb
-%% ESH-inline-verb: java \javaverb
-%% ESH-inline-verb: python \pythonverb
-%% ESH-inline-verb: emacs-lisp \normallisp
-%% ESH-inline-verb: prettified-emacs-lisp \prettylisp
 
 \begin{document}
 

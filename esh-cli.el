@@ -36,7 +36,7 @@
         (buffer-file-name))
     "Full path of this script.")
 
-  (defconst esh-cli--directory
+  (defconst esh-cli--esh-directory
     (file-name-directory esh-cli--script-full-path)
     "Full path to directory of this script."))
 
@@ -46,26 +46,26 @@
 (defvar esh-cli--stdout-p nil
   "See option --stdout.")
 
-(defvar esh-cli--fragment-p nil
-  "See option --fragment.")
-
 (defvar esh-cli--standalone-p nil
   "See option --standalone.")
+
+(defvar esh-cli--needs-preamble-p t
+  "See option --no-preamble.")
 
 (defun esh-cli--help ()
   "Read help from README file."
   (with-temp-buffer
-    (insert-file-contents (expand-file-name "README.rst" esh-cli--directory))
+    (insert-file-contents (expand-file-name "README.rst" esh-cli--esh-directory))
     (goto-char (point-min))
     (while (re-search-forward "\\(\\.\\. code\\)?::.*\n" nil t) (replace-match ""))
     (buffer-string)))
 
 (defun esh-cli--init ()
   "See option --init."
-  (let ((template-dir (expand-file-name "template" esh-cli--directory))
-        (fonts-dir (expand-file-name "example/fonts" esh-cli--directory))
-        (esh2tex (expand-file-name "bin/esh2tex" esh-cli--directory))
-        (esh2html (expand-file-name "bin/esh2html" esh-cli--directory)))
+  (let ((template-dir (expand-file-name "template" esh-cli--esh-directory))
+        (fonts-dir (expand-file-name "example/fonts" esh-cli--esh-directory))
+        (esh2tex (expand-file-name "bin/esh2tex" esh-cli--esh-directory))
+        (esh2html (expand-file-name "bin/esh2html" esh-cli--esh-directory)))
     (pcase-dolist (`(,src-dir . ,dst-dir) `((,template-dir . "")
                                             (,fonts-dir . "fonts")))
       (make-directory dst-dir t)
@@ -78,6 +78,12 @@
       (insert (format "ESH2HTML := %S\n" esh2html))
       (insert-file-contents "Makefile"))))
 
+(defun esh-cli--write-preamble ()
+  "Copy esh-preamble.tex to current directory, possibly overwriting it."
+  (copy-file (expand-file-name "esh-preamble.tex" esh-cli--esh-directory)
+             (expand-file-name "esh-preamble.tex") t t)
+  (setq esh-cli--needs-preamble-p nil))
+
 (defconst esh-cli--type-ext-alist '((html . "html") (latex . "tex")))
 
 (defun esh-cli--process-one (in-path out-type)
@@ -85,22 +91,25 @@
 Output path is computed by appending “.esh.FORMAT” to file name,
 unless `esh-cli--stdout-p' is non-nil.  Warns and skips if PATH
 doesn't end in .FORMAT, unless `esh-cli--standalone-p' is
-non-nil."
+non-nil.  If IN-PATH contains the string “.esh-inline.”, it is
+processed as an inline snippet"
+  (when esh-cli--needs-preamble-p
+    (esh-cli--write-preamble))
   (let* ((ext (cdr (assoc out-type esh-cli--type-ext-alist)))
          (ext-re (format "\\.%s\\'" ext))
          (out-ext (format ".esh.%s" ext))
          (in-type
           (cond (esh-cli--standalone-p 'source)
-                (esh-cli--fragment-p 'mixed-fragment)
                 (t 'mixed)))
          (out-path
           (cond (esh-cli--stdout-p nil)
                 (esh-cli--standalone-p (concat in-path out-ext))
                 (t (replace-regexp-in-string ext-re out-ext in-path t t)))))
-    (if (and (not esh-cli--standalone-p) (not (string-match-p ext-re in-path)))
-        (esh-client-stderr "ESH Warning: skipping %S (unrecognized extension)
-Are you missing --standalone?\n" in-path)
-      (esh-client-process-one in-path out-path in-type out-type))))
+    (cond
+     ((and (not esh-cli--standalone-p) (not (string-match-p ext-re in-path)))
+      (esh-client-stderr "ESH Warning: skipping %S (unrecognized extension)
+Are you missing --standalone?\n" in-path))
+     (t (esh-client-process-one in-path out-path in-type out-type inline-p)))))
 
 ;; FIXME test this
 
@@ -135,10 +144,10 @@ Are you missing --standalone?\n" in-path)
              (setq esh-client-pass-Q-to-server nil))
             ("--stdout"
              (setq esh-cli--stdout-p t))
-            ("--fragment"
-             (setq esh-cli--fragment-p t))
             ("--standalone"
              (setq esh-cli--standalone-p t))
+            ("--no-preamble"
+             (setq esh-cli--needs-preamble-p nil))
             ("--init"
              (esh-cli--init)
              (setq complain-about-missing-input nil))
