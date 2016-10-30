@@ -11,7 +11,7 @@ Make sure that ``org-latex-listings`` is nil::
 
 Add the following to the beginning of your org file::
 
-  #+LATEX_HEADER: \input{esh-preamble.tex}
+  #+LATEX_HEADER: \input{esh-preamble}
 
 Then before each Org source block::
 
@@ -68,7 +68,7 @@ Full example
 
 ::
 
-   #+LATEX_HEADER: \input{esh-preamble.tex}
+   #+LATEX_HEADER: \input{esh-preamble}
 
    * Code blocks
 

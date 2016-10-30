@@ -47,7 +47,7 @@ In ``minimal.tex``, put the following:
 .. code:: latex
 
    \documentclass{minimal}
-   \input{esh-preamble.tex}
+   \input{esh-preamble}
 
    \begin{document}
      %% ESH: c
@@ -93,7 +93,7 @@ Additionally, ``<input>`` should load ESH's preamble before ``\begin{document}``
 
 .. code:: latex
 
-   \input{esh-preamble.tex}
+   \input{esh-preamble}
 
 
 ``esh2tex`` does not load your personal Emacs configuration (though see
@@ -256,7 +256,7 @@ dependencies.
 Customizing the output
 ----------------------
 
-All customizations should be done **before** ``\input{esh-preamble.tex}``.
+All customizations should be done **before** ``\input{esh-preamble}``.
 
 Changing fonts:
 
@@ -312,7 +312,7 @@ ESH documents can be compiled using plain ``xelatex`` or ``pdflatex``, but then
 they won't be highlighted, and there might be small spacing differences.  To
 collaborate with non-ESH users, you can instead use the following setup:
 
-* In your main document, include ``\input{esh-preamble.tex}``.  Make sure to
+* In your main document, include ``\input{esh-preamble}``.  Make sure to
   share this file with your collaborators (check it in your repository, for
   example).
 
