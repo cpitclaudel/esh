@@ -24,7 +24,7 @@ into something like that:
 Curious? Check out our `demo PDF
 <https://github.mit.edu/cpitcla/esh/raw/master/example/reference.pdf>`_ and give
 it a try! Plus, since ESH works with special comments, your documents remain
-compilable by plain LaTeX (see `Collaborating with non-ESH users`_ below)
+compilable by plain LaTeX (see `Collaborating on ESH documents`_ below)
 
 Setup
 =====
@@ -120,7 +120,7 @@ Options
   Treat <input> as a standalone source file: don't look for special ``%% ESH``
   comments, highlight the entire file, and save output to ``<input>.esh.tex``.
   This is convenient for longer source code listings, or if your collaborators
-  don't use ESH (see `Collaborating with non-ESH users`_ below).
+  don't use ESH (see `Collaborating on ESH documents`_ below).
 
 * ``--persist``
 
@@ -305,8 +305,10 @@ highlight.  To process a plain source file, use the ``--standalone`` option::
 
 This is very useful to collaborate with authors who do not use ESH.
 
-Collaborating with non-ESH users
---------------------------------
+.. _Collaborating on ESH documents:
+
+Collaborating with authors who do not use ESH
+---------------------------------------------
 
 ESH documents can be compiled using plain ``xelatex`` or ``pdflatex``, but then
 they won't be highlighted, and there might be small spacing differences.  To
