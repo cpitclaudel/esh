@@ -63,6 +63,7 @@
         (fonts-dir (expand-file-name "example/fonts" esh-cli--esh-directory))
         (esh2tex (expand-file-name "bin/esh2tex" esh-cli--esh-directory))
         (esh2html (expand-file-name "bin/esh2html" esh-cli--esh-directory)))
+    (esh-cli--write-preamble)
     (pcase-dolist (`(,src-dir . ,dst-dir) `((,template-dir . "")
                                             (,fonts-dir . "fonts")))
       (make-directory dst-dir t)
