@@ -49,9 +49,6 @@
 (defvar esh-cli--standalone-p nil
   "See option --standalone.")
 
-(defvar esh-cli--needs-preamble-p t
-  "See option --no-preamble.")
-
 (defun esh-cli--help ()
   "Read help from README file."
   (with-temp-buffer
@@ -81,8 +78,7 @@
 (defun esh-cli--write-preamble ()
   "Copy esh-preamble.tex to current directory, possibly overwriting it."
   (copy-file (expand-file-name "esh-preamble.tex" esh-cli--esh-directory)
-             (expand-file-name "esh-preamble.tex") t t)
-  (setq esh-cli--needs-preamble-p nil))
+             (expand-file-name "esh-preamble.tex") t t))
 
 (defconst esh-cli--type-ext-alist '((html . "html") (latex . "tex")))
 
@@ -93,8 +89,6 @@ unless `esh-cli--stdout-p' is non-nil.  Warns and skips if PATH
 doesn't end in .FORMAT, unless `esh-cli--standalone-p' is
 non-nil.  If IN-PATH contains the string “.esh-inline.”, it is
 processed as an inline snippet"
-  (when esh-cli--needs-preamble-p
-    (esh-cli--write-preamble))
   (let* ((ext (cdr (assoc out-type esh-cli--type-ext-alist)))
          (ext-re (format "\\.%s\\'" ext))
          (out-ext (format ".esh.%s" ext))
@@ -109,7 +103,7 @@ processed as an inline snippet"
      ((and (not esh-cli--standalone-p) (not (string-match-p ext-re in-path)))
       (esh-client-stderr "ESH Warning: skipping %S (unrecognized extension)
 Are you missing --standalone?\n" in-path))
-     (t (esh-client-process-one in-path out-path in-type out-type inline-p)))))
+     (t (esh-client-process-one in-path out-path in-type out-type)))))
 
 ;; FIXME test this
 
@@ -124,7 +118,8 @@ Are you missing --standalone?\n" in-path))
   (unless argv
     (setq argv '("--usage")))
   (unwind-protect
-      (let ((complain-about-missing-input t))
+      (let ((complain-about-missing-input t)
+            (write-preamble nil))
         (while argv
           (pcase (pop argv)
             ("--usage"
@@ -147,17 +142,23 @@ Are you missing --standalone?\n" in-path))
             ("--standalone"
              (setq esh-cli--standalone-p t))
             ("--no-preamble"
-             (setq esh-cli--needs-preamble-p nil))
+             (setq write-preamble 'skip))
+            ("--write-preamble"
+             (setq write-preamble t)
+             (setq complain-about-missing-input nil))
             ("--init"
              (esh-cli--init)
              (setq complain-about-missing-input nil))
             (arg
-             (when (and argv esh-cli--stdout-p)
+             (when (or (and argv esh-cli--stdout-p) (string-match-p "\\`--" arg))
                (error "%s" (esh-cli--unexpected-arg-msg arg)))
-             (esh-cli--process-one arg format)
-             (setq complain-about-missing-input nil))))
+             (setq complain-about-missing-input nil
+                   write-preamble (or write-preamble t))
+             (esh-cli--process-one arg format))))
         (when complain-about-missing-input
-          (error "No input files given")))
+          (error "No input files given"))
+        (when (eq write-preamble t)
+          (esh-cli--write-preamble)))
     (unless esh-cli--persist
       (esh-client-kill-server))))
 

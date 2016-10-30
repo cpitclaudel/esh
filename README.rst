@@ -156,6 +156,11 @@ Options
   Do not write or overwrite ``esh-preamble.tex``.  By default, ``esh2tex``
   recreates ``esh-preamble.tex`` on every run.
 
+* ``--write-preamble``
+
+  Write ``esh-preamble.tex`` to current directory.  This option does not require
+  specifying an input file.
+
 * ``--debug-on-error``
 
   Print stack traces for errors.
