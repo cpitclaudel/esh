@@ -71,6 +71,17 @@ nil instead."
           (push top kept))))
     (nreverse kept)))
 
+(defun esh--append-dedup (&rest seqs)
+  "Concatenate SEQS, remove duplicates (wrt `eq') on the way."
+  (let ((deduped nil))
+    (while seqs
+      (let ((seq (pop seqs)))
+        (while seq
+          (let ((elem (pop seq)))
+            (unless (memq elem deduped)
+              (push elem deduped))))))
+    (nreverse deduped)))
+
 (defun esh--extract-props (props pos)
   "Read PROPS from POS as an ALIST or (PROP . VAL)."
   (mapcar (lambda (prop)
@@ -181,8 +192,9 @@ Faces is a list of (possibly anonymous) faces."
 
 (defun esh--pos-face-attribute (pos attribute)
   "Look at POS and find out value of face ATTRIBUTE."
-  (esh--faces-attribute (append (esh--as-list (get-text-property pos 'face))
-                             (esh--as-list (get-char-property pos 'face)))
+  ;; If we don't deduplicate relative font sizes get squared
+  (esh--faces-attribute (esh--append-dedup (esh--as-list (get-text-property pos 'face))
+                                     (esh--as-list (get-char-property pos 'face)))
                      attribute))
 
 (defun esh--pos-face-attribute-cons (pos attribute)
