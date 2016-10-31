@@ -644,8 +644,58 @@ highlighted with `tuareg-mode'."
 (defconst esh--latexify-inline-template "\\ESHInline{%s}")
 (defconst esh--latexify-block-template "\\begin{ESHBlock}\n%s\n\\end{ESHBlock}")
 
-(defun esh--latexify-do-inline-envs ()
-  "Latexify sources in ESH inline environments."
+(defvar esh--latex-pv
+  "Whether to build and dump a table of highlighted inline code.")
+
+(defvar-local esh--latex-pv-highlighting-map nil
+  "List of (VERB CODE TEX) lists.
+Each entry corresponds to one code snippet CODE, introduced by
+\\VERB, and highlighted into TEX.")
+
+(defun esh--latex-pv-record-snippet (verb code tex)
+  "Record highlighting of VERB|CODE| as TEX."
+  (when esh--latex-pv
+    (unless (string-match "\\\\\\([a-zA-Z]+\\)" verb)
+      (error "%S isn't compatible with `esh-latex-generate-inline-map'.
+To work reliably, ESH verb macros must match \\[a-zA-Z]+" verb))
+    (push (list (match-string 1 verb) code tex) esh--latex-pv-highlighting-map)))
+
+(defconst esh--latex-pv-delimiters
+  (mapcar (lambda (c)
+            (cons c (regexp-quote (char-to-string c))))
+          (string-to-list "|`/!=~+-,;:abcdefghijklmnopqrstuvwxyz"))
+  "Alist of character → regexp matching that character.")
+
+(defun esh--latex-pv-find-delimiter (code)
+  "Find a delimiter that does not appear in CODE."
+  (let ((candidates esh--latex-pv-delimiters)
+        (delim nil))
+    (while (not delim)
+      (unless candidates
+        (error "No delimiter found to wrap %S" code))
+      (pcase-let* ((`(,char . ,re) (pop candidates)))
+        (when (not (string-match-p re code))
+          (setq delim char))))
+    delim))
+
+(defconst esh--latex-pv-def-template "\\def\\%s{\\ESHpvLookup{%s}}\n")
+(defconst esh--latex-pv-push-template "\\ESHpvDefine{%s}%c%s%c{\\ESHInline{%s}}\n")
+
+(defun esh--latex-pv-export-latex (map)
+  "Prepare \\ESHpvDefine forms for all records in MAP.
+Records must match the format of `esh--latex-pv-highlighting-map'."
+  (with-temp-buffer
+    (let ((verbs (make-hash-table :test #'equal)))
+      (pcase-dolist (`(,verb ,code ,tex) map)
+        (puthash verb t verbs)
+        (let ((dl (esh--latex-pv-find-delimiter code)))
+          (insert (format esh--latex-pv-push-template verb dl code dl tex))))
+      (dolist (verb (hash-table-keys verbs))
+        (insert (format esh--latex-pv-def-template verb verb))))
+    (buffer-string)))
+
+(defun esh--latexify-do-inline-macros ()
+  "Latexify sources in ESH inline macros."
   (let* ((modes-alist esh-latex-inline-macro-alist)
          (envs-re (when modes-alist (regexp-opt (mapcar #'car modes-alist)))))
     (esh--latexify-beginning-of-document)
@@ -659,6 +709,7 @@ highlighted with `tuareg-mode'."
                   (tex (esh--export-str code mode-fn #'esh--latexify-current-buffer)))
              (goto-char beg)
              (delete-region beg end)
+             (esh--latex-pv-record-snippet cmd code tex)
              (insert (format esh--latexify-inline-template tex)))))))))
 
 (defun esh--latexify-do-block-envs ()
@@ -690,7 +741,7 @@ Latexify sources in environments delimited by
   (save-excursion
     (unwind-protect
         (progn
-          (esh--latexify-do-inline-envs)
+          (esh--latexify-do-inline-macros)
           (esh--latexify-do-block-envs))
       (esh--kill-temp-buffers))))
 
@@ -700,6 +751,16 @@ Latexify sources in environments delimited by
     (insert-file-contents path)
     (esh2tex-current-buffer)
     (buffer-string)))
+
+(defun esh2tex-pv (path)
+  "Find and highlight inline ESH macros in PATH.
+Return a document consisting of “snippet → highlighted
+code” pairs (in \\ESHpvDefine form)."
+  (let ((esh--latex-pv t))
+    (with-temp-buffer
+      (insert-file-contents path)
+      (esh2tex-current-buffer)
+      (esh--latex-pv-export-latex esh--latex-pv-highlighting-map))))
 
 (defun esh--latexify-wrap (code)
   "Wrap CODE in ESHInline or ESHBlock."

@@ -5,6 +5,10 @@
 %% Instead, redefine the relevant macros in your own source file, **before**
 %% including this file.  This file is overwritten every time you run esh2tex.
 
+%%%%%%%%%%%%%%
+%% Core ESH %%
+%%%%%%%%%%%%%%
+
 % Packages
 %%%%%%%%%%
 
@@ -124,3 +128,55 @@
    \setlength{\ESHBoxTempDim}{\dimexpr-\fboxsep-\fboxrule\relax}%
    \vphantom{#3}\smash{\fbox{\hspace*{\ESHBoxTempDim}#3\hspace*{\ESHBoxTempDim}}}}
 \makeatother
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% \ESHpv: ESH Precomputed-Verbs support %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% Adapted from https://tex.stackexchange.com/questions/336837/
+
+%% Utilities
+
+% \ESHpvEnterVerbMode sets all specials to catcode 12
+% * \@makeother sets the catcode of its argument to 12 (other)
+% * \dospecials applies \do to each special character
+% (see http://tex.stackexchange.com/questions/12721/control-command-arguments)
+\makeatletter
+\def\ESHpvEnterVerbMode{\let\do\@makeother\dospecials}
+\makeatother
+
+\def\ESHpvNotFoundMessage#1{No highlighting found for "#1"; falling back to "texttt".}
+% \ESHpvNotFound issues a warning and prints its argument in tt
+\def\ESHpvNotFound#1{\PackageWarning{ESH}{\ESHpvNotFoundMessage{#1}}\texttt{#1}}
+
+%% Defining substitutions
+
+% ESHpvReadAndDefineSubstitution{#A}#B#C#B#D maps #A-\detokenize{#C} to #D
+\def\ESHpvReadAndDefineSubstitution#1#2{%
+  % \tmp reads everything up to the next separator (#2), restores catcodes
+  % (\endgroup), and calls \ESHpvDefineSubstitution on the code it read.
+  \def\tmp##1#2{\endgroup\ESHpvDefineSubstitution{#1}{##1}}\tmp}
+
+% ESHpvDefineSubstitution{#A}{#B}#C maps #A-\detokenize{#B} to #C
+\def\ESHpvDefineSubstitution#1#2{\expandafter\def\csname #1-\detokenize{#2}\endcsname}
+
+%% Applying substitutions
+
+% ESHpvReadAndSubstitute{#A}#B#C#B looks up #A-\detokenize{#C}
+\def\ESHpvReadAndSubstitute#1#2{%
+  % \tmp reads everything up to the next separator (#2), restores catcodes
+  % (\endgroup), and calls \ESHpvSubstitute on the code it read.
+  \def\tmp##1#2{\endgroup\ESHpvSubstitute{#1}{##1}}\tmp}
+
+% \ESHpvSubstitute{#A}{#B} looks up #A-\detokenize{#B} and substitutes it
+\def\ESHpvSubstitute#1#2{%
+  \expandafter\ifx\csname #1-\detokenize{#2}\endcsname\relax
+  \ESHpvNotFound{\detokenize{#2}}%
+  \else
+  \csname #1-\detokenize{#2}\expandafter\endcsname
+  \fi}
+
+%% High-level interface
+
+\def\ESHpvLookup#1{\begingroup\ESHpvEnterVerbMode\ESHpvReadAndSubstitute{#1}}
+\def\ESHpvDefine#1{\begingroup\ESHpvEnterVerbMode\ESHpvReadAndDefineSubstitution{#1}}
