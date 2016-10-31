@@ -338,8 +338,8 @@ depend on `esh--inline'."
 
 ;;; Producing LaTeX
 
-(defvar esh--latex-props '(display invisible newline esh-begin-box esh-end-box))
-(defvar esh--latex-face-attrs '(:underline :background :foreground :weight :slant))
+(defvar esh--latex-props '(display invisible line-height esh-begin-box esh-end-box newline))
+(defvar esh--latex-face-attrs '(:underline :background :foreground :weight :slant :height))
 
 (eval-and-compile
   (defvar esh--latex-specials
@@ -418,6 +418,13 @@ Puts text property `non-ascii' on non-ascii characters."
        ((> weight 500) 'bold)
        (t 'regular)))))
 
+(defun esh--normalize-height (height)
+  "Normalize HEIGHT to a relative (float) height."
+  (let* ((default-height (face-attribute 'default :height))
+         (height (merge-face-attribute :height height default-height)))
+    (unless (eq height default-height)
+      (/ height (float default-height)))))
+
 (defun esh--normalize-box (box)
   "Normalize face attribute BOX."
   (pcase box
@@ -463,6 +470,10 @@ Exact behavior is dependent on value of `esh--inline'."
                            (`bold "\\textbf{%s}")
                            (_ (error "Unexpected weight %S" val)))
                          template))
+                (:height
+                 (pcase (esh--normalize-height val)
+                   (`nil template)
+                   (rel-h (format "\\textscale{%0.2g}{%s}" rel-h template))))
                 (:slant
                  (format (pcase val
                            (`italic "\\textit{%s}")
@@ -493,6 +504,11 @@ Exact behavior is dependent on value of `esh--inline'."
         (`invisible
          ;; FIXME remove template too?
          (when val (setq latex-str "")))
+        (`line-height
+         (unless (floatp val)
+           (error "Unexpected line-height property %S" val))
+         (let ((strut (format "\\rule{0pt}{%.2g\\baselineskip}" val)))
+           (setq template (concat strut template))))
         (`esh-begin-box
          (pcase (esh--normalize-box val)
            (`(,line-width ,color ,style)
@@ -719,7 +735,7 @@ NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
     (_ (error "Unprintable node %S" node))))
 
 (defvar esh--html-props '(display invisible non-ascii newline))
-(defvar esh--html-face-attrs '(:underline :background :foreground :weight :slant))
+(defvar esh--html-face-attrs '(:underline :background :foreground :weight :slant)) ;; TODO :height :line-height
 
 (defun esh--htmlify-span (range)
   "Render RANGE as an HTML tree."
@@ -761,7 +777,7 @@ NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
         (`display
          (pcase val
            (`(raise ,amount)
-            (setq raised t)
+            (setq raised t) ;;FIXME handle amount > 0 case
             (push (format "bottom: %gem" amount) styles))
            (_ (error "Unexpected display property %S" val))))
         (`invisible
