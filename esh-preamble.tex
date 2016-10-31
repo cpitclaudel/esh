@@ -98,8 +98,7 @@
 % \ESHBlockBasicSetup is used by \ESHBlock
 \providecommand*{\ESHBlockBasicSetup}
   {\setlength{\parindent}{0pt}\setlength{\parskip}{0pt}
-   \ESHNoHyphens\ESHFont\spaceskip=\fontdimen2\font
-   \xspaceskip=0pt}
+   \ESHNoHyphens\raggedright\ESHFont\spaceskip=\fontdimen2\font\xspaceskip=0pt}
 
 \makeatletter
 % \ESHSkip is the amount to skip before and after an ESHBlock
@@ -108,7 +107,7 @@
 % \ESHBlock is used for code blocks
 \@ifundefined{ESHBlock}
   {\newenvironment{ESHBlock}
-     {\ESHBlockBasicSetup\par\addvspace{\ESHSkip}}
+     {\par\ESHBlockBasicSetup\addvspace{\ESHSkip}}
      {\par\addvspace{\ESHSkip}}}{}
 
 % \ESHBoxSep is the vertical padding of \ESHFBox
