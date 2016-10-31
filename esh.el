@@ -662,7 +662,8 @@ instead of an ESHBlock environment."
       (insert-file-contents source-path)
       (set-visited-file-name source-path t)
       (set-auto-mode)
-      (prog1 (esh--latexify-wrap (esh--export-buffer #'esh--latexify-current-buffer))
+      (unwind-protect
+          (esh--latexify-wrap (esh--export-buffer #'esh--latexify-current-buffer))
         (set-buffer-modified-p nil)))))
 
 ;;; Producing HTML
