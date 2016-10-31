@@ -34,7 +34,7 @@ Setup
 
 **Setup:** Clone the repository somewhere, and add ``<wherever>/bin`` to your
 path (alternatively, just call ``<wherever>/bin/esh2tex`` explicitly).  This
-program is tested only on GNU/Linux; it has been reported to work on MacOS, too.
+program is tested only on GNU/Linux; it has been reported to work on macOS, too.
 
 **Sanity check:** Running ``make`` in the ``example`` directory of the Git repo
 should produce a (partially) syntax-highlighted ``example.pdf``.
@@ -442,7 +442,7 @@ Debugging
 ---------
 
 If you run into issues, try getting the example (in the ``example`` folder of
-the repository) to work.  If you can't make get the example to work, please open
+the repository) to work.  If you can't get the example to work, please open
 a GitHub issue.
 
 For more advanced debugging, you can load the ``esh`` package into Emacs, and
