@@ -52,6 +52,15 @@
                    (apply #'color-rgb-to-hex (color-name-to-rgb color)))))
       (substring (upcase color) 1))))
 
+(defun esh--normalize-color-unless (color attr)
+  "Return COLOR as a hex string.
+If COLOR matches value of ATTR in default face, return
+nil instead."
+  (let ((val (esh--normalize-color color))
+        (attr-default (face-attribute 'default attr)))
+    (unless (and attr (equal val (esh--normalize-color attr-default)))
+      val)))
+
 (defun esh--filter-cdr (val alist)
   "Remove conses in ALIST whose `cdr' is VAL."
   ;; FIXME phase this out once Emacs 25 is everywhere
@@ -436,15 +445,16 @@ Exact behavior is dependent on value of `esh--inline'."
       (when val
         (setq template
               (pcase attribute
+                (:foreground
+                 (setq val (esh--normalize-color-unless val :foreground))
+                 (if val (format "\\textcolor[HTML]{%s}{%s}" val template)
+                   template))
                 (:background
-                 (setq val (esh--normalize-color val))
+                 (setq val (esh--normalize-color-unless val :background))
                  ;; FIXME: Force all lines to have the the same height?
                  ;; Could use \\vphantom{'g}\\smash{…}
-                 (if val (format "\\colorbox[HTML]{%s}{%s}" val template)
-                   template))
-                (:foreground
-                 (setq val (esh--normalize-color val))
-                 (if val (format "\\textcolor[HTML]{%s}{%s}" val template)
+                 (if val
+                     (format "\\colorbox[HTML]{%s}{%s}" val template)
                    template))
                 (:weight
                  (format (pcase (esh--normalize-weight-coarse val)
@@ -722,10 +732,10 @@ NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
       (when val
         (pcase attribute
           (:foreground
-           (when (setq val (esh--normalize-color val))
+           (when (setq val (esh--normalize-color-unless val :foreground))
              (push (concat "color: #" val) styles)))
           (:background
-           (when (setq val (esh--normalize-color val))
+           (when (setq val (esh--normalize-color-unless val :background))
              (push (concat "background-color: #" val) styles)))
           (:weight
            (if (setq val (esh--normalize-weight val))
