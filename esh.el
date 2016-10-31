@@ -380,13 +380,41 @@ Results for “ ” and “-” depend on `esh--inline'."
   (replace-regexp-in-string
    esh--latex-specials-re #'esh--latex-substitute-special str t t))
 
-(defun esh--wrap-non-ascii (str)
+(defun esh--latex-escape-1 (char)
+  "Escape CHAR for use with pdfLaTeX."
+  (unless (boundp 'esh-latex-escape)
+    (load-file (expand-file-name "esh-latex-escape.el" esh--directory)))
+  (with-no-warnings (gethash char esh-latex-escape-table nil)))
+
+(defun esh--latex-escape-unicode-char (wrapper char)
+  "Replace currently matched CHAR with an equivalent LaTeX command.
+Wrap result in WRAPPER."
+  (let* ((translation (esh--latex-escape-1 (aref char 0))))
+    (unless translation
+      (error "No LaTeX equivalent found for %S" (char-to-string char)))
+    (format wrapper (format "\\ensuremath{%s}" translation))))
+
+(defvar esh-substitute-unicode-symbols nil
+  "If non-nil, attempt to substitute Unicode symbols in code blocks.
+Symbols are replaced by their closest LaTeX equivalent.  This
+option is most useful with pdfLaTeX; with XeLaTeX or LuaLaTeX, it
+should probably be turned off (customize \\ESHFallbackFont
+instead).")
+
+(defun esh--latex-wrap-non-ascii (str)
   "Wrap non-ASCII characters of STR.
-Wraps into \\ESH(Block|Inline)SpecialChar{}."
+Wraps non-ASCII characters into \\ESH(Block|Inline)SpecialChar{}
+and, if `esh-substitute-unicode-symbols' is non-nil, replace them by their LaTeX
+mathematical equivalents."
   ;; TODO benchmark against trivial loop
-  (let ((rep (format "\\\\ESH%sSpecialChar{\\&}"
-                     (if esh--inline "Inline" "Block"))))
-    (replace-regexp-in-string "[^\000-\177]" rep str t)))
+  (let* ((range "[^\000-\177]")
+         (block-type (if esh--inline "Inline" "Block"))
+         (wrapper (format "\\ESH%sSpecialChar{%%s}" block-type)))
+    (if esh-substitute-unicode-symbols
+        (let ((rep (apply-partially #'esh--latex-escape-unicode-char wrapper)))
+          (replace-regexp-in-string range rep str t t))
+      (let ((rep (format (replace-quote wrapper) "\\&")))
+        (replace-regexp-in-string range rep str t)))))
 
 (defun esh--mark-non-ascii ()
   "Tag non-ASCII characters of current buffer.
@@ -398,7 +426,7 @@ Puts text property `non-ascii' on non-ascii characters."
 
 (defun esh--escape-for-latex (str)
   "Escape LaTeX special characters in STR."
-  (esh--wrap-non-ascii (esh--latex-substitute-specials str)))
+  (esh--latex-wrap-non-ascii (esh--latex-substitute-specials str)))
 
 (defun esh--normalize-underline (underline)
   "Normalize UNDERLINE."
