@@ -152,6 +152,12 @@
      {\par\addvspace{\ESHSkip}}}{}
 \makeatother
 
+%% \input wrappers
+%%%%%%%%%%%%%%%%%%
+
+\DeclareRobustCommand*{\ESHInputInline}[1]{\ESHInline{\input{#1}}}
+\DeclareRobustCommand*{\ESHInputBlock}[1]{\begin{ESHBlock}\input{#1}\end{ESHBlock}}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% \ESHpv: ESH Precomputed-Verbs support %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
