@@ -245,7 +245,8 @@ the only reason a daemon was needed was that it's hard to make
 Emacs' initial frame invisible.  Now, it's also used to make
 things faster."
   (esh-client--ensure-server) ;; To prevent progress messages from interleaving
-  (esh-client--with-progress-msg (format "Highlighting %S" in-path)
+  (esh-client--with-progress-msg
+      (format "Highlighting %S (writing to %S)" in-path (or out-path 'stdout))
     (setq in-path (expand-file-name in-path))
     (setq out-path (and out-path (expand-file-name out-path)))
     (esh-client--princ (esh-client--run (esh-client--rpc-process-form in-path out-path in-type out-type)))))
