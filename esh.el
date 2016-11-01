@@ -283,14 +283,9 @@ character has an `end-box' property."
   (concat ">>> (void-function %S); did you forget to `require'"
           " a dependency, or to restart the server? <<<%s"))
 
-(defvar esh--inline nil
-  "Dynamic variable indicating the current context.
-nil in blocks, t in inline snippets.")
-
 (defun esh--missing-mode-error-msg (mode)
-  "Construct an error message about missing MODE.
-With non-nil `esh--inline', suffix message with blanks instead of newlines."
-  (propertize (format esh--missing-mode-template mode (if esh--inline "  " "\n"))
+  "Construct an error message about missing MODE."
+  (propertize (format esh--missing-mode-template mode "  ")
               'face 'error 'font-lock-face 'error))
 
 (defvar-local esh--temp-buffers nil
@@ -334,16 +329,14 @@ the required mode isn't available."
 
 (defun esh--export-buffer (export-fn)
   "Refontify current buffer, then invoke EXPORT-FN.
-EXPORT-FN should do the actual exporting; its return value may
-depend on `esh--inline'."
+EXPORT-FN should do the actual exporting."
   (esh--font-lock-ensure)
   (run-hook-with-args 'esh-post-highlight-hook)
   (funcall export-fn))
 
 (defun esh--export-str (str mode-fn export-fn)
   "Fontify STR in a MODE-FN buffer, then invoke EXPORT-FN.
-EXPORT-FN should do the actual exporting; its return value may
-depend on `esh--inline'."
+EXPORT-FN should do the actual exporting."
   (with-current-buffer (esh--make-temp-buffer mode-fn)
     (insert str)
     (esh--export-buffer export-fn)))
@@ -358,9 +351,7 @@ depend on `esh--inline'."
     '((?$ . "\\$") (?% . "\\%") (?& . "\\&") (?{ . "\\{") (?} . "\\}") (?_ . "\\_") (?# . "\\#")
       (?` . "{`}") (?' . "{'}") (?< . "{<}") (?> . "{>}") ;; A few ligatures
       (?\\ . "\\textbackslash{}") (?^ . "\\textasciicircum{}") (?~ . "\\textasciitilde{}")
-      ;; Explicit replacements instead of catcodes
-      ;; Actual replacements are changed using dynamic binding
-      (?\s . nil) (?- . nil))))
+      (?\s . "\\ESHSpace{}") (?- . "\\ESHDash{}"))))
 
 (defvar esh--latex-specials-re
   (eval-when-compile
@@ -369,14 +360,10 @@ depend on `esh--inline'."
 (defun esh--latex-substitute-special (m)
   "Get replacement for LaTeX special M."
   ;; If this become slows, use a vector and index by (aref m 0)
-  (or (cdr (assq (aref m 0) esh--latex-specials))
-      (pcase m
-        (" " (if esh--inline "\\ " "~"))
-        ("-" (if esh--inline "-" "\\ESHBlockDash{}")))))
+  (cdr (assq (aref m 0) esh--latex-specials)))
 
 (defun esh--latex-substitute-specials (str)
-  "Escape LaTeX specials in STR.
-Results for “ ” and “-” depend on `esh--inline'."
+  "Escape LaTeX specials in STR."
   (replace-regexp-in-string
    esh--latex-specials-re #'esh--latex-substitute-special str t t))
 
@@ -408,8 +395,7 @@ and, if `esh-substitute-unicode-symbols' is non-nil, replace them by their LaTeX
 mathematical equivalents."
   ;; TODO benchmark against trivial loop
   (let* ((range "[^\000-\177]")
-         (block-type (if esh--inline "Inline" "Block"))
-         (wrapper (format "\\ESH%sSpecialChar{%%s}" block-type)))
+         (wrapper "\\ESHSpecialChar{%s}"))
     (if esh-substitute-unicode-symbols
         (let ((rep (apply-partially #'esh--latex-escape-unicode-char wrapper)))
           (replace-regexp-in-string range rep str t t))
@@ -476,13 +462,10 @@ Puts text property `non-ascii' on non-ascii characters."
 
 (defun esh--latexify-raise (str amount)
   "Issue a LaTeX command to raise STR by AMOUNT."
-  (format "\\ESH%sRaise{%gex}{%s}"
-          (if esh--inline "Inline" "Block")
-          amount str))
+  (format "\\ESHRaise{%gex}{%s}" amount str))
 
 (defun esh--latexify-span (range)
-  "Render RANGE as a LaTeX string.
-Exact behavior is dependent on value of `esh--inline'."
+  "Render RANGE as a LaTeX string."
   (let* ((template "%s")
          (span (buffer-substring-no-properties (car range) (cdr range)))
          (latex-str (esh--escape-for-latex span))
@@ -547,8 +530,7 @@ Exact behavior is dependent on value of `esh--inline'."
         (`line-height
          (unless (floatp val)
            (error "Unexpected line-height property %S" val))
-         (let ((strut (format "\\rule{0pt}{%.2g\\baselineskip}" val)))
-           (setq template (concat strut template))))
+         (setq template (format "\\ESHStrut{%.2g}%s" val template)))
         (`esh-begin-box
          (pcase (esh--normalize-box val)
            (`(,line-width ,color ,style)
@@ -573,29 +555,27 @@ Exact behavior is dependent on value of `esh--inline'."
     (format template latex-str)))
 
 (defun esh--latexify-protect-bols (str)
-  "Prefix each line of STR with a discretionary hyphen.
+  "Prefix each line of STR with a call to \\ESHBol{}.
 This used to only be needed for lines starting with whitespace,
-but leading dashes also behave strangely due to the \\hbox in
-\\ESHObeySpaces; given this, it's simpler (and safer) to prefix
-all lines."
-  (replace-regexp-in-string "^" "\\-" str t t))
+but leading dashes sometimes behave strangely; it's simpler (and
+safer) to prefix all lines.  \\ESHBol is a no-op in inline mode."
+  (replace-regexp-in-string "^" "\\ESHBol{}" str t t))
 
-(defun esh--latexify-obeylines (str)
-  "Suffix each line of STR with a \\par.
-Do this instead of using catcodes, for robustness."
-  (replace-regexp-in-string "\n" "\\par\n" str t t))
+(defun esh--latexify-protect-eols (str)
+  "Suffix each line of STR with a call to \\ESHEol.
+Do this instead of using catcodes, for robustness.  Including a
+brace pair after \\ESHEol would break alignment of continuation
+lines in inline blocks."
+  (replace-regexp-in-string "\n" "\\ESHEol\n" str t t))
 
 (defun esh--latexify-current-buffer ()
-  "Export current buffer to LaTeX.
-With non-nil `esh--inline', protect beginnings of lines
-and add “\\par”s."
+  "Export current buffer to LaTeX."
   (esh--remove-final-newline)
   (esh--commit-compositions)
   (esh--mark-newlines)
   (esh--mark-boxes)
   (let* ((str (mapconcat #'esh--latexify-span (esh--buffer-ranges) "")))
-    (if esh--inline str
-      (esh--latexify-obeylines (esh--latexify-protect-bols str)))))
+    (esh--latexify-protect-eols (esh--latexify-protect-bols str))))
 
 (defvar esh-latexify-block-envs
   `(("^[ \t]*%%[ \t]*ESH: \\([^ \t\n]+\\)[ \t]*\n[ \t]*\\\\begin{\\([^}]+\\)}.*\n" .
@@ -703,8 +683,7 @@ Records must match the format of `esh--latex-pv-highlighting-map'."
       (while (setq match-info (esh--latexify-inline-verb-matcher envs-re))
         (pcase match-info
           (`(,beg ,end ,code-beg ,code-end ,cmd)
-           (let* ((esh--inline t)
-                  (mode-fn (cdr (assoc cmd modes-alist)))
+           (let* ((mode-fn (cdr (assoc cmd modes-alist)))
                   (code (buffer-substring-no-properties code-beg code-end))
                   (tex (esh--export-str code mode-fn #'esh--latexify-current-buffer)))
              (goto-char beg)
@@ -719,8 +698,7 @@ Records must match the format of `esh--latex-pv-highlighting-map'."
     (while (re-search-forward start-marker nil t)
       (when (string= "" (match-string-no-properties 1))
         (error "Invalid ESH header: %S" (match-string-no-properties 0)))
-      (let* ((esh--inline nil)
-             (block-start (match-beginning 0))
+      (let* ((block-start (match-beginning 0))
              (code-start (match-end 0))
              (mode-fn (esh--resolve-mode-fn (match-string-no-properties 1))))
         ;; FIXME why not use a plain regexp here?
@@ -762,26 +740,16 @@ code” pairs (in \\ESHpvDefine form)."
       (esh2tex-current-buffer)
       (esh--latex-pv-export-latex esh--latex-pv-highlighting-map))))
 
-(defun esh--latexify-wrap (code)
-  "Wrap CODE in ESHInline or ESHBlock."
-  (format (if esh--inline
-              esh--latexify-inline-template
-            esh--latexify-block-template)
-          code))
-
 (defun esh2tex-source-file (source-path)
   "Fontify contents of SOURCE-PATH.
-Return result as a LaTeX string.  Non-nil INLINE specifies that
-the resulting TeX code should be wrapped in an ESHInline macro
-instead of an ESHBlock environment."
-  (let ((esh--inline (string-match-p "esh-inline" source-path)))
-    (with-temp-buffer
-      (insert-file-contents source-path)
-      (set-visited-file-name source-path t)
-      (set-auto-mode)
-      (unwind-protect
-          (esh--latexify-wrap (esh--export-buffer #'esh--latexify-current-buffer))
-        (set-buffer-modified-p nil)))))
+Return result as a LaTeX string."
+  (with-temp-buffer
+    (insert-file-contents source-path)
+    (set-visited-file-name source-path t)
+    (set-auto-mode)
+    (unwind-protect
+        (esh--export-buffer #'esh--latexify-current-buffer)
+      (set-buffer-modified-p nil))))
 
 ;;; Producing HTML
 

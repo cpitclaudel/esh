@@ -75,13 +75,13 @@
 % Note the extra pair of braces in the definition, which prevent fonts and
 % settings from affecting subsequent text
 \usepackage{amsmath,amssymb}
-\newcommand*{\ESHInline}[1]{{\ESHInlineBasicSetup$\langle\,$#1$\,\rangle$}}
+\DeclareRobustCommand*{\ESHInline}[1]{{\ESHInlineInternalSetup\ESHInlineBasicSetup$\langle\,$#1$\,\rangle$}}
 
 % \ESHBlock
 %%%%%%%%%%%
 
 \newenvironment{ESHBlock}{%
-  \ESHBlockBasicSetup\par\addvspace{\ESHSkip}\hrule\addvspace{0.5em}%
+  \par\addvspace{\ESHSkip}\ESHBlockInternalSetup\ESHBlockBasicSetup\hrule\addvspace{0.5em}%
 }{%
   \par\addvspace{0.5em}\hrule\addvspace{2\ESHSkip}
 }
