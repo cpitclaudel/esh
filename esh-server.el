@@ -138,6 +138,10 @@ No error checking here; we expect this to be invoked through
          (`mixed (esh2tex-tex-file in-path))
          (`source (esh2tex-source-file in-path))
          (_ (error "Unknown input type %S" in-type))))
+      (`latex-pv
+       (pcase in-type
+         (`mixed (esh2tex-tex-file-pv in-path))
+         (_ (error "Unsupported input type %S for --precompute-verbs" in-type))))
       (`html
        (pcase in-type
          (`mixed (esh2html-html-file in-path))
@@ -154,7 +158,8 @@ of the following:
 * \\='mixed (a full document containing source code)
 * \\='source (a single source file)
 
-OUT-TYPE indicates the desired output format (one of \\='latex or \\='html).
+OUT-TYPE indicates the desired output format (one of \\='latex,
+\\'latex-pv, or \\='html).
 
 No error checking here; we expect this to be invoked through
 `esh-server-eval'."

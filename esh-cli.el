@@ -81,7 +81,11 @@
   (copy-file (expand-file-name "esh-preamble.tex" esh-cli--esh-directory)
              (expand-file-name "esh-preamble.tex") t t))
 
-(defconst esh-cli--type-ext-alist '((html . "html") (latex . "tex")))
+(defconst esh-cli--type-ext-alist
+  '((html . "html") (latex . "tex") (latex-pv . "tex")))
+
+(defconst esh-cli--output-ext-alist
+  '((html . ".esh.%s") (latex . ".esh.%s") (latex-pv . ".esh-pv.%s")))
 
 (defun esh-cli--process-one (in-path out-type)
   "Process IN-PATH in OUT-TYPE.
@@ -91,8 +95,9 @@ doesn't end in .FORMAT, unless `esh-cli--standalone-p' is
 non-nil.  If IN-PATH contains the string “.esh-inline.”, it is
 processed as an inline snippet"
   (let* ((ext (cdr (assoc out-type esh-cli--type-ext-alist)))
+         (out-ext-format (cdr (assoc out-type esh-cli--output-ext-alist)))
          (ext-re (format "\\.%s\\'" ext))
-         (out-ext (format ".esh.%s" ext))
+         (out-ext (format out-ext-format ext))
          (in-type
           (cond (esh-cli--standalone-p 'source)
                 (t 'mixed)))
@@ -142,6 +147,10 @@ Are you missing --standalone?\n" in-path))
              (setq esh-cli--stdout-p t))
             ("--standalone"
              (setq esh-cli--standalone-p t))
+            ("--make-inline-highighting-map"
+             (unless (eq format 'latex)
+               (error "%s" (esh-cli--unexpected-arg-msg "--make-inline-highighting-map")))
+             (setq format 'latex-pv))
             ("--no-preamble"
              (setq write-preamble 'skip))
             ("--write-preamble"
@@ -153,8 +162,8 @@ Are you missing --standalone?\n" in-path))
             (arg
              (when (or (and argv esh-cli--stdout-p) (string-match-p "\\`--" arg))
                (error "%s" (esh-cli--unexpected-arg-msg arg)))
-             (setq complain-about-missing-input nil
-                   write-preamble (or write-preamble t))
+             (setq complain-about-missing-input nil)
+             (setq write-preamble (or write-preamble t))
              (esh-cli--process-one arg format))))
         (when complain-about-missing-input
           (error "No input files given"))

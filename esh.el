@@ -730,7 +730,7 @@ Latexify sources in environments delimited by
     (esh2tex-current-buffer)
     (buffer-string)))
 
-(defun esh2tex-pv (path)
+(defun esh2tex-tex-file-pv (path)
   "Find and highlight inline ESH macros in PATH.
 Return a document consisting of “snippet → highlighted
 code” pairs (in \\ESHpvDefine form)."
