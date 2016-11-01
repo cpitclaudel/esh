@@ -28,7 +28,10 @@
 % \ESHInlineFont is for inline code samples
 \providecommand*{\ESHInlineFont}{\ESHFont}
 
-% \ESHFallbackFont is applied to characters not covered by \ESHFont
+% \ESHInlineBlockFont is for inline code blocks
+\providecommand*{\ESHInlineBlockFont}{\ESHFont}
+
+% \ESHFallbackFont is for characters not covered by \ESHFont (XeTeX/LuaTeX only)
 \providecommand*{\ESHFallbackFont}{\ESHFont}
 
 % Utils
@@ -37,8 +40,8 @@
 % \ESHNoHyphens disables hyphenation
 \providecommand*{\ESHNoHyphens}{\hyphenpenalty=10000}
 
-% \ESHBlockDash is a dash disallowing line breaks
-\providecommand*{\ESHBlockDash}{\hbox{-}\nobreak}
+% \ESHConstantSpace ensures that spaces can't stretch
+\providecommand*{\ESHConstantSpace}{\spaceskip=\fontdimen2\font\xspaceskip=0pt}
 
 % \ESHCenterInWidthOf{#A}{#B} prints #B centered in a box as large as #A.
 \newdimen\ESHtempdim%
@@ -122,6 +125,10 @@
   {\def\ESHSpecialChar{\ESHInlineSpecialChar}\def\ESHRaise{\ESHInlineRaise}%
    \def\ESHStrut{\relax}\def\ESHBol{\relax}\def\ESHEol{\newline}\def\ESHSpace{\ }%
    \def\ESHDash{-}}
+\DeclareRobustCommand*{\ESHInlineBlockInternalSetup}
+  {\def\ESHSpecialChar{\ESHBlockSpecialChar}\def\ESHRaise{\ESHBlockRaise}%
+   \setlength{\ESHBaselineskip}{\baselineskip}\def\ESHStrut{\ESHBlockStrut}%
+   \def\ESHBol{\-}\def\ESHEol{\cr}\def\ESHSpace{~}\def\ESHDash{\hbox{-}\nobreak}}
 \DeclareRobustCommand*{\ESHBlockInternalSetup}
   {\def\ESHSpecialChar{\ESHBlockSpecialChar}\def\ESHRaise{\ESHBlockRaise}%
    \setlength{\ESHBaselineskip}{\baselineskip}\def\ESHStrut{\ESHBlockStrut}%
@@ -132,6 +139,8 @@
 % \ESHBlockBasicSetup used to set \parskip to 0, but \ESHEol isn't \par anymore
 \providecommand*{\ESHInlineBasicSetup}
   {\leavevmode\ESHNoHyphens\ESHInlineFont}
+\providecommand*{\ESHInlineBlockBasicSetup}
+  {\ESHNoHyphens\ESHInlineBlockFont\ESHConstantSpace}
 \providecommand*{\ESHBlockBasicSetup}
   {\setlength{\parindent}{0pt}\raggedright\ESHNoHyphens%
    \ESHFont\ESHConstantSpace}
@@ -141,6 +150,12 @@
 % Note the extra pair of braces in the definition
 \@ifundefined{ESHInline}
   {\DeclareRobustCommand*{\ESHInline}[1]{{\ESHInlineInternalSetup\ESHInlineBasicSetup#1}}}{}
+
+% \ESHInlineBlock is used for inline code blocks
+\@ifundefined{ESHInlineBlock}
+  {\newenvironment{ESHInlineBlock}
+     {\ESHInlineBlockInternalSetup\ESHInlineBlockBasicSetup\begin{tabular}{@{}l@{}}}
+     {\end{tabular}}}{}
 
 % \ESHSkip is the amount to skip before and after an \ESHBlock
 \@ifundefined{ESHSkip}{\newlength{\ESHSkip}\setlength{\ESHSkip}{\baselineskip}}{}
@@ -156,6 +171,7 @@
 %%%%%%%%%%%%%%%%%%
 
 \DeclareRobustCommand*{\ESHInputInline}[1]{\ESHInline{\input{#1}}}
+\DeclareRobustCommand*{\ESHInputInlineBlock}[1]{\begin{ESHInlineBlock}\input{#1}\end{ESHInlineBlock}}
 \DeclareRobustCommand*{\ESHInputBlock}[1]{\begin{ESHBlock}\input{#1}\end{ESHBlock}}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
