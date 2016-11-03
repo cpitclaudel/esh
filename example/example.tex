@@ -198,8 +198,7 @@ sub getopt {
 class NotWellFormedError < Error
   attr_reader :line, :element
 
-  # Create a new NotWellFormedError for an error at +line+
-  # in +element+.
+  # Create a new NotWellFormedError for an error at +line+ in +element+.
   def initialize(line=nil, element=nil)
     message = "This is not well formed XML"
     if element or line
@@ -212,18 +211,23 @@ class NotWellFormedError < Error
 
 \section*{Misc}
 
-\subsection*{Inline snippets}
+\subsection*{Inline snippets and inline blocks}
 
 ESH works inline as well:
 
 \begin{itemize}
-\item Here's some C code: \cverb|int main() { return 0; }|
-\item Some Python: \pythonverb/def method(self, x): yield x/
+\item Here's some C and some Python code: \cverb|int main() { return 0; }|, \pythonverb/def method(self, x): yield x/
 \item
   \begin{tabular}[t]{@{}r@{ }l}
     Some Elisp with prettification: & \prettylisp,(lambda (x y) (or (<= x y) (approx= (/+/ x y) 0))), \\
             without prettification: & \normallisp!(lambda (x y) (or (<= x y) (approx= (/+/ x y) 0)))!
   \end{tabular}
+\item And finally an inline block: \fbox{% Using raggedright because verbatim breaks when used inline
+%% ESHInlineBlock: python
+\begin{raggedright}
+def main():
+    return 0
+\end{raggedright}}
 \end{itemize}
 
 \subsection*{Line breaking}

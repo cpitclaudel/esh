@@ -605,8 +605,8 @@ lines in inline blocks."
     (esh--latexify-protect-eols (esh--latexify-protect-bols str))))
 
 (defvar esh-latexify-block-envs
-  `(("^[ \t]*%%[ \t]*ESH: \\([^ \t\n]+\\)[ \t]*\n[ \t]*\\\\begin{\\([^}]+\\)}.*\n" .
-     ,(lambda () (concat "^[ \t]*\\\\end{" (match-string 2) "}"))))
+  `(("^[ \t]*%%[ \t]*\\(ESH\\(?:InlineBlock\\)?\\): \\([^ \t\n]+\\)[ \t]*\n[ \t]*\\\\begin{\\([^}]+\\)}.*\n" .
+     ,(lambda () (concat "^[ \t]*\\\\end{" (match-string 3) "}"))))
   "Alist of replaceable environments.")
 
 (defun esh--latexify-inline-verb-matcher (re)
@@ -650,6 +650,7 @@ highlighted with `tuareg-mode'."
 
 (defconst esh--latexify-inline-template "\\ESHInline{%s}")
 (defconst esh--latexify-block-template "\\begin{ESHBlock}\n%s\n\\end{ESHBlock}")
+(defconst esh--latexify-inline-block-template "\\begin{ESHInlineBlock}\n%s\n\\end{ESHInlineBlock}")
 
 (defvar esh--latex-pv
   "Whether to build and dump a table of highlighted inline code.")
@@ -727,11 +728,14 @@ Records must match the format of `esh--latex-pv-highlighting-map'."
   (pcase-dolist (`(,start-marker . ,end-marker-function) esh-latexify-block-envs)
     (goto-char (point-min))
     (while (re-search-forward start-marker nil t)
-      (when (string= "" (match-string-no-properties 1))
+      (when (string= "" (match-string-no-properties 2))
         (error "Invalid ESH header: %S" (match-string-no-properties 0)))
       (let* ((block-start (match-beginning 0))
              (code-start (match-end 0))
-             (mode-fn (esh--resolve-mode-fn (match-string-no-properties 1))))
+             (mode-fn (esh--resolve-mode-fn (match-string-no-properties 2)))
+             (block-template (pcase (match-string-no-properties 1)
+                               ("ESH" esh--latexify-block-template)
+                               ("ESHInlineBlock" esh--latexify-inline-block-template))))
         ;; FIXME why not use a plain regexp here?
         (re-search-forward (funcall end-marker-function))
         (let* ((code-end (match-beginning 0))
@@ -740,7 +744,7 @@ Records must match the format of `esh--latex-pv-highlighting-map'."
                (tex (esh--export-str code mode-fn #'esh--latexify-current-buffer)))
           (goto-char block-start)
           (delete-region block-start block-end)
-          (insert (format esh--latexify-block-template tex)))))))
+          (insert (format block-template tex)))))))
 
 (defun esh2tex-current-buffer ()
   "Fontify contents of all ESH environments.
