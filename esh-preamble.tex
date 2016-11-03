@@ -49,6 +49,9 @@
   {\settowidth\ESHtempdim{#1}%
    \makebox[\ESHtempdim][c]{#2}}
 
+% ESHText switches out of math mode if needed (textnormal amstext-friendly)
+\DeclareRobustCommand*{\ESHText}[1]{\ifmmode{\textnormal{#1}}\else{#1}\fi}
+
 \RequirePackage{iftex}
 \ifXeTeX
   % \ESHWithFallback{#A} prints #A in the current font if possible, falling back to \ESHFallbackFont
@@ -149,7 +152,7 @@
 % \ESHInline is used for inline code
 % Note the extra pair of braces in the definition
 \@ifundefined{ESHInline}
-  {\DeclareRobustCommand*{\ESHInline}[1]{{\ESHInlineInternalSetup\ESHInlineBasicSetup#1}}}{}
+  {\DeclareRobustCommand*{\ESHInline}[1]{{\ESHText{\ESHInlineInternalSetup\ESHInlineBasicSetup#1}}}}{}
 
 % \ESHInlineBlock is used for inline code blocks
 \@ifundefined{ESHInlineBlock}
