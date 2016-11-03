@@ -35,8 +35,8 @@ The prefix each inline code block like this::
 
 And add the following lines to your ``esh-init.el``::
 
-  (esh-latex-add-inline-macro "@c++ \\verb" 'c++-mode)
-  (esh-latex-add-inline-macro "@python \\verb" 'python-mode)
+  (esh-latex-add-inline-verb "@c++ \\verb" 'c++-mode)
+  (esh-latex-add-inline-verb "@python \\verb" 'python-mode)
 
 Preamble
 ========

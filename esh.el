@@ -614,12 +614,12 @@ all instances of “@ocaml \\verb|...|” as OCaml code to be
 highlighted with `tuareg-mode'.  This list is ignored in HTML
 mode.  See the manual for more information.")
 
-(defun esh-latex-add-inline-macro (macro mode)
-  "Teach ESH about an inline MACRO, highlighted with MODE.
-For example (esh-latex-add-inline-marker \"\\\\ocaml\" \\='tuareg-mode)
+(defun esh-latex-add-inline-verb (verb mode)
+  "Teach ESH about an inline VERB, highlighted with MODE.
+For example (esh-latex-add-inline-verb \"\\\\ocaml\" \\='tuareg-mode)
 recognizes all instances of “\\ocaml|...|” as OCaml code to be
 highlighted with `tuareg-mode'."
-  (add-to-list 'esh-latex-inline-macro-alist (cons macro mode)))
+  (add-to-list 'esh-latex-inline-macro-alist (cons verb mode)))
 
 (defconst esh--latexify-inline-template "\\ESHInline{%s}")
 (defconst esh--latexify-block-template "\\begin{ESHBlock}\n%s\n\\end{ESHBlock}")

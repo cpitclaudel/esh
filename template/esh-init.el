@@ -2,4 +2,4 @@
 
 ;; Register “\cverb” as an inline macro highlighted as C code
 ;; This allows us to use \cverb|int main()|, for example.
-(esh-latex-add-inline-macro "\\cverb" 'c-mode)
+(esh-latex-add-inline-verb "\\cverb" 'c-mode)

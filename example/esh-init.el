@@ -8,11 +8,11 @@
 ;; Register a few inline macros ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(esh-latex-add-inline-macro "\\cverb" 'c-mode)
-(esh-latex-add-inline-macro "\\javaverb" 'java-mode)
-(esh-latex-add-inline-macro "\\pythonverb" 'python-mode)
-(esh-latex-add-inline-macro "\\normallisp" 'emacs-lisp-mode)
-(esh-latex-add-inline-macro "\\prettylisp" 'prettified-emacs-lisp-mode)
+(esh-latex-add-inline-verb "\\cverb" 'c-mode)
+(esh-latex-add-inline-verb "\\javaverb" 'java-mode)
+(esh-latex-add-inline-verb "\\pythonverb" 'python-mode)
+(esh-latex-add-inline-verb "\\normallisp" 'emacs-lisp-mode)
+(esh-latex-add-inline-verb "\\prettylisp" 'prettified-emacs-lisp-mode)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Define a variant of Emacs-Lisp-mode that prettifies symbols ;;

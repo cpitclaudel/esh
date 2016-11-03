@@ -199,8 +199,8 @@ Start by adding the following to your ``esh-init.el``:
 
 .. code:: emacs-lisp
 
-   (esh-latex-add-inline-macro "\\python" 'python-mode)
-   (esh-latex-add-inline-macro "\\cpp" 'c++-mode)
+   (esh-latex-add-inline-verb "\\python" 'python-mode)
+   (esh-latex-add-inline-verb "\\cpp" 'c++-mode)
 
 These lines teach ESH about two new inline code delimiters, ``\python`` and
 ``\cpp``.  This lets you use ``\python|yield 1|`` or ``\cpp/*p++ |= *q++/`` in
