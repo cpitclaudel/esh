@@ -92,10 +92,10 @@
 \makeatletter
 % ESHUnderline produces a straight underline
 \DeclareRobustCommand*{\ESHUnderline}[1]
-  {\bgroup\markoverwith{#1\rule[-0.5ex]{2pt}{0.4pt}}\ULon}
+  {\bgroup\markoverwith{#1\rule[-\ULdepth]{2pt}{0.4pt}}\ULon}
 % ESHUnderwave produces a wavy underline
 \DeclareRobustCommand*{\ESHUnderwave}[1]
-  {\bgroup\markoverwith{#1\lower3.5\p@\hbox{\ESHSmallWaveFont\char58}}\ULon}
+  {\bgroup\markoverwith{#1\raisebox{-\ULdepth}{\raisebox{-.5\height}{\ESHSmallWaveFont\char58}}}\ULon}
 \font\ESHSmallWaveFont=lasyb10 scaled 400
 
 % \ESHBoxSep is the vertical padding of \ESHFBox
