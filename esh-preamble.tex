@@ -185,9 +185,9 @@
 %% \input wrappers
 %%%%%%%%%%%%%%%%%%
 
-\DeclareRobustCommand*{\ESHInputInline}[1]{\ESHInline{\input{#1}}}
-\DeclareRobustCommand*{\ESHInputInlineBlock}[1]{\begin{ESHInlineBlock}\input{#1}\end{ESHInlineBlock}}
-\DeclareRobustCommand*{\ESHInputBlock}[1]{\begin{ESHBlock}\input{#1}\end{ESHBlock}}
+\DeclareRobustCommand*{\ESHInputInline}[1]{\ESHInline{\input{#1.esh.tex}\unskip}}
+\DeclareRobustCommand*{\ESHInputInlineBlock}[1]{\begin{ESHInlineBlock}\input{#1.esh.tex}\unskip\end{ESHInlineBlock}}
+\DeclareRobustCommand*{\ESHInputBlock}[1]{\begin{ESHBlock}\input{#1.esh.tex}\unskip\end{ESHBlock}}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% \ESHpv: ESH Precomputed-Verbs support %%
