@@ -367,18 +367,32 @@ EXPORT-FN should do the actual exporting."
   (replace-regexp-in-string
    esh--latex-specials-re #'esh--latex-substitute-special str t t))
 
+(defvar esh--latex-escape-alist nil
+  "Alist of additional ‘char → LaTeX string’ mappings.")
+
+(defun esh-latex-add-unicode-substitution (char-str latex-cmd)
+  "Register an additional ‘unicode char → LaTeX command’ mapping.
+CHAR-STR is a one-character string; LATEX-CMD is a latex command."
+  (unless (and (stringp char-str) (eq (length char-str) 1))
+    (user-error "%S: %S should be a one-character string"
+                'esh-latex-add-unicode-substitution char-str))
+  (add-to-list 'esh--latex-escape-alist (cons (aref char-str 0) latex-cmd)))
+
 (defun esh--latex-escape-1 (char)
   "Escape CHAR for use with pdfLaTeX."
-  (unless (boundp 'esh-latex-escape)
+  (unless (featurep 'esh-latex-escape)
     (load-file (expand-file-name "esh-latex-escape.el" esh--directory)))
-  (with-no-warnings (gethash char esh-latex-escape-table nil)))
+  (with-no-warnings (or (cdr (assq char esh--latex-escape-alist))
+                        (gethash char esh-latex-escape-table nil))))
 
 (defun esh--latex-escape-unicode-char (wrapper char)
   "Replace currently matched CHAR with an equivalent LaTeX command.
 Wrap result in WRAPPER."
   (let* ((translation (esh--latex-escape-1 (aref char 0))))
     (unless translation
-      (error "No LaTeX equivalent found for %S" (char-to-string char)))
+      (error "No LaTeX equivalent found for %S.
+Use (esh-latex-add-unicode-substitution %S %S) to add one"
+             char char "\\someCommand"))
     (format wrapper (format "\\ensuremath{%s}" translation))))
 
 (defvar esh-substitute-unicode-symbols nil
