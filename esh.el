@@ -679,11 +679,15 @@ To work reliably, ESH verb macros must match \\[a-zA-Z]+" verb))
   "Prepare \\ESHpvDefine forms for all records in MAP.
 Records must match the format of `esh--latex-pv-highlighting-map'."
   (with-temp-buffer
-    (let ((verbs (make-hash-table :test #'equal)))
+    (let ((verbs (make-hash-table :test #'equal))
+          (decls (make-hash-table :test #'equal)))
       (pcase-dolist (`(,verb ,code ,tex) map)
         (puthash verb t verbs)
-        (let ((dl (esh--latex-pv-find-delimiter code)))
-          (insert (format esh--latex-pv-push-template verb dl code dl tex))))
+        (let* ((dl (esh--latex-pv-find-delimiter code))
+               (decl (format esh--latex-pv-push-template verb dl code dl tex)))
+          (unless (gethash decl decls) ;; Remove duplicates
+            (puthash decl t decls)
+            (insert decl))))
       (dolist (verb (hash-table-keys verbs))
         (insert (format esh--latex-pv-def-template verb verb))))
     (buffer-string)))
