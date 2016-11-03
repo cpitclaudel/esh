@@ -488,9 +488,9 @@ Puts text property `non-ascii' on non-ascii characters."
                    template))
                 (:weight
                  (format (pcase (esh--normalize-weight-coarse val)
-                           (`light "\\textlf{%s}")
-                           (`regular "\\textmd{%s}")
-                           (`bold "\\textbf{%s}")
+                           (`light "\\ESHWeightLight{%s}")
+                           (`regular "\\ESHWeightRegular{%s}")
+                           (`bold "\\ESHWeightBold{%s}")
                            (_ (error "Unexpected weight %S" val)))
                          template))
                 (:height
@@ -499,9 +499,9 @@ Puts text property `non-ascii' on non-ascii characters."
                    (rel-h (format "\\textscale{%0.2g}{%s}" rel-h template))))
                 (:slant
                  (format (pcase val
-                           (`italic "\\textit{%s}")
-                           (`oblique "\\textsl{%s}")
-                           (`normal "\\textup{%s}")
+                           (`italic "\\ESHSlantItalic{%s}")
+                           (`oblique "\\ESHSlantOblique{%s}")
+                           (`normal "\\ESHSlantNormal{%s}")
                            (_ (error "Unexpected slant %S" val)))
                          template))
                 (:underline

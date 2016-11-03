@@ -113,6 +113,15 @@
    \vphantom{#3}\smash{\fbox{\hspace*{\ESHBoxTempDim}#3\hspace*{\ESHBoxTempDim}}}}
 \makeatother
 
+% \ESHWeight* and \ESHSlant* adjust weight and slant
+\providecommand*{\ESHWeightLight}[1]{\textlf{#1}}
+\providecommand*{\ESHWeightRegular}[1]{\textmd{#1}}
+\providecommand*{\ESHWeightBold}[1]{\textbf{#1}}
+\providecommand*{\ESHInlineSlantItalic}[1]{\textit{#1}}
+\providecommand*{\ESHBlockSlantItalic}[1]{{\itshape{#1}}} % No italic correction
+\providecommand*{\ESHSlantOblique}[1]{\textsl{#1}}
+\providecommand*{\ESHSlantNormal}[1]{\textup{#1}}
+
 % Environments and macros
 %%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -126,14 +135,17 @@
 \let\ESHDash\ignorespaces%
 \DeclareRobustCommand*{\ESHInlineInternalSetup}
   {\def\ESHSpecialChar{\ESHInlineSpecialChar}\def\ESHRaise{\ESHInlineRaise}%
+   \def\ESHSlantItalic{\ESHInlineSlantItalic}%
    \def\ESHStrut{\relax}\def\ESHBol{\relax}\def\ESHEol{\newline}\def\ESHSpace{\ }%
    \def\ESHDash{-}}
 \DeclareRobustCommand*{\ESHInlineBlockInternalSetup}
   {\def\ESHSpecialChar{\ESHBlockSpecialChar}\def\ESHRaise{\ESHBlockRaise}%
+   \def\ESHSlantItalic{\ESHBlockSlantItalic}%
    \setlength{\ESHBaselineskip}{\baselineskip}\def\ESHStrut{\ESHBlockStrut}%
    \def\ESHBol{\-}\def\ESHEol{\cr}\def\ESHSpace{~}\def\ESHDash{\hbox{-}\nobreak}}
 \DeclareRobustCommand*{\ESHBlockInternalSetup}
   {\def\ESHSpecialChar{\ESHBlockSpecialChar}\def\ESHRaise{\ESHBlockRaise}%
+   \def\ESHSlantItalic{\ESHBlockSlantItalic}%
    \setlength{\ESHBaselineskip}{\baselineskip}\def\ESHStrut{\ESHBlockStrut}%
    \def\ESHBol{\-}\def\ESHEol{\newline}\def\ESHSpace{~}\def\ESHDash{\hbox{-}\nobreak}}
 
