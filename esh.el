@@ -45,6 +45,19 @@
 
 ;;; Misc utils
 
+(defun esh--find-auto-mode (fpath)
+  "Find mode for FPATH.
+There's no way to use the standard machinery (`set-auto-mode')
+without also initializing the mode, which prevents us from
+reusing the same buffer to process multiple source files.
+Instead, go through `auto-mode-alist' ourselves."
+  (let ((mode (assoc-default fpath auto-mode-alist 'string-match)))
+    (unless mode
+      (error "No mode found for %S in auto-mode-alist" fpath))
+    (when (consp mode)
+      (error "Unexpected auto-mode spec for %S: %S" mode fpath))
+    mode))
+
 (defun esh--normalize-color (color)
   "Return COLOR as a hex string."
   (unless (member color '("unspecified-fg" "unspecified-bg" "" nil))
@@ -288,7 +301,7 @@ character has an `end-box' property."
   (propertize (format esh--missing-mode-template mode "  ")
               'face 'error 'font-lock-face 'error))
 
-(defvar-local esh--temp-buffers nil
+(defvar esh--temp-buffers nil
   "Alist of (MODE . BUFFER).
 These are temporary buffers, used for highlighting.")
 
@@ -761,13 +774,10 @@ code” pairs (in \\ESHpvDefine form)."
 (defun esh2tex-source-file (source-path)
   "Fontify contents of SOURCE-PATH.
 Return result as a LaTeX string."
-  (with-temp-buffer
-    (insert-file-contents source-path)
-    (set-visited-file-name source-path t)
-    (set-auto-mode)
-    (unwind-protect
-        (esh--export-buffer #'esh--latexify-current-buffer)
-      (set-buffer-modified-p nil))))
+  (let ((mode-fn (esh--find-auto-mode source-path)))
+    (with-current-buffer (esh--make-temp-buffer mode-fn)
+      (insert-file-contents source-path)
+      (esh--export-buffer #'esh--latexify-current-buffer))))
 
 ;;; Producing HTML
 
