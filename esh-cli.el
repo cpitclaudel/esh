@@ -92,8 +92,7 @@
 Output path is computed by appending “.esh.FORMAT” to file name,
 unless `esh-cli--stdout-p' is non-nil.  Warns and skips if PATH
 doesn't end in .FORMAT, unless `esh-cli--standalone-p' is
-non-nil.  If IN-PATH contains the string “.esh-inline.”, it is
-processed as an inline snippet"
+non-nil."
   (let* ((ext (cdr (assoc out-type esh-cli--type-ext-alist)))
          (out-ext-format (cdr (assoc out-type esh-cli--output-ext-alist)))
          (ext-re (format "\\.%s\\'" ext))
@@ -147,9 +146,9 @@ Are you missing --standalone?\n" in-path))
              (setq esh-cli--stdout-p t))
             ("--standalone"
              (setq esh-cli--standalone-p t))
-            ("--make-inline-highighting-map"
+            ("--precompute-verbs-map"
              (unless (eq format 'latex)
-               (error "%s" (esh-cli--unexpected-arg-msg "--make-inline-highighting-map")))
+               (error "%s" (esh-cli--unexpected-arg-msg "--precompute-verbs-map")))
              (setq format 'latex-pv))
             ("--no-preamble"
              (setq write-preamble 'skip))
