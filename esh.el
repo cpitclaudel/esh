@@ -672,8 +672,8 @@ To work reliably, ESH verb macros must match \\[a-zA-Z]+" verb))
           (setq delim char))))
     delim))
 
-(defconst esh--latex-pv-def-template "\\def\\%s{\\ESHpvLookup{%s}}\n")
-(defconst esh--latex-pv-push-template "\\ESHpvDefine{%s}%c%s%c{\\ESHInline{%s}}\n")
+(defconst esh--latex-pv-def-template "\\DeclareRobustCommand*{\\%s}{\\ESHpvLookupVerb{%s}}\n")
+(defconst esh--latex-pv-push-template "\\ESHpvDefineVerb{%s}%c%s%c{\\ESHInline{%s}}\n")
 
 (defun esh--latex-pv-export-latex (map)
   "Prepare \\ESHpvDefine forms for all records in MAP.
