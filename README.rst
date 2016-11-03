@@ -24,7 +24,8 @@ into something like that:
 Curious? Check out our `demo PDF
 <https://github.mit.edu/cpitcla/esh/raw/master/example/reference.pdf>`_ and give
 it a try! Plus, since ESH works with special comments, your documents remain
-compilable by plain LaTeX (see `Collaborating on ESH documents`_ below)
+compatible with plain LaTeX (see `Collaborating with authors who do not use
+ESH`_ below)
 
 Setup
 =====
@@ -120,7 +121,7 @@ Options
   Treat <input> as a standalone source file: don't look for special ``%% ESH``
   comments, highlight the entire file, and save output to ``<input>.esh.tex``.
   This is convenient for longer source code listings, or if your collaborators
-  don't use ESH (see `Collaborating on ESH documents`_ below).
+  don't use ESH (see `Collaborating with authors who do not use ESH`_ below).
 
 * ``--persist``
 
@@ -160,6 +161,12 @@ Options
 
   Write ``esh-preamble.tex`` to current directory.  This option does not require
   specifying an input file.
+
+* ``--precompute-verbs-map``
+
+  Instead of producing a highlighted version of ``<input>``, produce an auxiliary
+  file storing only highlighting information and redefinitions of ``\verb``-like
+  commands. See `Precomputed verb maps`_ below.
 
 * ``--debug-on-error``
 
@@ -207,9 +214,8 @@ These lines teach ESH about two new inline code delimiters, ``\python`` and
 the body of your documents, and have them syntax-highlighted by ``esh2tex`` in
 ``python-mode`` and ``c++-mode`` respectively.
 
-If you want the document to remain compatible with plain ``xelatex``, you can
-trick ``xelatex`` into thinking that ``\python`` and ``\cpp`` are aliases of
-``\verb``:
+If you want the document to remain compatible with plain LaTeX, you can trick
+LaTeX into thinking that ``\python`` and ``\cpp`` are aliases of ``\verb``:
 
 .. code:: latex
 
@@ -228,18 +234,34 @@ To enable it in ESH, add the following to your ``esh-init.el``:
 
    (add-hook '<mode>-hook #'prettify-symbols-mode) ;; lisp-mode, perl-mode...
 
-You'll probably want to use XeLaTeX of LuaLaTeX for this to work well;
-otherwise, ``pdfLaTeX`` will be confused by the Unicode symbols, and probably
-won't find a font to display them anyway.
+``XeLaTeX`` and ``LuaLaTeX`` are generally better at handling Unicode, but if
+you are stuck with ``pdfLaTeX`` we have a workaround (see the `pdfLaTeX tips`_
+section).
 
-You'll probably want to redefine the ``\ESHFallbackFont`` command, too (see
-below); something like this:
+With ``XeLaTeX`` and ``LuaLaTeX``, you'll probably want to redefine the
+``\ESHFallbackFont`` command, too (see below); something like this:
 
 .. code:: latex
 
    \usepackage{fontspec}
    \newfontfamily{\Symbola}{Symbola}
    \newcommand{\ESHFallbackFont}{\Symbola}
+
+Inline blocks
+-------------
+
+By default, ESH blocks work in vertical mode: they start a new paragraph, and
+add vertical space before and after themselves.  If you include them in a
+horizontal box, such as a math formula or a subfloat, LaTeX will complain
+(``something is wrong -- maybe a missing \item?``; think of the difference
+between ``\begin{align}`` and ``\begin{aligned}``).
+
+To get a horizontal-mode "inline" block, use the following syntax::
+
+   %% ESHInlineBlock: <lang>
+   \begin{...}
+     ...
+   \end{...}
 
 Installing extra packages
 -------------------------
@@ -287,9 +309,9 @@ Overriding the ``ESHBlock`` environment:
 .. code:: latex
 
    \newenvironment{ESHBlock}{%
-     \ESHBasicSetup\par\addvspace{\ESHSkip}\ESHFont
+     \par\addvspace{\ESHSkip}\ESHBlockInternalSetup\ESHBlockBasicSetup\hrule\addvspace{0.5em}%
    }{%
-     \par\addvspace{\ESHSkip}
+     \par\addvspace{0.5em}\hrule\addvspace{2\ESHSkip}
    }
 
 All these tricks, and more, are demonstrated in the ``example/example.tex``
@@ -305,8 +327,6 @@ highlight.  To process a plain source file, use the ``--standalone`` option::
 
 This is very useful to collaborate with authors who do not use ESH.
 
-.. _Collaborating on ESH documents:
-
 Collaborating with authors who do not use ESH
 ---------------------------------------------
 
@@ -318,17 +338,23 @@ collaborate with non-ESH users, you can instead use the following setup:
   share this file with your collaborators (check it in your repository, for
   example).
 
-* Do not use special ``% ESH`` comments; instead, save all your code snippets in
-  a separate ``listings`` directory.  In your document, replace code blocks::
+* Do not use special ``% ESH`` comments; instead, save your code snippets as
+  individual files in a separate ``listings`` directory.  In your document,
+  replace code blocks::
 
      %% ESH: c
      \begin{verbatim}
      int main() {...}
      \end{verbatim}
 
-  by ``\input``\s::
+  by ``\ESHInputBlock``\s::
 
-     \input{listings/main.c.esh.tex}
+     \ESHInputBlock{listings/main.c}
+
+  or, if the block appears in a horizontal context (inside of a math formula,
+  for example)::
+
+     \ESHInputInlineBlock{listings/main.c}
 
 * Use ESH to highlight your source files::
 
@@ -336,16 +362,59 @@ collaborate with non-ESH users, you can instead use the following setup:
 
   (this command produces ``listings/main.c.esh.tex``)
 
-* For inline code snippets, use ``\input`` as well; just make sure that the name
-  of your source file includes the string ``esh-inline``.
+* For inline code snippets, use one of the following two approaches:
 
-As long as you share the highlighted source files with your co-authors, they
-won't need to run ESH themselves.
+  + Extract the code to external files, process them with ``--standalone``, and
+    use ``\ESHInputInline{snippet.c}`` to include them.  This approach is very
+    stable, but cumbersome for small snippets.
+
+  + Use a precomputed verbs map.  Keep your inline snippets as usual in your
+    file, make sure that it compiles with the regular ``esh2tex``, then run
+    ``esh2tex --precompute-verbs-map <your-file>.tex`` and ``\input`` the
+    resulting ``<your-file>.esh-pv.tex``.  See `Precomputed verb maps`_ below
+    for more info.
+
+As long as you share the highlighted source files and the ESH preamble with your
+co-authors, they won't need to run ESH themselves.
+
+Precomputed verb maps
+~~~~~~~~~~~~~~~~~~~~~
+
+The ``--precompute-verbs-map`` flag instructs ESH to generate a table mapping
+each code snippet in your original LaTeX file to its highlighted counterpart.
+This table is saved under the name ``<your-file>.esh-pv.tex``.
+``esh-preamble.tex`` includes the required machinery to manipulate these
+mappings, and the generated ``.esh-pv.tex`` file redefines each of your inline
+macros to perform the appropriate lookups.
+
+This works very well as long as your inline snippets are at the top level of
+your file.  If they appear as arguments to another macro, things get tricky
+(remember that you can't have ``\verb`` as an argument to a macro, for
+catcode-related reasons).  In a nutshell, if you use an inline snippet inside
+the argument of another macro, the snippet must contain neither unbalanced
+braces nor ``%`` signs.
+
 
 Using ``esh2tex`` with ``org-mode``
 -----------------------------------
 
 See `README.org-mode.rst <README.org-mode.rst>`_.
+
+pdfLaTeX tips
+-------------
+
+pdfLaTeX is bad at Unicode, but ESH can use its built-in table of (Unicode →
+LaTeX command) mappings to substitute unicode characters before pdfLaTeX can see
+them and get confused.  For this to work, just add the following to your
+``esh-init.el``::
+
+   (setq-default esh-substitute-unicode-symbols t)
+
+If you want to add your own mappings, use the following examples (mappings are
+all in math mode by default:
+
+    (esh-latex-add-unicode-substitution "⧺" "\\doubleplus")
+    (esh-latex-add-unicode-substitution "‽" "\\text{!\!?}")
 
 Fixing font issues
 ------------------
