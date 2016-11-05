@@ -74,9 +74,9 @@
 
 % \ESH*SpecialChar is used to wrap non-ascii characters, which may need a fallback font
 \DeclareRobustCommand*{\ESHInlineSpecialChar}[1]
-  {{\ESHFont\ESHWithFallback{#1}}}
+  {{\ESHInlineFont\ESHWithFallback{#1}}}
 \DeclareRobustCommand*{\ESHBlockSpecialChar}[1]
-  {{\ESHCenterInWidthOf{\ESHFont{a}}{\ESHInlineSpecialChar{#1}}}}
+  {{\ESHCenterInWidthOf{\ESHFont{a}}{\ESHFont\ESHWithFallback{#1}}}}
 
 % \ESH*Raise implements sub/superscripts
 \DeclareRobustCommand*{\ESHInlineRaise}[2]
