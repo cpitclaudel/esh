@@ -15,48 +15,42 @@
 % *Load custom fonts %
 %%%%%%%%%%%%%%%%%%%%%%
 
-\usepackage{iftex}
-
-\ifPDFTeX
-% Minimal pdfLaTeX setup (but you should use XeLaTeX)
-\usepackage[T1]{fontenc}
-\usepackage[utf8]{inputenc}
-\usepackage{lmodern}
 \makeatletter
-% http://tex.stackexchange.com/questions/323570/
-\renewcommand*{\UTFviii@defined}[1]{\ifx#1\relax\textvisiblespace\else\expandafter#1\fi}
+\@ifundefined{XeTeXinterchartoks}{% Minimal pdfLaTeX setup
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{lmodern}
+}{% Regular XeLaTeX setup (recommended)
+  \usepackage{fontspec}
+
+  % Load XITS Math for symbols
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+  % https://github.com/khaledhosny/xits-math/
+  \newfontfamily{\XITSMath}[Path=fonts/,
+                            UprightFont=*.otf,
+                            BoldFont=*bold.otf,
+                            Mapping=tex-ansi]{xits-math}
+
+  % Load Ubuntu Mono for code
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+  % http://font.ubuntu.com/
+  \newfontfamily{\UbuntuMono}[Path=fonts/,
+                              UprightFont=*-R.ttf,
+                              BoldFont=*-B.ttf,
+                              ItalicFont=*-RI.ttf,
+                              BoldItalicFont=*-BI.ttf,
+                              Mapping=tex-ansi]{UbuntuMono}
+
+  % Tell ESH about these fonts
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+  \newcommand{\ESHFont}{\UbuntuMono}
+  \newcommand{\ESHInlineFont}{\UbuntuMono}
+  \newcommand{\ESHFallbackFont}{\XITSMath}
+}
 \makeatother
-
-\else
-\usepackage{fontspec}
-
-% Load XITS Math for symbols
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% https://github.com/khaledhosny/xits-math/
-\newfontfamily{\XITSMath}[Path=fonts/,
-                          UprightFont=*.otf,
-                          BoldFont=*bold.otf,
-                          Mapping=tex-ansi]{xits-math}
-
-% Load Ubuntu Mono for code
-%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% http://font.ubuntu.com/
-\newfontfamily{\UbuntuMono}[Path=fonts/,
-                            UprightFont=*-R.ttf,
-                            BoldFont=*-B.ttf,
-                            ItalicFont=*-RI.ttf,
-                            BoldItalicFont=*-BI.ttf,
-                            Mapping=tex-ansi]{UbuntuMono}
-
-% Tell ESH about these fonts
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-\newcommand{\ESHFont}{\UbuntuMono}
-\newcommand{\ESHInlineFont}{\UbuntuMono}
-\newcommand{\ESHFallbackFont}{\XITSMath}
-\fi
 
 %%%%%%%%%%%%%%%%%%%%%%
 % *Customize spacing %
