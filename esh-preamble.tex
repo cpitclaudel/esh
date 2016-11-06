@@ -76,6 +76,11 @@
   {{\ESHInlineFont\ESHWithFallback{#1}}}
 \DeclareRobustCommand*{\ESHBlockSpecialChar}[1]
   {{\ESHCenterInWidthOf{\ESHFont{a}}{\ESHFont\ESHWithFallback{#1}}}}
+% \ESH*UnicodeSubstitution is for special characters replaced by equivalent math commands
+\DeclareRobustCommand*{\ESHInlineUnicodeSubstitution}[1]
+  {{\ESHInlineFont#1}}
+\DeclareRobustCommand*{\ESHBlockUnicodeSubstitution}[1]
+  {{\ESHCenterInWidthOf{\ESHFont{a}}{\ESHFont#1}}}
 
 % \ESH*Raise implements sub/superscripts
 \DeclareRobustCommand*{\ESHInlineRaise}[2]
@@ -127,6 +132,7 @@
 % Internal plumbing needed to make the same code work with Inline, Block, and
 % InlineBlock.  See http://tex.stackexchange.com/questions/336936/ for details.
 \let\ESHSpecialChar\ignorespaces%
+\let\ESHUnicodeSubstitution\ignorespaces%
 \let\ESHRaise\ignorespaces%
 \let\ESHBol\ignorespaces%
 \let\ESHEol\ignorespaces%
@@ -134,18 +140,18 @@
 \let\ESHDash\ignorespaces%
 \let\ESHSlantItalic\ignorespaces%
 \DeclareRobustCommand*{\ESHInlineInternalSetup}
-  {\def\ESHSpecialChar{\ESHInlineSpecialChar}\def\ESHRaise{\ESHInlineRaise}%
-   \def\ESHSlantItalic{\ESHInlineSlantItalic}%
+  {\def\ESHSpecialChar{\ESHInlineSpecialChar}\def\ESHUnicodeSubstitution{\ESHInlineUnicodeSubstitution}%
+   \def\ESHRaise{\ESHInlineRaise}\def\ESHSlantItalic{\ESHInlineSlantItalic}%
    \def\ESHStrut{\relax}\def\ESHBol{\relax}\def\ESHEol{\newline}\def\ESHSpace{\ }%
    \def\ESHDash{-}}
 \DeclareRobustCommand*{\ESHInlineBlockInternalSetup}
-  {\def\ESHSpecialChar{\ESHBlockSpecialChar}\def\ESHRaise{\ESHBlockRaise}%
-   \def\ESHSlantItalic{\ESHBlockSlantItalic}%
+  {\def\ESHSpecialChar{\ESHBlockSpecialChar}\def\ESHUnicodeSubstitution{\ESHBlockUnicodeSubstitution}%
+   \def\ESHRaise{\ESHBlockRaise}\def\ESHSlantItalic{\ESHBlockSlantItalic}%
    \setlength{\ESHBaselineskip}{\baselineskip}\def\ESHStrut{\ESHBlockStrut}%
    \def\ESHBol{\-}\def\ESHEol{\cr}\def\ESHSpace{~}\def\ESHDash{\hbox{-}\nobreak}}
 \DeclareRobustCommand*{\ESHBlockInternalSetup}
-  {\def\ESHSpecialChar{\ESHBlockSpecialChar}\def\ESHRaise{\ESHBlockRaise}%
-   \def\ESHSlantItalic{\ESHBlockSlantItalic}%
+  {\def\ESHSpecialChar{\ESHBlockSpecialChar}\def\ESHUnicodeSubstitution{\ESHBlockUnicodeSubstitution}%
+   \def\ESHRaise{\ESHBlockRaise}\def\ESHSlantItalic{\ESHBlockSlantItalic}%
    \setlength{\ESHBaselineskip}{\baselineskip}\def\ESHStrut{\ESHBlockStrut}%
    \def\ESHBol{\-}\def\ESHEol{\newline}\def\ESHSpace{~}\def\ESHDash{\hbox{-}\nobreak}}
 

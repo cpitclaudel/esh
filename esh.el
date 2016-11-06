@@ -395,18 +395,18 @@ CHAR-STR is a one-character string; LATEX-CMD is a latex command."
   "Escape CHAR for use with pdfLaTeX."
   (unless (featurep 'esh-latex-escape)
     (load-file (expand-file-name "esh-latex-escape.el" esh--directory)))
-  (with-no-warnings (or (cdr (assq char esh--latex-escape-alist))
-                        (gethash char esh-latex-escape-table nil))))
+  (or (cdr (assq char esh--latex-escape-alist))
+      (let ((repl (gethash char (with-no-warnings esh-latex-escape-table))))
+        (and repl (format "\\ensuremath{%s}" repl)))))
 
-(defun esh--latex-escape-unicode-char (wrapper char)
-  "Replace currently matched CHAR with an equivalent LaTeX command.
-Wrap result in WRAPPER."
+(defun esh--latex-escape-unicode-char (char)
+  "Replace currently matched CHAR with an equivalent LaTeX command."
   (let* ((translation (esh--latex-escape-1 (aref char 0))))
     (unless translation
       (error "No LaTeX equivalent found for %S.
 Use (esh-latex-add-unicode-substitution %S %S) to add one"
              char char "\\someCommand"))
-    (format wrapper (format "\\ensuremath{%s}" translation))))
+    (format "\\ESHUnicodeSubstitution{%s}" translation)))
 
 (defvar esh-substitute-unicode-symbols nil
   "If non-nil, attempt to substitute Unicode symbols in code blocks.
@@ -417,17 +417,14 @@ instead).")
 
 (defun esh--latex-wrap-non-ascii (str)
   "Wrap non-ASCII characters of STR.
-Wraps non-ASCII characters into \\ESH(Block|Inline)SpecialChar{}
-and, if `esh-substitute-unicode-symbols' is non-nil, replace them by their LaTeX
-mathematical equivalents."
+If `esh-substitute-unicode-symbols' is nil, wrap non-ASCII characters into
+\\ESHSpecialChar{}.  Otherwise, replace them by their LaTeX equivalents
+and wrap them in \\ESHUnicodeSubstitution{}."
   ;; TODO benchmark against trivial loop
-  (let* ((range "[^\000-\177]")
-         (wrapper "\\ESHSpecialChar{%s}"))
+  (let* ((range "[^\000-\177]"))
     (if esh-substitute-unicode-symbols
-        (let ((rep (apply-partially #'esh--latex-escape-unicode-char wrapper)))
-          (replace-regexp-in-string range rep str t t))
-      (let ((rep (format (replace-quote wrapper) "\\&")))
-        (replace-regexp-in-string range rep str t)))))
+        (replace-regexp-in-string range #'esh--latex-escape-unicode-char str t t)
+      (replace-regexp-in-string range "\\\\ESHSpecialChar{\\&}" str t))))
 
 (defun esh--mark-non-ascii ()
   "Tag non-ASCII characters of current buffer.
