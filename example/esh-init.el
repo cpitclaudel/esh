@@ -93,7 +93,8 @@
 (eval-and-compile
   ;; Escape unicode symbols when using pdfLaTeX
   (when (getenv "ESH_PDFLATEX")
-    (setq esh-substitute-unicode-symbols t))
+    (setq esh-substitute-unicode-symbols t)
+    (esh-latex-add-unicode-substitution "∷" "\\ensuremath{::}"))
   ;; Disable prettification when using Emacs < 24.5
   (unless (fboundp 'prettify-symbols-mode)
     (fset 'prettify-symbols-mode #'ignore)))

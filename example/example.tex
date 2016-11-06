@@ -10,6 +10,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%
 
 \usepackage[margin=0.8in]{geometry}
+\usepackage{amsmath,amssymb}
 
 %%%%%%%%%%%%%%%%%%%%%%
 % *Load custom fonts %
@@ -20,6 +21,7 @@
   \usepackage[T1]{fontenc}
   \usepackage[utf8]{inputenc}
   \usepackage{lmodern}
+  \usepackage{MnSymbol}
 }{% Regular XeLaTeX setup (recommended)
   \usepackage{fontspec}
 
@@ -68,7 +70,6 @@
 
 % Note the extra pair of braces in the definition, which prevent fonts and
 % settings from affecting subsequent text
-\usepackage{amsmath,amssymb}
 \DeclareRobustCommand*{\ESHInline}[1]{{\ESHInlineInternalSetup\ESHInlineBasicSetup$\langle\,$#1$\,\rangle$}}
 
 % \ESHBlock
