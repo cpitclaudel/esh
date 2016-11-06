@@ -52,25 +52,24 @@
 % ESHText switches out of math mode if needed (textnormal amstext-friendly)
 \DeclareRobustCommand*{\ESHText}[1]{\ifmmode{\textnormal{#1}}\else{#1}\fi}
 
-\RequirePackage{iftex}
-\ifXeTeX
-  % \ESHWithFallback{#A} prints #A in the current font if possible, falling back to \ESHFallbackFont
-  % Adapted from https://tug.org/pipermail/xetex/2011-November/022319.html
-  \def\ESHWithFallback#1{%
-    \begingroup
-      \def\found{#1}%
-      \def\notfound{\ESHFallbackFont#1}%
-      \ifnum\XeTeXfonttype\font>0%
-        \ifnum\XeTeXcharglyph`#1>0\found\else\notfound\fi
-      \else
-        \setbox0=\hbox{\tracinglostchars=0\kern1sp#1\expandafter}%
-        \ifnum\lastkern=1\notfound\else\found\fi
-      \fi
-    \endgroup}
-\else
-  % Fall back to just using \ESHFallbackFont
-  \def\ESHWithFallback#1{\ESHFallbackFont#1}
-\fi
+\makeatletter
+\@ifundefined{XeTeXinterchartoks}
+  {% Not using XeTeX: fall back to just using \ESHFallbackFont
+   \def\ESHWithFallback#1{\ESHFallbackFont#1}}
+  {% \ESHWithFallback{#A} prints #A in the current font if possible, falling back to \ESHFallbackFont
+   % Adapted from https://tug.org/pipermail/xetex/2011-November/022319.html
+   \def\ESHWithFallback#1{%
+     \begingroup
+       \def\found{#1}%
+       \def\notfound{\ESHFallbackFont#1}%
+       \ifnum\XeTeXfonttype\font>0%
+         \ifnum\XeTeXcharglyph`#1>0\found\else\notfound\fi
+       \else
+         \setbox0=\hbox{\tracinglostchars=0\kern1sp#1\expandafter}%
+         \ifnum\lastkern=1\notfound\else\found\fi
+       \fi
+     \endgroup}}
+\makeatother
 
 % \ESH*SpecialChar is used to wrap non-ascii characters, which may need a fallback font
 \DeclareRobustCommand*{\ESHInlineSpecialChar}[1]
