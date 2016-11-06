@@ -8,6 +8,7 @@
 ;; Register a few inline macros ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(require 'esh)
 (esh-latex-add-inline-verb "\\cverb" 'c-mode)
 (esh-latex-add-inline-verb "\\javaverb" 'java-mode)
 (esh-latex-add-inline-verb "\\pythonverb" 'python-mode)
@@ -36,7 +37,7 @@
 ;;; Haskell
 
 (require 'haskell nil t)
-(setq-default haskell-font-lock-symbols (not (getenv "ESH_PDFLATEX")))
+(setq-default haskell-font-lock-symbols t)
 
 ;;; Racket
 
@@ -90,10 +91,9 @@
 ;;;;;;;;;;;;;;;;;;;
 
 (eval-and-compile
+  ;; Escape unicode symbols when using pdfLaTeX
+  (when (getenv "ESH_PDFLATEX")
+    (setq esh-substitute-unicode-symbols t))
   ;; Disable prettification when using Emacs < 24.5
   (unless (fboundp 'prettify-symbols-mode)
-    (fset 'prettify-symbols-mode #'ignore))
-  ;; Disable prettification when using pdfLaTeX
-  (when (getenv "ESH_PDFLATEX")
-    (fset 'prettify-symbols-mode #'ignore)
-    (setq-default haskell-font-lock-symbols nil)))
+    (fset 'prettify-symbols-mode #'ignore)))
