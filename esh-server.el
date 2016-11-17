@@ -118,16 +118,16 @@ Create an invisible frame on DISPLAY after loading INIT-INFO,
 which should be a cons of (INIT-FPATH . CLIENT-PROVIDED-DATA).
 No error checking here; we expect this to be invoked through
 `esh-server-eval'."
-  (setq esh-server-init-info init-info)
   (setq-default load-prefer-newer t)
   (setq-default text-quoting-style 'grave)
   (let ((init-fpath (car init-info)))
     (when init-fpath
       (let ((esh-server-initializing t))
         (load-file init-fpath))))
-  (ignore (setq esh--server-frame
-                (make-frame `((display . ,display)
-                              (visibility . nil))))))
+  (setq esh--server-frame
+        (make-frame `((display . ,display)
+                      (visibility . nil))))
+  (ignore (setq esh-server-init-info init-info)))
 
 (defun esh-server--process-to-str (in-path in-type out-type)
   "Process IN-PATH, IN-TYPE, OUT-TYPE; return a string."
