@@ -68,7 +68,7 @@
                                             (,fonts-dir . "fonts")))
       (make-directory dst-dir t)
       (dolist (fname (directory-files src-dir))
-        (unless (file-directory-p fname)
+        (unless (or (file-directory-p fname) (file-exists-p fname))
           (copy-file (expand-file-name fname src-dir)
                      (expand-file-name fname dst-dir)))))
     (with-temp-file "Makefile"
