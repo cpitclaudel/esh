@@ -699,8 +699,9 @@ Records must match the format of `esh--latex-pv-highlighting-map'."
           (unless (gethash decl decls) ;; Remove duplicates
             (puthash decl t decls)
             (insert decl))))
-      (dolist (verb (hash-table-keys verbs))
-        (insert (format esh--latex-pv-def-template verb verb))))
+      (maphash (lambda (verb _)
+                 (insert (format esh--latex-pv-def-template verb verb)))
+               verbs))
     (buffer-string)))
 
 (defun esh--latexify-do-inline-macros ()
