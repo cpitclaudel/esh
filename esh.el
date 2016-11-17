@@ -139,6 +139,11 @@ call signature, and a workaround for an Emacs bug."
   (when (eq (char-before) ?\n)
     (delete-char -1)))
 
+(defun esh--insert-file-contents (fname)
+  "Like (`insert-file-contents' FNAME), but allow all local variables."
+  (let ((enable-local-variables :all))
+    (insert-file-contents fname)))
+
 ;;; Segmenting a buffer
 
 (defun esh--buffer-ranges-from (start prop)
@@ -759,7 +764,7 @@ Latexify sources in environments delimited by
 (defun esh2tex-tex-file (path)
   "Fontify contents of all ESH environments in PATH."
   (with-temp-buffer
-    (insert-file-contents path)
+    (esh--insert-file-contents path)
     (esh2tex-current-buffer)
     (buffer-string)))
 
@@ -769,7 +774,7 @@ Return a document consisting of “snippet → highlighted
 code” pairs (in \\ESHpvDefine form)."
   (let ((esh--latex-pv t))
     (with-temp-buffer
-      (insert-file-contents path)
+      (esh--insert-file-contents path)
       (esh2tex-current-buffer)
       (esh--latex-pv-export-latex esh--latex-pv-highlighting-map))))
 
@@ -778,7 +783,7 @@ code” pairs (in \\ESHpvDefine form)."
 Return result as a LaTeX string."
   (let ((mode-fn (esh--find-auto-mode source-path)))
     (with-current-buffer (esh--make-temp-buffer mode-fn)
-      (insert-file-contents source-path)
+      (esh--insert-file-contents source-path)
       (esh--export-buffer #'esh--latexify-current-buffer))))
 
 ;;; Producing HTML
@@ -980,7 +985,7 @@ Highlight sources in any environments containing a class matching
 (defun esh2html-html-file (path)
   "Fontify contents of all ESH environments in PATH."
   (with-temp-buffer
-    (insert-file-contents path)
+    (esh--insert-file-contents path)
     (esh2html-current-buffer)
     (buffer-string)))
 
