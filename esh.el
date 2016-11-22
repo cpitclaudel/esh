@@ -368,6 +368,7 @@ EXPORT-FN should do the actual exporting."
 
 (eval-and-compile
   (defvar esh--latex-specials
+    ;; http://tex.stackexchange.com/questions/67997/escaped-characters-in-typewriter-font/68002#68002
     '((?$ . "\\$") (?% . "\\%") (?& . "\\&") (?{ . "\\{") (?} . "\\}") (?_ . "\\_") (?# . "\\#")
       (?` . "{`}") (?' . "{'}") (?< . "{<}") (?> . "{>}") ;; A few ligatures
       (?\\ . "\\textbackslash{}") (?^ . "\\textasciicircum{}") (?~ . "\\textasciitilde{}")

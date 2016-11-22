@@ -22,17 +22,29 @@
 % Fonts
 %%%%%%%
 
-% \ESHFont is for code blocks
-\providecommand*{\ESHFont}{\ttfamily}
+% Code blocks
+\providecommand*{\ESHFontSize}{}
+\providecommand*{\ESHFontFamily}{\ttfamily}
+\providecommand*{\ESHFont}{\ESHFontSize\ESHFontFamily}
 
-% \ESHInlineFont is for inline code samples
-\providecommand*{\ESHInlineFont}{\ESHFont}
+% Inline snippets
+\providecommand*{\ESHInlineFontSize}{\ESHFontSize}
+\providecommand*{\ESHInlineFontFamily}{\ESHFontFamily}
+\providecommand*{\ESHInlineFont}{\ESHInlineFontSize\ESHInlineFontFamily}
 
-% \ESHInlineBlockFont is for inline code blocks
-\providecommand*{\ESHInlineBlockFont}{\ESHFont}
+% Inline blocks
+\providecommand*{\ESHInlineBlockFontSize}{\ESHFontSize}
+\providecommand*{\ESHInlineBlockFontFamily}{\ESHFontFamily}
+\providecommand*{\ESHInlineBlockFont}{\ESHInlineBlockFontSize\ESHInlineBlockFontFamily}
 
-% \ESHFallbackFont is for characters not covered by \ESHFont (XeTeX/LuaTeX only)
-\providecommand*{\ESHFallbackFont}{\ESHFont}
+% Blocks
+\providecommand*{\ESHBlockFontSize}{\ESHFontSize}
+\providecommand*{\ESHBlockFontFamily}{\ESHFontFamily}
+\providecommand*{\ESHBlockFont}{\ESHBlockFontSize\ESHBlockFontFamily}
+
+% Characters not covered by \ESHFont (XeTeX/LuaTeX only)
+\providecommand*{\ESHFallbackFontFamily}{\ESHFontFamily}
+\providecommand*{\ESHFallbackFont}{\ESHFallbackFontFamily}
 
 % Utils
 %%%%%%%
@@ -73,14 +85,14 @@
 
 % \ESH*SpecialChar is used to wrap non-ascii characters, which may need a fallback font
 \DeclareRobustCommand*{\ESHInlineSpecialChar}[1]
-  {{\ESHInlineFont\ESHWithFallback{#1}}}
+  {{\ESHInlineFontFamily\ESHWithFallback{#1}}}
 \DeclareRobustCommand*{\ESHBlockSpecialChar}[1]
-  {{\ESHCenterInWidthOf{\ESHFont{a}}{\ESHFont\ESHWithFallback{#1}}}}
+  {{\ESHCenterInWidthOf{\ESHBlockFontFamily{a}}{\ESHBlockFontFamily\ESHWithFallback{#1}}}}
 % \ESH*UnicodeSubstitution is for special characters replaced by equivalent math commands
 \DeclareRobustCommand*{\ESHInlineUnicodeSubstitution}[1]
-  {{\ESHInlineFont#1}}
+  {{\ESHInlineFontFamily#1}}
 \DeclareRobustCommand*{\ESHBlockUnicodeSubstitution}[1]
-  {{\ESHCenterInWidthOf{\ESHFont{a}}{\ESHFont#1}}}
+  {{\ESHCenterInWidthOf{\ESHBlockFontFamily{a}}{\ESHBlockFontFamily#1}}}
 \DeclareRobustCommand*{\ESHMathSymbol}[1]{\ensuremath{#1}}
 
 % \ESH*Raise implements sub/superscripts
@@ -165,18 +177,25 @@
   {\ESHNoHyphens\ESHInlineBlockFont\ESHConstantSpace}
 \providecommand*{\ESHBlockBasicSetup}
   {\setlength{\parindent}{0pt}\raggedright\ESHNoHyphens%
-   \ESHFont\ESHConstantSpace}
+   \ESHBlockFont\ESHConstantSpace}
+
+% ESH*Hook is used to inject code before every ESH segment
+\providecommand*{\ESHHook}{}
+\providecommand*{\ESHInlineHook}{\ESHHook}
+\providecommand*{\ESHInlineBlockHook}{\ESHHook}
+\providecommand*{\ESHBlockHook}{\ESHHook}
 
 \makeatletter
 % \ESHInline is used for inline code
 % Note the extra pair of braces in the definition
 \@ifundefined{ESHInline}
-  {\DeclareRobustCommand*{\ESHInline}[1]{{\ESHText{\ESHInlineInternalSetup\ESHInlineBasicSetup#1}}}}{}
+  {\DeclareRobustCommand*{\ESHInline}[1]
+     {{\ESHText{\ESHInlineInternalSetup\ESHInlineBasicSetup\ESHInlineHook#1}}}}{}
 
 % \ESHInlineBlock is used for inline code blocks
 \@ifundefined{ESHInlineBlock}
   {\newenvironment{ESHInlineBlock}
-     {\ESHInlineBlockInternalSetup\ESHInlineBlockBasicSetup\begin{tabular}{@{}l@{}}}
+     {\ESHInlineBlockInternalSetup\ESHInlineBlockBasicSetup\ESHInlineBlockHook\begin{tabular}{@{}l@{}}}
      {\end{tabular}}}{}
 
 % \ESHSkip is the amount to skip before and after an \ESHBlock
@@ -185,7 +204,7 @@
 % \ESHBlock is used for code blocks
 \@ifundefined{ESHBlock}
   {\newenvironment{ESHBlock}
-     {\par\addvspace{\ESHSkip}\ESHBlockInternalSetup\ESHBlockBasicSetup}
+     {\par\addvspace{\ESHSkip}\ESHBlockInternalSetup\ESHBlockBasicSetup\ESHBlockHook}
      {\par\addvspace{\ESHSkip}}}{}
 \makeatother
 
