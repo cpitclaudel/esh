@@ -610,10 +610,11 @@ lines in inline blocks."
   (let* ((str (mapconcat #'esh--latexify-span (esh--buffer-ranges) "")))
     (esh--latexify-protect-eols (esh--latexify-protect-bols str))))
 
-(defvar esh-latexify-block-envs
-  `(("^[ \t]*%%[ \t]*\\(ESH\\(?:InlineBlock\\)?\\): \\([^ \t\n]+\\)[ \t]*\n[ \t]*\\\\begin{\\([^}]+\\)}.*\n" .
-     ,(lambda () (concat "^[ \t]*\\\\end{" (match-string 3) "}"))))
-  "Alist of replaceable environments.")
+(defvar esh--latexify-block-env-re
+  (concat "^[ \t]*%%[ \t]*\\(ESH\\(?:InlineBlock\\)?\\): \\([^ \t\n]+\\)[ \t]*\n[ \t]*\\\\begin{\\([^}]+\\)}.*\n"
+          "\\([^\0]+?\\)\n"
+          "[ \t]*\\\\end{\\3}")
+  "Regexp matching replaceable environments.")
 
 (defun esh--latexify-inline-verb-matcher (re)
   "Search for a \\verb-like delimiter from point.
@@ -732,26 +733,18 @@ Records must match the format of `esh--latex-pv-highlighting-map'."
 
 (defun esh--latexify-do-block-envs ()
   "Latexify sources in esh block environments."
-  (pcase-dolist (`(,start-marker . ,end-marker-function) esh-latexify-block-envs)
-    (goto-char (point-min))
-    (while (re-search-forward start-marker nil t)
-      (when (string= "" (match-string-no-properties 2))
-        (error "Invalid ESH header: %S" (match-string-no-properties 0)))
-      (let* ((block-start (match-beginning 0))
-             (code-start (match-end 0))
-             (mode-fn (esh--resolve-mode-fn (match-string-no-properties 2)))
-             (block-template (pcase (match-string-no-properties 1)
-                               ("ESH" esh--latexify-block-template)
-                               ("ESHInlineBlock" esh--latexify-inline-block-template))))
-        ;; FIXME why not use a plain regexp here?
-        (re-search-forward (funcall end-marker-function))
-        (let* ((code-end (match-beginning 0))
-               (block-end (match-end 0))
-               (code (buffer-substring-no-properties code-start code-end))
-               (tex (esh--export-str code mode-fn #'esh--latexify-current-buffer)))
-          (goto-char block-start)
-          (delete-region block-start block-end)
-          (insert (format block-template tex)))))))
+  (goto-char (point-min))
+  (while (re-search-forward esh--latexify-block-env-re nil t)
+    (when (string= "" (match-string-no-properties 2))
+      (error "Invalid ESH header: %S" (match-string-no-properties 0)))
+    (let* ((code (match-string-no-properties 4))
+           (mode-fn (esh--resolve-mode-fn (match-string-no-properties 2)))
+           (block-template (pcase (match-string-no-properties 1)
+                             ("ESH" esh--latexify-block-template)
+                             ("ESHInlineBlock" esh--latexify-inline-block-template))))
+      (delete-region (match-beginning 0) (match-end 0))
+      (let* ((tex (esh--export-str code mode-fn #'esh--latexify-current-buffer)))
+        (insert (format block-template tex))))))
 
 (defun esh2tex-current-buffer ()
   "Fontify contents of all ESH environments.
