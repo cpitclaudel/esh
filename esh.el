@@ -404,7 +404,7 @@ CHAR-STR is a one-character string; LATEX-CMD is a latex command."
     (load-file (expand-file-name "esh-latex-escape.el" esh--directory)))
   (or (cdr (assq char esh--latex-escape-alist))
       (let ((repl (gethash char (with-no-warnings esh-latex-escape-table))))
-        (and repl (format "\\ensuremath{%s}" repl)))))
+        (and repl (format "\\ESHMathSymbol{%s}" repl)))))
 
 (defun esh--latex-escape-unicode-char (char)
   "Replace currently matched CHAR with an equivalent LaTeX command."
