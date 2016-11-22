@@ -552,6 +552,8 @@ Puts text property `non-ascii' on non-ascii characters."
                (pcase val
                  (`(raise ,amount)
                   (esh--latexify-raise template amount))
+                 ((pred stringp)
+                  (setq latex-str val))
                  (_ (error "Unexpected display property %S" val)))))
         (`invisible
          ;; FIXME remove template too?
@@ -883,6 +885,8 @@ NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
            (`(raise ,amount)
             (setq raised t) ;;FIXME handle amount > 0 case
             (push (format "bottom: %gem" amount) styles))
+           ((pred stringp)
+            (setq text val))
            (_ (error "Unexpected display property %S" val))))
         (`invisible
          (when val (setq text "")))
