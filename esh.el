@@ -343,11 +343,13 @@ the required mode isn't available."
 ;;     (unless (eq (char-before) ?\n)
 ;;       (insert "\n"))))
 
-(defvar esh-post-highlight-hook nil) ;; FIXME document this
+(defvar esh-pre-highlight-hook nil)
+(defvar esh-post-highlight-hook nil) ;; FIXME document these
 
 (defun esh--export-buffer (export-fn)
   "Refontify current buffer, then invoke EXPORT-FN.
 EXPORT-FN should do the actual exporting."
+  (run-hook-with-args 'esh-pre-highlight-hook)
   (esh--font-lock-ensure)
   (run-hook-with-args 'esh-post-highlight-hook)
   (funcall export-fn))
