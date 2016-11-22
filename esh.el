@@ -750,7 +750,7 @@ Records must match the format of `esh--latex-pv-highlighting-map'."
   "Fontify contents of all ESH environments.
 Latexify sources in environments delimited by
 `esh-latexify-block-envs' and user-defined inline groups."
-  (interactive "P")
+  (interactive)
   (save-excursion
     (unwind-protect
         (progn
