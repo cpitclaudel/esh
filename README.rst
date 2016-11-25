@@ -284,17 +284,18 @@ Changing fonts:
 
 .. code:: latex
 
+   \usepackage{fontspec}
+
    ;; Use a roman font for code blocks
-   \newcommand{\ESHFont}{\textrm}
+   \newcommand{\ESHBlockFontFamily}{\textrm}
 
    ;; Use Ubuntu Mono for inline code
    \newfontfamily{\UbuntuMono}[Mapping=tex-ansi]{Ubuntu Mono}
-   \newcommand{\ESHInlineFont}{\UbuntuMono}
+   \newcommand{\ESHInlineFontFamily}{\UbuntuMono}
 
    ;; Use Symbola for special characters
-   \usepackage{fontspec}
    \newfontfamily{\Symbola}{Symbola}
-   \newcommand{\ESHFallbackFont}{\Symbola}
+   \newcommand{\ESHFallbackFontFamily}{\Symbola}
 
 Customizing spacing:
 
@@ -410,25 +411,24 @@ them and get confused.  For this to work, just add the following to your
 
    (setq-default esh-substitute-unicode-symbols t)
 
-If you want to add your own mappings, use the following examples (mappings are
-all in math mode by default:
+If you want to add your own mappings, use the following examples:
 
-    (esh-latex-add-unicode-substitution "⧺" "\\doubleplus")
-    (esh-latex-add-unicode-substitution "‽" "\\text{!\!?}")
+    (esh-latex-add-unicode-substitution "∷" "\\ensuremath{::}")
+    (esh-latex-add-unicode-substitution "‽" "!\!?")
 
 Fixing font issues
 ------------------
 
 If you're having font issues, try switching to XeLaTeX or LuaLaTeX.  ESH wraps
 each non-ASCII character in an ``\ESHSpecialChar{}`` command, which internally
-uses ``\ESHFallbackFont``: you may want to redefine that to a font with good
-Unicode coverage:
+uses ``\ESHFallbackFont`` (by default, this is an alias of ``\ESHFontFamily``).
+You may want to redefine that to a font with good Unicode coverage:
 
 .. code:: latex
 
    \usepackage{fontspec}
    \newfontfamily{\XITSMath}{XITS Math}
-   \newcommand{\ESHFallbackFont}{\XITSMath}
+   \newcommand{\ESHFallbackFontFamily}{\XITSMath}
 
 Using a different version of Emacs
 ----------------------------------
