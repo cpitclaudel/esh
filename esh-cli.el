@@ -63,7 +63,6 @@
         (fonts-dir (expand-file-name "example/fonts" esh-cli--esh-directory))
         (esh2tex (expand-file-name "bin/esh2tex" esh-cli--esh-directory))
         (esh2html (expand-file-name "bin/esh2html" esh-cli--esh-directory)))
-    (esh-cli--write-preamble)
     (pcase-dolist (`(,src-dir . ,dst-dir) `((,template-dir . "")
                                             (,fonts-dir . "fonts")))
       (make-directory dst-dir t)
@@ -150,8 +149,6 @@ Are you missing --standalone?\n" in-path))
              (unless (eq format 'latex)
                (error "%s" (esh-cli--unexpected-arg-msg "--precompute-verbs-map")))
              (setq format 'latex-pv))
-            ("--no-preamble"
-             (setq write-preamble 'skip))
             ("--write-preamble"
              (setq write-preamble t)
              (setq complain-about-missing-input nil))
@@ -162,11 +159,10 @@ Are you missing --standalone?\n" in-path))
              (when (or (and argv esh-cli--stdout-p) (string-match-p "\\`--" arg))
                (error "%s" (esh-cli--unexpected-arg-msg arg)))
              (setq complain-about-missing-input nil)
-             (setq write-preamble (or write-preamble t))
              (esh-cli--process-one arg format))))
         (when complain-about-missing-input
           (error "No input files given"))
-        (when (eq write-preamble t)
+        (when write-preamble
           (esh-cli--write-preamble)))
     (unless esh-cli--persist
       (esh-client-kill-server))))

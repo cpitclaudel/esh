@@ -48,7 +48,7 @@ In ``minimal.tex``, put the following:
 .. code:: latex
 
    \documentclass{minimal}
-   \input{esh-preamble}
+   %% ESH-preamble-here
 
    \begin{document}
      %% ESH: c
@@ -89,13 +89,11 @@ In ``<input>``, you may indicate source blocks like this:
 will do, as long as it ends in ``mode``); the name of the environment (``...``)
 does not matter.
 
-Additionally, ``<input>`` should load ESH's preamble before ``\begin{document}``
-(the actual ``esh-preamble.tex`` is created automatically by ``esh2tex``):
+Additionally, ``<input>`` should load ESH's preamble before ``\begin{document}``.
+For simple documents, adding the following special comment to your preamble is
+enough (``esh2tex`` will replace it by appropriate set-up code)::
 
-.. code:: latex
-
-   \input{esh-preamble}
-
+    %% ESH-preamble-here
 
 ``esh2tex`` does not load your personal Emacs configuration (though see
 ``--no-Q``); instead, it looks for a file named ``esh-init.el`` in the current
@@ -151,11 +149,6 @@ Options
   regular Emacs that can prevent your Emacs configuration from loading properly.
   In general, it's much better to extract just what you need from your
   ``.emacs`` and put it in an ``esh-init.el``, as described below.
-
-* ``--no-preamble``
-
-  Do not write or overwrite ``esh-preamble.tex``.  By default, ``esh2tex``
-  recreates ``esh-preamble.tex`` on every run.
 
 * ``--write-preamble``
 
@@ -278,7 +271,8 @@ dependencies.
 Customizing the output
 ----------------------
 
-All customizations should be done **before** ``\input{esh-preamble}``.
+All customizations should be placed **before** the ``%% ESH-preamble-here`` line
+(or the explicit ``\input{esh-preamble}``).
 
 Changing fonts:
 
@@ -335,9 +329,10 @@ ESH documents can be compiled using plain ``xelatex`` or ``pdflatex``, but then
 they won't be highlighted, and there might be small spacing differences.  To
 collaborate with non-ESH users, you can instead use the following setup:
 
-* In your main document, include ``\input{esh-preamble}``.  Make sure to
-  share this file with your collaborators (check it in your repository, for
-  example).
+* In your main document, replace the ``%% ESH-preamble-here`` line with
+  ``\input{esh-preamble}`` and run ``esh2tex --write-preamble`` to save a local
+  copy of ESH's preamble.  Make sure to share this file with your collaborators
+  (check it in your repository, for example).
 
 * Do not use special ``% ESH`` comments; instead, save your code snippets as
   individual files in a separate ``listings`` directory.  In your document,

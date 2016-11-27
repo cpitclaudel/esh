@@ -611,6 +611,20 @@ lines in inline blocks."
   (let* ((str (mapconcat #'esh--latexify-span (esh--buffer-ranges) "")))
     (esh--latexify-protect-eols (esh--latexify-protect-bols str))))
 
+(defun esh--latex-preamble ()
+  "Read ESH's LaTeX preamble from disk."
+  (with-temp-buffer
+    (insert-file-contents (expand-file-name "esh-preamble.tex" esh--directory))
+    (buffer-substring-no-properties (point-min) (point-max))))
+
+(defvar esh--latexify-preamble-marker "^%%[ \t]*ESH-preamble-here[ \t]*$")
+
+(defun esh--latexify-add-preamble ()
+  "Expand `esh--latexify-preamble-marker', if present."
+  (goto-char (point-min))
+  (if (re-search-forward esh--latexify-preamble-marker nil t)
+      (replace-match (replace-quote (esh--latex-preamble)) t)))
+
 (defvar esh--latexify-block-env-re
   (concat "^[ \t]*%%[ \t]*\\(ESH\\(?:InlineBlock\\)?\\): \\([^ \t\n]+\\)[ \t]*\n[ \t]*\\\\begin{\\([^}]+\\)}.*\n"
           "\\([^\0]+?\\)\n"
@@ -749,12 +763,13 @@ Records must match the format of `esh--latex-pv-highlighting-map'."
 
 (defun esh2tex-current-buffer ()
   "Fontify contents of all ESH environments.
-Latexify sources in environments delimited by
+Replace the ESH-Latexify sources in environments delimited by
 `esh-latexify-block-envs' and user-defined inline groups."
   (interactive)
   (save-excursion
     (unwind-protect
         (progn
+          (esh--latexify-add-preamble)
           (esh--latexify-do-inline-macros)
           (esh--latexify-do-block-envs))
       (esh--kill-temp-buffers))))
