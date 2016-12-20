@@ -416,6 +416,10 @@ Use (esh-latex-add-unicode-substitution %S %S) to add one"
              char char "\\someCommand"))
     (format "\\ESHUnicodeSubstitution{%s}" translation)))
 
+(defun esh--latex-wrap-special-char (char)
+  "Wrap CHAR in \\ESHSpecialChar{…}."
+  (format "\\ESHSpecialChar{%s}" char))
+
 (defvar esh-substitute-unicode-symbols nil
   "If non-nil, attempt to substitute Unicode symbols in code blocks.
 Symbols are replaced by their closest LaTeX equivalent.  This
@@ -432,7 +436,7 @@ and wrap them in \\ESHUnicodeSubstitution{}."
   (let* ((range "[^\000-\177]"))
     (if esh-substitute-unicode-symbols
         (replace-regexp-in-string range #'esh--latex-escape-unicode-char str t t)
-      (replace-regexp-in-string range "\\\\ESHSpecialChar{\\&}" str t))))
+      (replace-regexp-in-string range #'esh--latex-wrap-special-char str t t))))
 
 (defun esh--mark-non-ascii ()
   "Tag non-ASCII characters of current buffer.
