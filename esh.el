@@ -624,11 +624,28 @@ lines in inline blocks."
   (if (re-search-forward esh--latexify-preamble-marker nil t)
       (replace-match (replace-quote (esh--latex-preamble)) t)))
 
-(defvar esh--latexify-block-env-re
-  (concat "^[ \t]*%%[ \t]*\\(ESH\\(?:InlineBlock\\)?\\): \\([^ \t\n]+\\)[ \t]*\n[ \t]*\\\\begin{\\([^}]+\\)}.*\n"
-          "\\([^\0]+?\\)\n"
-          "[ \t]*\\\\end{\\3}")
-  "Regexp matching replaceable environments.")
+(defconst esh--latex-block-begin
+  (concat "^[ \t]*%%[ \t]*\\(ESH\\(?:InlineBlock\\)?\\): \\([^ \t\n]+\\)[ \t]*\n"
+          "[ \t]*\\\\begin{\\(.+?\\)}.*\n"))
+
+(defconst esh--latex-block-end
+  "\n[ \t]*\\\\end{%s}")
+
+(defun esh--latex-match-block ()
+  "Find the next ESH block, if any."
+  (when (re-search-forward esh--latex-block-begin nil t)
+    (let* ((beg (match-beginning 0))
+           (code-beg (match-end 0))
+           (block-type (match-string-no-properties 1))
+           (mode (match-string-no-properties 2))
+           (env (match-string-no-properties 3))
+           (end-re (format esh--latex-block-end (regexp-quote env))))
+      (when (string= "" mode)
+        (error "Invalid ESH header: %S" (match-string-no-properties 0)))
+      (when (re-search-forward end-re nil t)
+        (let* ((code-end (match-beginning 0))
+               (code (buffer-substring-no-properties code-beg code-end)))
+          (list block-type mode code beg (match-end 0)))))))
 
 (defun esh--latexify-inline-verb-matcher (re)
   "Search for a \\verb-like delimiter from point.
@@ -745,20 +762,21 @@ Records must match the format of `esh--latex-pv-highlighting-map'."
              (esh--latex-pv-record-snippet cmd code tex)
              (insert (format esh--latexify-inline-template tex)))))))))
 
+(defconst esh--latex-block-templates
+  `(("ESH" . ,esh--latexify-block-template)
+    ("ESHInlineBlock" . ,esh--latexify-inline-block-template)))
+
 (defun esh--latexify-do-block-envs ()
   "Latexify sources in esh block environments."
   (goto-char (point-min))
-  (while (re-search-forward esh--latexify-block-env-re nil t)
-    (when (string= "" (match-string-no-properties 2))
-      (error "Invalid ESH header: %S" (match-string-no-properties 0)))
-    (let* ((code (match-string-no-properties 4))
-           (mode-fn (esh--resolve-mode-fn (match-string-no-properties 2)))
-           (block-template (pcase (match-string-no-properties 1)
-                             ("ESH" esh--latexify-block-template)
-                             ("ESHInlineBlock" esh--latexify-inline-block-template))))
-      (delete-region (match-beginning 0) (match-end 0))
-      (let* ((tex (esh--export-str code mode-fn #'esh--latexify-current-buffer)))
-        (insert (format block-template tex))))))
+  (let ((match nil))
+    (while (setq match (esh--latex-match-block))
+      (pcase-let* ((`(,block-type ,mode-str ,code ,beg ,end) match)
+                   (mode-fn (esh--resolve-mode-fn mode-str))
+                   (template (cdr (assoc block-type esh--latex-block-templates))))
+        (delete-region beg end)
+        (let* ((tex (esh--export-str code mode-fn #'esh--latexify-current-buffer)))
+          (insert (format template tex)))))))
 
 (defun esh2tex-current-buffer ()
   "Fontify contents of all ESH environments.
