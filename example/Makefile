@@ -1,19 +1,27 @@
-CASK := $(shell command -v cask 2> /dev/null)
+ESH2TEX := $(realpath ../bin/esh2tex)
+ESH2HTML := $(realpath ../bin/esh2html)
 ARGS ?=
+
+ifeq ($(OS),Windows_NT)
+CASK := $(shell cask --version 2> NUL)
+else
+CASK := $(shell command -v cask 2> /dev/null)
+endif
 
 .PHONY: all xelatex pdflatex dep clean reference
 
 all: xelatex
 
 html: dep example.tex
-	../bin/esh2html --debug-on-error ${ARGS} example.html
+	${ESH2HTML} --debug-on-error ${ARGS} example.html
 
 xelatex: dep example.tex
-	../bin/esh2tex --debug-on-error ${ARGS} example.tex
+	${ESH2TEX} --debug-on-error ${ARGS} example.tex
 	xelatex -jobname=example example.esh.tex
 
 pdflatex: dep example.tex
-	env ESH_PDFLATEX=true ../bin/esh2tex --debug-on-error ${ARGS} example.tex
+	$(info >> This Makefile rule does not work on non-Cygwin Windows <<)
+	env ESH_PDFLATEX=true ${ESH2TEX} --debug-on-error ${ARGS} example.tex
 	pdflatex -jobname=example example.esh.tex
 
 dep:
@@ -22,7 +30,7 @@ ifndef CASK
 	$(warning > You can install Cask from https://github.com/cask/cask <)
 else
 	$(info >> Fetching or updating Cask dependencies. <<)
-	$(info > In real life, you would run 'make dep' by hand <)
+	$(info > In real life, you would run make dep by hand <)
 	cask install
 	cask update
 endif

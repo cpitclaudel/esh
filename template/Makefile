@@ -1,4 +1,8 @@
+ifeq ($(OS),Windows_NT)
+CASK := $(shell cask --version 2> NUL)
+else
 CASK := $(shell command -v cask 2> /dev/null)
+endif
 
 # Disable builtin rules
 .SUFFIXES:
