@@ -665,7 +665,7 @@ character."
       (goto-char code-beg)
       (if (search-forward (char-to-string delimiter) (point-at-eol) t)
           (list form-beg (point) code-beg (1- (point)) command)
-        (error "No matching delimiter found after use of `%s%s'"
+        (error "No matching delimiter found after use of `%s%c'"
                command delimiter)))))
 
 (defun esh--latexify-beginning-of-document ()
