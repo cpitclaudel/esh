@@ -112,6 +112,15 @@ will be non-nil only if CAPTURE-BACKTRACES was non-nil."
         (esh-server--writeout file `(success ,result)))
     (error (esh-server--writeout file `(error ,err ,esh-server--backtrace)))))
 
+(defun esh-server--window-system-frame-parameter ()
+  "Choose an appropriate window system.
+This seems to be only needed on Windows; on GNU/Linux and macOS,
+the defaults seems to work fine."
+  ;; (`darwin 'ns)
+  ;; ((or `gnu `gnu/linux `gnu/kfreebsd) 'x)
+  (when (memq system-type '(windows-nt cygwin))
+    '((window-system . w32))))
+
 (defun esh-server-init (display &optional init-info)
   "Initialize the ESH server.
 Create an invisible frame on DISPLAY after loading INIT-INFO,
@@ -125,7 +134,8 @@ No error checking here; we expect this to be invoked through
       (let ((esh-server-initializing t))
         (load-file init-fpath))))
   (setq esh--server-frame
-        (make-frame `((display . ,display)
+        (make-frame `(,@(esh-server--window-system-frame-parameter)
+                      (display . ,display)
                       (visibility . nil))))
   (ignore (setq esh-server-init-info init-info)))
 
