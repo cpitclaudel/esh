@@ -6,14 +6,14 @@ ARGS ?=
 all: xelatex
 
 html: dep example.tex
-	../bin/esh2html ${ARGS} example.html
+	../bin/esh2html --debug-on-error ${ARGS} example.html
 
 xelatex: dep example.tex
-	../bin/esh2tex ${ARGS} example.tex
+	../bin/esh2tex --debug-on-error ${ARGS} example.tex
 	xelatex -jobname=example example.esh.tex
 
 pdflatex: dep example.tex
-	env ESH_PDFLATEX=true ../bin/esh2tex ${ARGS} example.tex
+	env ESH_PDFLATEX=true ../bin/esh2tex --debug-on-error ${ARGS} example.tex
 	pdflatex -jobname=example example.esh.tex
 
 dep:
