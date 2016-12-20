@@ -21,6 +21,8 @@ ifndef CASK
 	$(warning >> Cask not found; some languages will not be available <<)\
 	$(warning > You can install Cask from https://github.com/cask/cask <)
 else
+	$(info >> Fetching or updating Cask dependencies. <<)
+	$(info > In real life, you would run 'make dep' by hand <)
 	cask install
 	cask update
 endif

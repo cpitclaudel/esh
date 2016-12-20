@@ -24,7 +24,7 @@ into something like that:
 Curious? Check out our `demo PDF
 <https://github.mit.edu/cpitcla/esh/raw/master/example/reference.pdf>`_ and give
 it a try! Plus, since ESH works with special comments, your documents remain
-compatible with plain LaTeX (see `Collaborating with authors who do not use
+compatible with plain LaTeX (though see `Collaborating with authors who do not use
 ESH`_ below)
 
 Setup
@@ -43,7 +43,7 @@ should produce a (partially) syntax-highlighted ``example.pdf``.
 Quickstart
 ==========
 
-In ``minimal.tex``, put the following:
+Create a new file ``minimal.tex`` and write the following:
 
 .. code:: latex
 
@@ -61,15 +61,23 @@ Process with ``esh2tex minimal.tex``, then compile with ``pdflatex
 minimal.esh.tex`` or ``xelatex minimal.esh.tex``. Run ``make`` in the
 ``example/`` directory of the Git repository for a more advanced example.
 
+For larger documents, run ``esh2tex --init`` in a new directory to create a
+ready-to-use ESH setup.
 
 Usage
 =====
 
 ::
 
+  # Create a ready-to-use ESH setup in the current directory
   esh2tex --init
+
+  # Process one or more tex files with embedded code blocks
   esh2tex [<options>...] [<input>.tex...]
+
+  # Process one or more standalone source code listings
   esh2tex --standalone [<options>...] [<input>.py|c|cpp|...]
+
 
 ``<input>.tex`` should be an UTF-8 encoded text file; output goes to
 ``<input>.esh.tex``. ``--init`` is special; see `Options`_.  ``<input>`` may
