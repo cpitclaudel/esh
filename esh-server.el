@@ -36,6 +36,9 @@
 (defvar esh-server-init-info 'none
   "Init info (INIT-FPATH . _) that was used to initialize the server.")
 
+(defvar esh-server--profile nil
+  "Whether to record a profile.")
+
 (defvar esh-server--capture-backtraces nil
   "Whether to capture backtraces.
 Capturing a backtrace can be very costly, because arguments can
@@ -112,6 +115,13 @@ will be non-nil only if CAPTURE-BACKTRACES was non-nil."
         (esh-server--writeout file `(success ,result)))
     (error (esh-server--writeout file `(error ,err ,esh-server--backtrace)))))
 
+(defun esh-server-start-profiling ()
+  "Start CPU profiling (results are saved upon exit)."
+  (setq esh-server--profile t)
+  (require 'profiler)
+  (with-no-warnings (profiler-start 'cpu))
+  (add-hook 'kill-emacs-hook #'esh-server--kill-emacs-hook))
+
 (defun esh-server--window-system-frame-parameter ()
   "Choose an appropriate window system.
 This seems to be only needed on Windows; on GNU/Linux and macOS,
@@ -178,6 +188,14 @@ No error checking here; we expect this to be invoked through
         (with-temp-file out-path
           (insert str))
       str)))
+
+(defun esh-server--kill-emacs-hook ()
+  "Save profiler report if `esh-server--profile' is on."
+  (when esh-server--profile
+    (ignore-errors
+      (let ((prof-name (format-time-string "esh--%Y-%m-%d--%H-%M-%S.prof")))
+        (with-no-warnings
+          (profiler-write-profile (profiler-cpu-profile) prof-name))))))
 
 (provide 'esh-server)
 ;;; esh-server.el ends here
