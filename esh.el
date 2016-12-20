@@ -551,13 +551,12 @@ Puts text property `non-ascii' on non-ascii characters."
     (pcase-dolist (`(,property . ,val) (esh--filter-cdr nil props-alist))
       (pcase property
         (`display
-         (setq template
-               (pcase val
-                 (`(raise ,amount)
-                  (esh--latexify-raise template amount))
-                 ((pred stringp)
-                  (setq latex-str val))
-                 (_ (error "Unexpected display property %S" val)))))
+         (pcase val
+           (`(raise ,amount)
+            (setq template (esh--latexify-raise template amount)))
+           ((pred stringp)
+            (setq latex-str val))
+           (_ (error "Unexpected display property %S" val))))
         (`invisible
          ;; FIXME remove template too?
          (when val (setq latex-str "")))
