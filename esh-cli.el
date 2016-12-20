@@ -40,9 +40,6 @@
     (file-name-directory esh-cli--script-full-path)
     "Full path to directory of this script."))
 
-(defvar esh-cli--persist nil
-  "See option --persist.")
-
 (defvar esh-cli--stdout-p nil
   "See option --stdout.")
 
@@ -121,51 +118,53 @@ Are you missing --standalone?\n" in-path))
   "Main entry point for esh2 FORMAT."
   (unless argv
     (setq argv '("--usage")))
-  (unwind-protect
-      (let ((complain-about-missing-input t)
-            (write-preamble nil))
-        (while argv
-          (pcase (pop argv)
-            ("--usage"
-             (princ (esh-cli--help))
-             (setq complain-about-missing-input nil))
-            ("--debug-on-error"
-             (setq debug-on-error t)
-             (setq esh-client-debug-server t))
-            ("--kill-server"
-             (esh-client-kill-server)
-             (setq complain-about-missing-input nil))
-            ("--persist"
-             (setq esh-cli--persist t))
-            ("--no-cask"
-             (setq esh-client-use-cask nil))
-            ("--no-Q"
-             (setq esh-client-pass-Q-to-server nil))
-            ("--stdout"
-             (setq esh-cli--stdout-p t))
-            ("--standalone"
-             (setq esh-cli--standalone-p t))
-            ("--precompute-verbs-map"
-             (unless (eq format 'latex)
-               (error "%s" (esh-cli--unexpected-arg-msg "--precompute-verbs-map")))
-             (setq format 'latex-pv))
-            ("--write-preamble"
-             (setq write-preamble t)
-             (setq complain-about-missing-input nil))
-            ("--init"
-             (esh-cli--init)
-             (setq complain-about-missing-input nil))
-            (arg
-             (when (or (and argv esh-cli--stdout-p) (string-match-p "\\`--" arg))
-               (error "%s" (esh-cli--unexpected-arg-msg arg)))
-             (setq complain-about-missing-input nil)
-             (esh-cli--process-one arg format))))
-        (when complain-about-missing-input
-          (error "No input files given"))
-        (when write-preamble
-          (esh-cli--write-preamble)))
-    (unless esh-cli--persist
-      (esh-client-kill-server))))
+  (let ((persist nil)
+        (has-inputs nil))
+    (unwind-protect
+        (let ((write-preamble nil)
+              (complain-about-missing-input t))
+          (while argv
+            (pcase (pop argv)
+              ("--usage"
+               (princ (esh-cli--help))
+               (setq complain-about-missing-input nil))
+              ("--debug-on-error"
+               (setq debug-on-error t)
+               (setq esh-client-debug-server t))
+              ("--kill-server"
+               (esh-client-kill-server)
+               (setq complain-about-missing-input nil))
+              ("--persist"
+               (setq persist t))
+              ("--no-cask"
+               (setq esh-client-use-cask nil))
+              ("--no-Q"
+               (setq esh-client-pass-Q-to-server nil))
+              ("--stdout"
+               (setq esh-cli--stdout-p t))
+              ("--standalone"
+               (setq esh-cli--standalone-p t))
+              ("--precompute-verbs-map"
+               (unless (eq format 'latex)
+                 (error "%s" (esh-cli--unexpected-arg-msg "--precompute-verbs-map")))
+               (setq format 'latex-pv))
+              ("--write-preamble"
+               (setq write-preamble t)
+               (setq complain-about-missing-input nil))
+              ("--init"
+               (esh-cli--init)
+               (setq complain-about-missing-input nil))
+              (arg
+               (when (or (and argv esh-cli--stdout-p) (string-match-p "\\`--" arg))
+                 (error "%s" (esh-cli--unexpected-arg-msg arg)))
+               (setq has-inputs t)
+               (esh-cli--process-one arg format))))
+          (when (and (not has-inputs) complain-about-missing-input)
+            (error "No input files given"))
+          (when write-preamble
+            (esh-cli--write-preamble)))
+      (when (and has-inputs (not persist))
+        (esh-client-kill-server)))))
 
 ;; Local Variables:
 ;; checkdoc-arguments-in-order-flag: nil

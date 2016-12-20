@@ -27,7 +27,7 @@
 
 (require 'esh)
 
-(defvar esh-server--backtrace nil ;; FIXME don't store as string
+(defvar esh-server--backtrace nil
   "Backtrace of last error during `esh-server-eval'.")
 
 (defvar esh-server-initializing nil
@@ -46,7 +46,7 @@ be huge — so only do it if requested.")
 
 (defun esh-server--backtrace ()
   "Retrieve a backtrace and clean it up."
-  (with-temp-buffer
+  (with-temp-buffer ;; Could use a sequence of (backtrace-frame) calls
     (let ((standard-output (current-buffer)))
       (backtrace)
       (goto-char (point-min))
@@ -173,10 +173,6 @@ OUT-TYPE indicates the desired output format (one of \\='latex,
 
 No error checking here; we expect this to be invoked through
 `esh-server-eval'."
-  ;; (require 'profiler)
-  ;; (profiler-start 'cpu)
-  ;; (prog1
-  ;; (profiler-write-profile (profiler-cpu-profile) "esh.profile"))
   (let ((str (esh-server--process-to-str in-path in-type out-type)))
     (if out-path
         (with-temp-file out-path
