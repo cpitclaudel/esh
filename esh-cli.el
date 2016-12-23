@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2016  Clément Pit-Claudel
 
-;; Author: Clément Pit-Claudel <clement@clem-w50-mint>
+;; Author: Clément Pit-Claudel <clement.pitclaudel@live.com>
 ;; Keywords: faces, tools
 
 ;; This program is free software; you can redistribute it and/or modify
