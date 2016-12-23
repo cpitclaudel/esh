@@ -237,7 +237,8 @@ each `esh-server-eval' query."
 (defun esh-client-kill-server ()
   "Kill the ESH server."
   (interactive)
-  (let ((socket-fname (esh-client--server-running-p)))
+  (let ((socket-fname (esh-client--server-running-p))
+        (delete-by-moving-to-trash nil))
     (when socket-fname
       (unwind-protect
           (signal-process (server-eval-at esh-client--server-name '(emacs-pid)) 'kill)
