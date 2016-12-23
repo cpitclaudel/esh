@@ -131,12 +131,21 @@ the defaults seems to work fine."
   (when (memq system-type '(windows-nt cygwin))
     '((window-system . w32))))
 
+(defun esh-server--set-coding-systems ()
+  "Set proper coding system defaults (useful for Windows)."
+  (prefer-coding-system 'utf-8)
+  (set-language-environment 'utf-8)
+  (set-default-coding-systems 'utf-8)
+  (set-terminal-coding-system 'utf-8)
+  (setq-default locale-coding-system 'utf-8))
+
 (defun esh-server-init (display &optional init-info)
   "Initialize the ESH server.
 Create an invisible frame on DISPLAY after loading INIT-INFO,
 which should be a cons of (INIT-FPATH . CLIENT-PROVIDED-DATA).
 No error checking here; we expect this to be invoked through
 `esh-server-eval'."
+  (esh-server--set-coding-systems)
   (setq-default load-prefer-newer t)
   (setq-default text-quoting-style 'grave)
   (let ((init-fpath (car init-info)))
