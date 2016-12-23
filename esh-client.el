@@ -218,19 +218,27 @@ but it doesn't load it immediately (neither with -l or with
 --eval): errors while loading the daemon cause it to never
 return.  Instead, the client passes (require 'esh-server) before
 each `esh-server-eval' query."
+  (when (and (eq system-type 'windows) (< emacs-major-version 25))
+    (error "ESH needs Emacs 25 to run on Windows"))
   (let* ((server-name-form `(setq server-name ,esh-client--server-name))
          (emacs-cmdline `(,@(when (esh-client--use-cask) '("cask" "exec"))
                           ,(esh-client--find-emacs) ,@(when esh-client-pass-Q-to-server '("-Q"))
                           "-L" ,esh-client--script-directory ;; no -l esh-server
                           "--eval" ,(prin1-to-string server-name-form)
                           "--daemon")))
+    (esh-client--debug "::ensure-server-1: %S" emacs-cmdline)
     (apply #'start-process "server" nil emacs-cmdline)))
 
 (defun esh-client--ensure-server ()
   "Ensure that an ESH server is running."
   (unless (esh-client--server-running-p)
     (esh-client--with-progress-msg "Starting ESH"
-      (esh-client--busy-wait (esh-client--ensure-server-1))))
+      (if (eq system-type 'windows-nt)
+          (progn
+            ;; On Windows, --daemon doesn't fork
+            (accept-process-output (esh-client--ensure-server-1) 0.010 nil 1)
+            (sit-for 0.50 t))
+        (esh-client--wait-for-exit (esh-client--ensure-server-1)))))
   (unless esh-client--initialized
     (esh-client--init-server)))
 
