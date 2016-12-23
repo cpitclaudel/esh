@@ -70,7 +70,7 @@
 (defun esh-client--wait-for-exit (proc)
   "Wait for PROC to exit."
   (while (process-live-p proc)
-    (accept-process-output proc 0 10)))
+    (accept-process-output proc 0.010)))
 
 (defun esh-client-stderr (&rest args)
   "Like `message' on ARGS, but don't print a final newline.
