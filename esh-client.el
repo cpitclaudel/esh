@@ -207,7 +207,10 @@ That is, if SERVER-INIT-INFO does not match EXPECTED-INIT-INFO."
 
 (defun esh-client--use-cask ()
   "Check whether cask should be used."
-  (and esh-client-use-cask (file-exists-p "Cask") (executable-find "cask")))
+  (if (eq system-type 'windows-nt)
+      ;; `cask exec' doesn't seem to work on Windows
+      (ignore (esh-client--debug "::use-cask: Not using Cask (running on Windows)."))
+    (and esh-client-use-cask (file-exists-p "Cask") (executable-find "cask"))))
 
 (defun esh-client--find-emacs ()
   "Find Emacs binary."
