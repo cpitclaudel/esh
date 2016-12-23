@@ -164,9 +164,11 @@ client, to work around a bug in `emacsclient'."
 (defun esh-client--init-file-path ()
   "Find init file for current directory."
   (let* ((parent-dir (locate-dominating-file "." esh-client--init-file-name))
-         (fpath (expand-file-name esh-client--init-file-name (or parent-dir user-emacs-directory))))
+         (init-dir (or parent-dir user-emacs-directory))
+         (fpath (expand-file-name esh-client--init-file-name init-dir)))
     (if (file-exists-p fpath)
         fpath
+      ;; Fall back to default, guaranteed-to-exist config file
       (expand-file-name esh-client--init-file-name esh-client--script-directory))))
 
 (defun esh-client--truncate-right (str threshold)
