@@ -46,18 +46,28 @@
 (defvar esh-client-debug-server nil
   "Whether to print backtraces produced by the server.")
 
+(defvar esh-client-debug-client nil
+  "Whether to print debugging information on the client side.")
+
 (defvar esh-client--initialized nil
   "Whether the server was (re)initialized.")
 
 ;;; Utils
 
+(defun esh-client--debug (&rest args)
+  "Call `message' on ARGS if `esh-client-debug-client' is set."
+  (when esh-client-debug-client
+    (apply #'message args)))
+
 (defun esh-client--server-running-p ()
   "Check if the ESH server is running."
-  (let* ((server-use-tcp nil)
-         (socket-fname (expand-file-name esh-client--server-name server-socket-dir)))
-    (when (file-exists-p socket-fname) socket-fname)))
+  (let* ((socket-dir (if server-use-tcp server-auth-dir server-socket-dir))
+         (socket-fname (expand-file-name esh-client--server-name socket-dir))
+         (socket-exists (file-exists-p socket-fname)))
+    (esh-client--debug "::server-running-p: %S %s" socket-exists socket-fname)
+    (and socket-exists socket-fname)))
 
-(defun esh-client--busy-wait (proc)
+(defun esh-client--wait-for-exit (proc)
   "Wait for PROC to exit."
   (while (process-live-p proc)
     (accept-process-output proc 0 10)))
@@ -110,7 +120,7 @@ Errors in client's output are signaled."
     (let ((proc (start-process "client" (current-buffer)
                                "emacsclient" "-s" esh-client--server-name
                                "--eval" (prin1-to-string form))))
-      (esh-client--busy-wait proc)
+      (esh-client--wait-for-exit proc)
       (esh-client--die-if-rpc-failed))))
 
 (defun esh-client--die-if-rpc-failed ()
@@ -251,9 +261,9 @@ things faster."
     (setq out-path (and out-path (expand-file-name out-path)))
     (esh-client--princ (esh-client--run (esh-client--rpc-process-form in-path out-path in-type out-type)))))
 
-(provide 'esh-client)
-;;; esh-client.el ends here
-
 ;; Local Variables:
 ;; checkdoc-arguments-in-order-flag: nil
 ;; End:
+
+(provide 'esh-client)
+;;; esh-client.el ends here
