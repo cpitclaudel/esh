@@ -187,10 +187,9 @@
 
 \makeatletter
 % \ESHInline is used for inline code
-% Note the extra pair of braces in the definition
 \@ifundefined{ESHInline}
   {\DeclareRobustCommand*{\ESHInline}[1]
-     {{\ESHText{\ESHInlineInternalSetup\ESHInlineBasicSetup\ESHInlineHook#1}}}}{}
+     {\bgroup\ESHText{\ESHInlineInternalSetup\ESHInlineBasicSetup\ESHInlineHook#1}\egroup}}{}
 
 % \ESHInlineBlock is used for inline code blocks
 \@ifundefined{ESHInlineBlock}
