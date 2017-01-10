@@ -51,7 +51,7 @@
   (with-temp-buffer
     (insert-file-contents (expand-file-name "README.rst" esh-cli--esh-directory))
     (goto-char (point-min))
-    (while (re-search-forward "\\(\\.\\. code\\)?::.*\n" nil t) (replace-match ""))
+    (while (re-search-forward "^\\(\\.\\. code\\)?::.*\n" nil t) (replace-match ""))
     (buffer-string)))
 
 (defun esh-cli--init ()
