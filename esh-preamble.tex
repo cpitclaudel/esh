@@ -158,7 +158,8 @@
    \def\ESHStrut{\relax}\def\ESHBol{\relax}\def\ESHEol{\newline}\def\ESHSpace{\ }%
    \def\ESHDash{-}}
 \DeclareRobustCommand*{\ESHInlineBlockInternalSetup}
-  {\def\ESHSpecialChar{\ESHBlockSpecialChar}\def\ESHUnicodeSubstitution{\ESHBlockUnicodeSubstitution}%
+  {\def\arraystretch{1}%
+   \def\ESHSpecialChar{\ESHBlockSpecialChar}\def\ESHUnicodeSubstitution{\ESHBlockUnicodeSubstitution}%
    \def\ESHRaise{\ESHBlockRaise}\def\ESHSlantItalic{\ESHBlockSlantItalic}%
    \setlength{\ESHBaselineskip}{\baselineskip}\def\ESHStrut{\ESHBlockStrut}%
    \def\ESHBol{\-}\def\ESHEol{\cr}\def\ESHSpace{~}\def\ESHDash{\hbox{-}\nobreak}}
