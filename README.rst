@@ -21,11 +21,12 @@ into something like that:
    \-  \color{8CC4FF}{int} \color{FCE94F}{main}() \{ \color{B4FA70}{return} 0; \}
    \end{ESHBlock}
 
-Curious? Check out our `demo PDF
-<https://github.mit.edu/cpitcla/esh/raw/master/example/reference.pdf>`_ and give
-it a try! Plus, since ESH works with special comments, your documents remain
-compatible with plain LaTeX (though see `Collaborating with authors who do not use
-ESH`_ below)
+Curious? Check out our `demo PDF`_ and give it a try! Plus, since ESH works with
+special comments, your documents remain compatible with plain LaTeX (for more on
+this see `Collaborating with authors who do not use ESH`_ below).
+
+.. _demo PDF: https://github.mit.edu/cpitcla/esh/raw/master/example/reference.pdf
+
 
 Setup
 =====
