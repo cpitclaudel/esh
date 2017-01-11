@@ -35,7 +35,8 @@ Setup
 
 **Setup:** Clone the repository somewhere, and add ``<wherever>/bin`` to your
 path (alternatively, just call ``<wherever>/bin/esh2tex`` explicitly).  This
-program is tested only on GNU/Linux; it has been reported to work on macOS, too.
+program is tested only on GNU/Linux; it has been reported to work on macOS as
+well, and to some limited extent on Windows (see `Windows support`_ below).
 
 **Sanity check:** Running ``make`` in the ``example`` directory of the Git repo
 should produce a (partially) syntax-highlighted ``example.pdf``.
@@ -441,6 +442,16 @@ If the Emacs in your path isn't the right one, you can use the ``EMACS``
 environment variable to let ESH know about the right one::
 
   EMACS=/Applications/Emacs.app/Contents/MacOS/Emacs esh2tex your-file.tex
+
+Windows support
+---------------
+
+ESH works on Windows, with the following limitations:
+
+* Emacs 25 is required.
+* ``--persist`` is not supported.
+* ``cask exec`` doesn't work, so you must manage your dependencies manually.
+* The ``pdflatex`` Makefile target of the example does not work.
 
 Debugging
 ---------
