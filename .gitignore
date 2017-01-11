@@ -31,3 +31,5 @@
 /example/esh-preamble.tex
 /esh-pkg.el
 .auctex/
+/tests/esh-preamble.tex
+/tests/cli/

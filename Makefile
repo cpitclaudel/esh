@@ -20,5 +20,8 @@ clean-elc:
 elc: update clean-elc pkg-file
 	$(CASK) build
 
+test:
+	make -C tests
+
 reference:
 	make -C example reference
