@@ -212,10 +212,14 @@
 % \ESHSkip is the amount to skip before and after an \ESHBlock
 \@ifundefined{ESHSkip}{\newlength{\ESHSkip}\setlength{\ESHSkip}{\baselineskip}}{}
 
+% \ESHNoBreakAddVSpace adds vertical space, but prevents a page break.
+% \nobreak would use a \penalty (which breaks \addvspace), hence \addpenalty.
+\newcommand{\ESHNoBreakAddVSpace}[1]{\addpenalty{\@M}\addvspace{#1}}
+
 % \ESHBlock is used for code blocks
 \@ifundefined{ESHBlock}
   {\newenvironment{ESHBlock}
-     {\par\addvspace{\ESHSkip}\bgroup\ESHBlockInternalSetup\ESHBlockBasicSetup\ESHBlockHook}
+     {\par\ESHNoBreakAddVSpace{\ESHSkip}\bgroup\ESHBlockInternalSetup\ESHBlockBasicSetup\ESHBlockHook}
      {\egroup\par\addvspace{\ESHSkip}}}{}
 \makeatother
 
