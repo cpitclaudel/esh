@@ -65,6 +65,7 @@ minimal.esh.tex`` or ``xelatex minimal.esh.tex``. Run ``make`` in the
 For larger documents, run ``esh2tex --init`` in a new directory to create a
 ready-to-use ESH setup.
 
+
 Usage
 =====
 
@@ -399,7 +400,6 @@ catcode-related reasons).  In a nutshell, if you use an inline snippet inside
 the argument of another macro, the snippet must contain neither unbalanced
 braces nor ``%`` signs.
 
-
 Using ``esh2tex`` with ``org-mode``
 -----------------------------------
 
@@ -415,7 +415,7 @@ them and get confused.  For this to work, just add the following to your
 
    (setq-default esh-substitute-unicode-symbols t)
 
-If you want to add your own mappings, use the following examples:
+If you want to add your own mappings, use the following examples::
 
     (esh-latex-add-unicode-substitution "∷" "\\ensuremath{::}")
     (esh-latex-add-unicode-substitution "‽" "!\!?")
