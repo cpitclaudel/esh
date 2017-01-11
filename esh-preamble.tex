@@ -9,13 +9,19 @@
 %% Core ESH %%
 %%%%%%%%%%%%%%
 
+\newcommand*{\ESHRequirePackage}[2][]
+  {\IfFileExists{#2.sty}
+    {\RequirePackage[#1]{#2}}
+    {\PackageError{ESH}{Missing LaTeX dependency: please install #2}
+      {ESH requires relsize, ulem, and xcolor to work properly.  On Debian derivatives, these packages are provided by texlive-recommended and texlive-latex-extra.}}}
+
 % Packages
 %%%%%%%%%%
 
-\RequirePackage{xcolor} % TeXLive-recommended
-\RequirePackage[normalem]{ulem} % TeXLive-recommended
+\ESHRequirePackage{xcolor} % TeXLive-recommended
+\ESHRequirePackage[normalem]{ulem} % TeXLive-recommended
 
-\RequirePackage{relsize} % TeXLive-latex-extra
+\ESHRequirePackage{relsize} % TeXLive-latex-extra
 \renewcommand{\RSsmallest}{1pt}
 \renewcommand{\RSlargest}{50pt}
 
