@@ -54,6 +54,21 @@
     (while (re-search-forward "^\\(\\.\\. code\\)?::.*\n" nil t) (replace-match ""))
     (buffer-string)))
 
+(defconst esh-cli--quick-help
+  "Usage:
+
+* Create a ready-to-use ESH setup in the current directory:
+  esh2tex --init
+
+* Process one or more tex files with embedded code blocks
+  esh2tex [<options>...] [<input>.tex...]
+
+* Process one or more standalone source code listings
+  esh2tex --standalone [<options>...] [<input>.py|c|cpp|...]
+
+Use 'esh2tex --usage' for more information.
+")
+
 (defun esh-cli--init ()
   "See option --init."
   (let ((template-dir (expand-file-name "template" esh-cli--esh-directory))
@@ -117,7 +132,7 @@ Are you missing --standalone?\n" in-path))
 (defun esh-cli--main (format)
   "Main entry point for esh2 FORMAT."
   (unless argv
-    (setq argv '("--usage")))
+    (setq argv '("-h")))
   (let ((persist nil)
         (has-inputs nil))
     (unwind-protect
@@ -125,6 +140,9 @@ Are you missing --standalone?\n" in-path))
               (complain-about-missing-input t))
           (while argv
             (pcase (pop argv)
+              ("-h"
+               (princ esh-cli--quick-help)
+               (setq complain-about-missing-input nil))
               ("--usage"
                (princ (esh-cli--help))
                (setq complain-about-missing-input nil))
