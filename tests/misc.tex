@@ -8,11 +8,22 @@
 %% ESH-preamble-here
 
 \begin{document}
-Top-aligned inline block:
+
+\paragraph{Inline blocks take a position argument:}
 %% ESHInlineBlock[t]: c
 \begin{verbatim}
 int main() {
   return 0;
 }
 \end{verbatim}
+
+\paragraph{\texttt{ESHBlock}'s line spacing is consistent with its font size:}~
+\bgroup\def\ESHFontSize{\tiny}
+%% ESH: c
+\begin{verbatim}
+int main() {
+  return 0;
+}
+\end{verbatim}
+\egroup
 \end{document}

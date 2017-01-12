@@ -1,6 +1,6 @@
 ESH2TEX="$(realpath ../bin/esh2tex)" --debug-on-error
 
-all: clean cli minimal pv standalone reference strip
+all: clean cli minimal misc pv standalone reference strip
 
 clean:
 	git clean -Xfd
