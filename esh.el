@@ -688,7 +688,6 @@ mode.  See the manual for more information.")
 For example (esh-latex-add-inline-verb \"\\\\ocaml\" \\='tuareg-mode)
 recognizes all instances of “\\ocaml|...|” as OCaml code to be
 highlighted with `tuareg-mode'."
-  (esh--latex-pv-check-verb verb)
   (add-to-list 'esh-latex-inline-macro-alist (cons verb mode)))
 
 (defconst esh--latexify-inline-template "\\ESHInline{%s}")
@@ -699,21 +698,18 @@ highlighted with `tuareg-mode'."
   "Whether to build and dump a table of highlighted inline code.")
 
 (defvar-local esh--latex-pv-highlighting-map nil
-  "List of (VERB CODE TEX) lists.
+  "List of (macro VERB CODE TEX) lists.
 Each entry corresponds to one code snippet CODE, introduced by
 \\VERB, and highlighted into TEX.")
-
-(defun esh--latex-pv-check-verb (verb)
-  "Make sure that VERB is a proper verb command."
-  (unless (string-match "\\\\\\([a-zA-Z]+\\)" verb)
-    (error "%S isn't a proper ESH verb macro.
-To work reliably, ESH verb macros must be in the form \\[a-zA-Z]+" verb)))
 
 (defun esh--latex-pv-record-snippet (verb code tex)
   "Record highlighting of VERB|CODE| as TEX."
   (when esh--latex-pv
-    (esh--latex-pv-check-verb verb)
-    (push (list (match-string 1 verb) code tex) esh--latex-pv-highlighting-map)))
+    (unless (string-match "\\\\\\([a-zA-Z]+\\)" verb)
+      (error "%S isn't compatible with --precompute-verbs-map.
+To work reliably, ESH-pv verb macros must be in the form \\[a-zA-Z]+" verb))
+    (push (list 'macro (match-string 1 verb) code tex)
+          esh--latex-pv-highlighting-map)))
 
 (defconst esh--latex-pv-delimiters
   (mapcar (lambda (c)
@@ -734,7 +730,16 @@ To work reliably, ESH verb macros must be in the form \\[a-zA-Z]+" verb)))
     delim))
 
 (defconst esh--latex-pv-def-template "\\DeclareRobustCommand*{\\%s}{\\ESHpvLookupVerb{%s}}\n")
-(defconst esh--latex-pv-push-template "\\ESHpvDefineVerb{%s}%c%s%c{\\ESHInline{%s}}\n")
+(defconst esh--latex-pv-push-template "\\ESHpvDefineVerb{%s}%c%s%c{%s}\n")
+
+(defun esh--latex-pv-export-macro (verb code tex decls)
+  "Insert an \\ESHpvDefine form for (macro VERB CODE TEX).
+DECLS accumulates existing declarations."
+  (let* ((dl (esh--latex-pv-find-delimiter code))
+         (decl (format esh--latex-pv-push-template verb dl code dl tex)))
+    (unless (gethash decl decls) ;; Remove duplicates
+      (puthash decl t decls)
+      (insert decl))))
 
 (defun esh--latex-pv-export-latex (map)
   "Prepare \\ESHpvDefine forms for all records in MAP.
@@ -742,13 +747,9 @@ Records must match the format of `esh--latex-pv-highlighting-map'."
   (with-temp-buffer
     (let ((verbs (make-hash-table :test #'equal))
           (decls (make-hash-table :test #'equal)))
-      (pcase-dolist (`(,verb ,code ,tex) map)
+      (pcase-dolist (`(macro ,verb ,code ,tex) map)
         (puthash verb t verbs)
-        (let* ((dl (esh--latex-pv-find-delimiter code))
-               (decl (format esh--latex-pv-push-template verb dl code dl tex)))
-          (unless (gethash decl decls) ;; Remove duplicates
-            (puthash decl t decls)
-            (insert decl))))
+        (esh--latex-pv-export-macro verb code tex decls))
       (maphash (lambda (verb _)
                  (insert (format esh--latex-pv-def-template verb verb)))
                verbs))
@@ -765,11 +766,12 @@ Records must match the format of `esh--latex-pv-highlighting-map'."
           (`(,beg ,end ,code-beg ,code-end ,cmd)
            (let* ((mode-fn (cdr (assoc cmd modes-alist)))
                   (code (buffer-substring-no-properties code-beg code-end))
-                  (tex (esh--export-str code mode-fn #'esh--latexify-current-buffer)))
+                  (tex (esh--export-str code mode-fn #'esh--latexify-current-buffer))
+                  (wrapped (format esh--latexify-inline-template tex)))
              (goto-char beg)
              (delete-region beg end)
-             (esh--latex-pv-record-snippet cmd code tex)
-             (insert (format esh--latexify-inline-template tex)))))))))
+             (esh--latex-pv-record-snippet cmd code wrapped)
+             (insert wrapped))))))))
 
 (defconst esh--latex-block-templates
   `(("ESH" . ,esh--latexify-block-template)
@@ -785,8 +787,9 @@ Records must match the format of `esh--latex-pv-highlighting-map'."
                    (mode-fn (esh--resolve-mode-fn mode-str))
                    (template (cdr (assoc block-type esh--latex-block-templates))))
         (delete-region beg end)
-        (let* ((tex (esh--export-str code mode-fn #'esh--latexify-current-buffer)))
-          (insert (format template block-opts tex)))))))
+        (let* ((tex (esh--export-str code mode-fn #'esh--latexify-current-buffer))
+               (wrapped (format template block-opts tex)))
+          (insert wrapped))))))
 
 (defun esh2tex-current-buffer ()
   "Fontify contents of all ESH environments.
