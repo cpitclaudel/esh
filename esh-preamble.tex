@@ -216,7 +216,7 @@
 
 % \ESHNoBreakAddVSpace adds vertical space, but prevents a page break.
 % \nobreak would use a \penalty (which breaks \addvspace), hence \addpenalty.
-\newcommand{\ESHNoBreakAddVSpace}[1]{\addpenalty{\@M}\addvspace{#1}}
+\newcommand*{\ESHNoBreakAddVSpace}[1]{\addpenalty{\@M}\addvspace{#1}}
 
 % \ESHBlock is used for code blocks
 \newenvironment{ESHBlock}
