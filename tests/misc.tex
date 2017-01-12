@@ -26,4 +26,19 @@ int main() {
 }
 \end{verbatim}
 \egroup
+
+\paragraph{\texttt{ESHBlock} is a valid header, but not e.g.\ \texttt{ESHBlockHere}:}~
+%% ESHBlock: c
+\begin{verbatim}
+int main() {
+  return 0;
+}
+\end{verbatim}
+%% ESHBlockHere: c
+\begin{verbatim}
+int main() {
+  return 0;
+}
+\end{verbatim}
+
 \end{document}

@@ -628,7 +628,7 @@ lines in inline blocks."
     (esh--latexify-insert-preamble)))
 
 (defconst esh--latex-block-begin
-  (concat "^[ \t]*%%[ \t]*\\(ESH\\(?:InlineBlock\\)?\\)\\([^:]*\\): \\([^ \t\n]+\\)[ \t]*\n"
+  (concat "^[ \t]*%%[ \t]*\\(ESH\\(?:\\(?:Inline\\)?Block\\)?\\)\\b\\([^:]*\\): \\([^ \t\n]+\\)[ \t]*\n"
           "[ \t]*\\\\begin{\\(.+?\\)}.*\n"))
 
 (defconst esh--latex-block-end
@@ -773,6 +773,7 @@ Records must match the format of `esh--latex-pv-highlighting-map'."
 
 (defconst esh--latex-block-templates
   `(("ESH" . ,esh--latexify-block-template)
+    ("ESHBlock" . ,esh--latexify-block-template)
     ("ESHInlineBlock" . ,esh--latexify-inline-block-template)))
 
 (defun esh--latexify-do-block-envs ()
