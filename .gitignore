@@ -1,5 +1,4 @@
-/.cask/
-*.esh.*
+# LaTeX
 *.aux
 *.glo
 *.idx
@@ -24,12 +23,16 @@
 *.out
 *.log
 *.synctex.gz
-/todo.org
-/example/.cask/
+# ELisp
+.cask/
 *.elc
-/example/example.pdf
-/example/esh-preamble.tex
 /esh-pkg.el
 .auctex/
-/tests/esh-preamble.tex
+# Misc
+*.esh.*
+*.esh-pv.tex
+/todo.org
+/example/example.pdf
+/example/esh-preamble.tex
 /tests/cli/
+/tests/esh-preamble.tex

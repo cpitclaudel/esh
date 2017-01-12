@@ -1,6 +1,6 @@
 ESH2TEX="$(realpath ../bin/esh2tex)" --debug-on-error
 
-all: clean cli minimal standalone reference strip
+all: clean cli minimal pv standalone reference strip
 
 clean:
 	git clean -Xfd
@@ -18,6 +18,11 @@ minimal:
 misc:
 	${ESH2TEX} misc.tex
 	xelatex --jobname=misc misc.esh.tex
+
+pv:
+	${ESH2TEX} --write-preamble
+	${ESH2TEX} --precompute-verbs-map pv.tex
+	xelatex pv.tex
 
 standalone:
 	${ESH2TEX} --write-preamble
