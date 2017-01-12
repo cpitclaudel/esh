@@ -614,19 +614,18 @@ lines in inline blocks."
   (let* ((str (mapconcat #'esh--latexify-span (esh--buffer-ranges) "")))
     (esh--latexify-protect-eols (esh--latexify-protect-bols str))))
 
-(defun esh--latex-preamble ()
-  "Read ESH's LaTeX preamble from disk."
-  (with-temp-buffer
-    (insert-file-contents (expand-file-name "esh-preamble.tex" esh--directory))
-    (buffer-substring-no-properties (point-min) (point-max))))
+(defun esh--latexify-insert-preamble ()
+  "Read ESH's LaTeX preamble from disk and insert it at point."
+  (insert-file-contents (expand-file-name "esh-preamble.tex" esh--directory)))
 
 (defvar esh--latexify-preamble-marker "^%%[ \t]*ESH-preamble-here[ \t]*$")
 
 (defun esh--latexify-add-preamble ()
   "Expand `esh--latexify-preamble-marker', if present."
   (goto-char (point-min))
-  (if (re-search-forward esh--latexify-preamble-marker nil t)
-      (replace-match (replace-quote (esh--latex-preamble)) t)))
+  (when (re-search-forward esh--latexify-preamble-marker nil t)
+    (delete-region (match-beginning 0) (match-end 0))
+    (esh--latexify-insert-preamble)))
 
 (defconst esh--latex-block-begin
   (concat "^[ \t]*%%[ \t]*\\(ESH\\(?:InlineBlock\\)?\\): \\([^ \t\n]+\\)[ \t]*\n"
