@@ -688,6 +688,7 @@ mode.  See the manual for more information.")
 For example (esh-latex-add-inline-verb \"\\\\ocaml\" \\='tuareg-mode)
 recognizes all instances of “\\ocaml|...|” as OCaml code to be
 highlighted with `tuareg-mode'."
+  (esh--latex-pv-check-verb verb)
   (add-to-list 'esh-latex-inline-macro-alist (cons verb mode)))
 
 (defconst esh--latexify-inline-template "\\ESHInline{%s}")
@@ -702,12 +703,16 @@ highlighted with `tuareg-mode'."
 Each entry corresponds to one code snippet CODE, introduced by
 \\VERB, and highlighted into TEX.")
 
+(defun esh--latex-pv-check-verb (verb)
+  "Make sure that VERB is a proper verb command."
+  (unless (string-match "\\\\\\([a-zA-Z]+\\)" verb)
+    (error "%S isn't a proper ESH verb macro.
+To work reliably, ESH verb macros must be in the form \\[a-zA-Z]+" verb)))
+
 (defun esh--latex-pv-record-snippet (verb code tex)
   "Record highlighting of VERB|CODE| as TEX."
   (when esh--latex-pv
-    (unless (string-match "\\\\\\([a-zA-Z]+\\)" verb)
-      (error "%S isn't compatible with `esh-latex-generate-inline-map'.
-To work reliably, ESH verb macros must match \\[a-zA-Z]+" verb))
+    (esh--latex-pv-check-verb verb)
     (push (list (match-string 1 verb) code tex) esh--latex-pv-highlighting-map)))
 
 (defconst esh--latex-pv-delimiters
