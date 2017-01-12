@@ -22,6 +22,7 @@ misc:
 pv:
 	${ESH2TEX} --write-preamble
 	${ESH2TEX} --precompute-verbs-map pv.tex
+	xelatex pv-incomplete.tex
 	xelatex pv.tex
 
 standalone:

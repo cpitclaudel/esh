@@ -248,44 +248,52 @@
 \def\ESHpvEnterVerbMode{\let\do\@makeother\dospecials}
 \makeatother
 
-% \ESHpvNotFound issues a warning and prints its argument in tt
+% \ESHpvNotFound{#msg} issues a warning
 \def\ESHpvNotFoundMessage#1{No highlighting found for "#1"; falling back to verbatim.}
-\def\ESHpvNotFound#1{\PackageWarning{ESH}{\ESHpvNotFoundMessage{#1}}\texttt{#1}}
+\def\ESHpvNotFound#1{\PackageWarning{ESH}{\ESHpvNotFoundMessage{#1}}}
 
 %% Defining substitutions
 
-% ESHpvReadDelimitedAndDefineSubstitution{#A}#B#C#B#D maps #A-\detokenize{#C} to #D
+% ESHpvReadDelimitedAndDefineSubstitution{#lang}#delim#key#delim#value maps
+% #lang-\detokenize{#key} to #value
 \def\ESHpvReadDelimitedAndDefineSubstitution#1#2{%
   % \ESHpvInternalScanner reads tokens up to the next separator #2, restores
   % catcodes (\endgroup), and calls \ESHpvDefineSubstitution on these tokens
   \def\ESHpvInternalScanner##1#2{\endgroup\ESHpvDefineSubstitution{#1}{##1}}\ESHpvInternalScanner}
 
-% ESHpvDefineSubstitution{#A}{#B}#C maps #A-\detokenize{#B} to #C
+% ESHpvDefineSubstitution{#lang}{#key}#value maps #lang-\detokenize{#key} to #value
 \def\ESHpvDefineSubstitution#1#2{\expandafter\def\csname #1-\detokenize{#2}\endcsname}
 
 %% Applying substitutions
 
-% ESHpvReadDelimitedAndSubstitute{#A}#B#C#B looks up #A-\detokenize{#C}
-\def\ESHpvReadDelimitedAndSubstitute#1#2{%
-  % \ESHpvInternalScanner reads tokens up to the next separator #2, restores
-  % catcodes (\endgroup), and calls \ESHpvSubstitute on these tokens
-  \def\ESHpvInternalScanner##1#2{\endgroup\ESHpvSubstitute{#1}{##1}}\ESHpvInternalScanner}
-
-% \ESHpvSubstitute{#A}{#B} looks up #A-\detokenize{#B} and substitutes it
-\def\ESHpvSubstitute#1#2{%
+% \ESHpvSubstitute{#lang}{#key}{#msg}{#fallback} looks up a mapping for
+% #lang-\detokenize{#key} and inserts it.  If no mapping can be found, it prints
+% a warning based on #msg and includes #fallback in the document.
+\def\ESHpvSubstitute#1#2#3#4{%
   \expandafter\ifx\csname #1-\detokenize{#2}\endcsname\relax
-  \ESHpvNotFound{\detokenize{#2}}%
+  \ESHpvNotFound{#3}\texttt{#4}%
   \else
   \csname #1-\detokenize{#2}\expandafter\endcsname
   \fi}
+
+% \ESHpvSubstituteMacro{#lang}{#key} looks up #lang-\detokenize{#key} and
+% substitutes it.  It falls back to #key itself if no mapping can be found.
+\def\ESHpvSubstituteMacro#1#2{\ESHpvSubstitute{#1}{#2}{\detokenize{#2}}{\detokenize{#2}}}
+
+% ESHpvReadDelimitedAndSubstitute{#lang}#delim#key#delim looks up
+% #lang-\detokenize{#key} and calls \ESHpvSubstituteMacro.
+\def\ESHpvReadDelimitedAndSubstitute#1#2{%
+  % \ESHpvInternalScanner reads tokens up to the next separator #2, restores
+  % catcodes (\endgroup), and calls \ESHpvSubstituteMacro on these tokens
+  \def\ESHpvInternalScanner##1#2{\endgroup\ESHpvSubstituteMacro{#1}{##1}}\ESHpvInternalScanner}
 
 %% High-level interface
 
 % \ESHpvLookupVerb reads its argument like \verb
 % Note that this won't work perfectly as an argument to a macro
 \DeclareRobustCommand*{\ESHpvLookupVerb}[1]
-  {\begingroup\ESHpvEnterVerbMode\ESHpvReadDelimitedAndSubstitute{#1}}
+  {\begingroup\ESHpvEnterVerbMode\ESHpvReadDelimitedAndSubstitute{macro-#1}}
 
-% \ESHpvDefineVerb#A creates a new [code → highlight] record in table #A
+% \ESHpvDefineVerb#lang creates a new [code → highlight] record in table macro-#A
 \DeclareRobustCommand*{\ESHpvDefineVerb}[1]
-  {\begingroup\ESHpvEnterVerbMode\ESHpvReadDelimitedAndDefineSubstitution{#1}}
+  {\begingroup\ESHpvEnterVerbMode\ESHpvReadDelimitedAndDefineSubstitution{macro-#1}}
