@@ -628,7 +628,7 @@ lines in inline blocks."
     (esh--latexify-insert-preamble)))
 
 (defconst esh--latex-block-begin
-  (concat "^[ \t]*%%[ \t]*\\(ESH\\(?:InlineBlock\\)?\\): \\([^ \t\n]+\\)[ \t]*\n"
+  (concat "^[ \t]*%%[ \t]*\\(ESH\\(?:InlineBlock\\)?\\)\\([^:]*\\): \\([^ \t\n]+\\)[ \t]*\n"
           "[ \t]*\\\\begin{\\(.+?\\)}.*\n"))
 
 (defconst esh--latex-block-end
@@ -640,15 +640,16 @@ lines in inline blocks."
     (let* ((beg (match-beginning 0))
            (code-beg (match-end 0))
            (block-type (match-string-no-properties 1))
-           (mode (match-string-no-properties 2))
-           (env (match-string-no-properties 3))
+           (block-opts (match-string-no-properties 2))
+           (mode (match-string-no-properties 3))
+           (env (match-string-no-properties 4))
            (end-re (format esh--latex-block-end (regexp-quote env))))
       (when (string= "" mode)
         (error "Invalid ESH header: %S" (match-string-no-properties 0)))
       (when (re-search-forward end-re nil t)
         (let* ((code-end (match-beginning 0))
                (code (buffer-substring-no-properties code-beg code-end)))
-          (list block-type mode code beg (match-end 0)))))))
+          (list block-type mode block-opts code beg (match-end 0)))))))
 
 (defun esh--latexify-inline-verb-matcher (re)
   "Search for a \\verb-like delimiter from point.
@@ -690,8 +691,8 @@ highlighted with `tuareg-mode'."
   (add-to-list 'esh-latex-inline-macro-alist (cons verb mode)))
 
 (defconst esh--latexify-inline-template "\\ESHInline{%s}")
-(defconst esh--latexify-block-template "\\begin{ESHBlock}\n%s\n\\end{ESHBlock}")
-(defconst esh--latexify-inline-block-template "\\begin{ESHInlineBlock}\n%s\n\\end{ESHInlineBlock}")
+(defconst esh--latexify-block-template "\\begin{ESHBlock}%s\n%s\n\\end{ESHBlock}")
+(defconst esh--latexify-inline-block-template "\\begin{ESHInlineBlock}%s\n%s\n\\end{ESHInlineBlock}")
 
 (defvar esh--latex-pv
   "Whether to build and dump a table of highlighted inline code.")
@@ -774,12 +775,12 @@ Records must match the format of `esh--latex-pv-highlighting-map'."
   (goto-char (point-min))
   (let ((match nil))
     (while (setq match (esh--latex-match-block))
-      (pcase-let* ((`(,block-type ,mode-str ,code ,beg ,end) match)
+      (pcase-let* ((`(,block-type ,mode-str ,block-opts ,code ,beg ,end) match)
                    (mode-fn (esh--resolve-mode-fn mode-str))
                    (template (cdr (assoc block-type esh--latex-block-templates))))
         (delete-region beg end)
         (let* ((tex (esh--export-str code mode-fn #'esh--latexify-current-buffer)))
-          (insert (format template tex)))))))
+          (insert (format template block-opts tex)))))))
 
 (defun esh2tex-current-buffer ()
   "Fontify contents of all ESH environments.

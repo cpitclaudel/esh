@@ -257,8 +257,8 @@ Inline blocks
 By default, ESH blocks work in vertical mode: they start a new paragraph, and
 add vertical space before and after themselves.  If you include them in a
 horizontal box, such as a math formula or a subfloat, LaTeX will complain
-(``something is wrong -- maybe a missing \item?``; think of the difference
-between ``\begin{align}`` and ``\begin{aligned}``).
+(``something is wrong -- maybe a missing \item?``).  Think of the difference
+between ``\begin{align}`` and ``\begin{aligned}``.
 
 To get a horizontal-mode "inline" block, use the following syntax::
 
@@ -361,7 +361,10 @@ collaborate with non-ESH users, you can instead use the following setup:
   or, if the block appears in a horizontal context (inside of a math formula,
   for example)::
 
-     \ESHInputInlineBlock{listings/main.c}
+     \ESHInputInlineBlock[t]{listings/main.c}
+
+  (the optional argument indicates the vertical alignment to use -- one of
+  ``t``, ``c``, or ``b``)
 
 * Use ESH to highlight your source files::
 

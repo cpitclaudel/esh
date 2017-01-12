@@ -1,4 +1,4 @@
-ESH2TEX=$(realpath ../bin/esh2tex)
+ESH2TEX="$(realpath ../bin/esh2tex)" --debug-on-error
 
 all: clean cli minimal standalone strip
 
@@ -14,6 +14,10 @@ cli:
 minimal:
 	${ESH2TEX} minimal.tex
 	xelatex --jobname=minimal minimal.esh.tex
+
+misc:
+	${ESH2TEX} misc.tex
+	xelatex --jobname=misc misc.esh.tex
 
 standalone:
 	${ESH2TEX} --write-preamble

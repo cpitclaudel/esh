@@ -201,12 +201,13 @@
   {\DeclareRobustCommand*{\ESHInline}[1]
      {\bgroup\ESHText{\ESHInlineInternalSetup\ESHInlineBasicSetup\ESHInlineHook#1}\egroup}}{}
 
-% \ESHInlineBlock is used for inline code blocks
+% \ESHInlineBlockVerticalAlignment is the default vertical alignment of inline blocks
 \providecommand*{\ESHInlineBlockVerticalAlignment}{c}
-\def\ESHInlineBlockVerticalAlignmentInternal{\ESHInlineBlockVerticalAlignment}
+
+% \ESHInlineBlock is used for inline code blocks
 \@ifundefined{ESHInlineBlock}
-  {\newenvironment{ESHInlineBlock}
-     {\bgroup\ESHInlineBlockInternalSetup\ESHInlineBlockBasicSetup\ESHInlineBlockHook\begin{tabular}[\ESHInlineBlockVerticalAlignmentInternal]{@{}l@{}}}
+  {\newenvironment{ESHInlineBlock}[1][\ESHInlineBlockVerticalAlignment]
+     {\bgroup\ESHInlineBlockInternalSetup\ESHInlineBlockBasicSetup\ESHInlineBlockHook\begin{tabular}[#1]{@{}l@{}}}
      {\end{tabular}\egroup}}{}
 
 % \ESHSkip is the amount to skip before and after an \ESHBlock
@@ -228,7 +229,7 @@
 
 \DeclareRobustCommand*{\ESHInputInline}[1]{\ESHInline{\input{#1.esh.tex}\unskip}}
 \DeclareRobustCommand*{\ESHInputInlineBlock}[2][\ESHInlineBlockVerticalAlignment]
-  {\def\ESHInlineBlockVerticalAlignmentInternal{#1}\begin{ESHInlineBlock}\input{#2.esh.tex}\unskip\end{ESHInlineBlock}}
+  {\begin{ESHInlineBlock}[#1]\input{#2.esh.tex}\unskip\end{ESHInlineBlock}}
 \DeclareRobustCommand*{\ESHInputBlock}[1]{\begin{ESHBlock}\input{#1.esh.tex}\unskip\end{ESHBlock}}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
