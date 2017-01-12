@@ -1,6 +1,6 @@
 ESH2TEX="$(realpath ../bin/esh2tex)" --debug-on-error
 
-all: clean cli minimal standalone strip
+all: clean cli minimal standalone reference strip
 
 clean:
 	git clean -Xfd
@@ -24,9 +24,13 @@ standalone:
 	${ESH2TEX} --standalone standalone.py
 	xelatex standalone.tex
 
+reference:
+	make -C ../example/ reference
+	cp ../example/reference.pdf reference.pdf
+
 strip:
 	for f in *.pdf; do exiftool '-all:all=' -overwrite_original "$$f"; pdf2ps "$$f"; done
 	for f in *.ps; do sed --in-place -e '/^%%CreationDate: .*/d' "$$f"; done
 	rm *.pdf
 
-.PHONY: all clean cli minimal standalone
+.PHONY: all clean cli minimal misc standalone reference
