@@ -25,7 +25,7 @@ Curious? Check out our `demo PDF`_ and give it a try! Plus, since ESH works with
 special comments, your documents remain compatible with plain LaTeX (for more on
 this see `Collaborating with authors who do not use ESH`_ below).
 
-.. _demo PDF: https://github.mit.edu/cpitcla/esh/raw/master/example/reference.pdf
+.. _demo PDF: https://github.com/cpitclaudel/esh/raw/master/example/reference.pdf
 
 
 Setup
