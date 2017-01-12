@@ -249,7 +249,7 @@ With ``XeLaTeX`` and ``LuaLaTeX``, you'll probably want to redefine the
 
    \usepackage{fontspec}
    \newfontfamily{\Symbola}{Symbola}
-   \newcommand{\ESHFallbackFont}{\Symbola}
+   \renewcommand{\ESHFallbackFontFamily}{\Symbola}
 
 Inline blocks
 -------------
@@ -282,7 +282,7 @@ dependencies.
 Customizing the output
 ----------------------
 
-All customizations should be placed **before** the ``%% ESH-preamble-here`` line
+All customizations should be placed **after** the ``%% ESH-preamble-here`` line
 (or the explicit ``\input{esh-preamble}``).
 
 Changing fonts:
@@ -292,33 +292,28 @@ Changing fonts:
    \usepackage{fontspec}
 
    ;; Use a roman font for code blocks
-   \newcommand{\ESHBlockFontFamily}{\textrm}
+   \renewcommand{\ESHBlockFontFamily}{\textrm}
 
    ;; Use Ubuntu Mono for inline code
    \newfontfamily{\UbuntuMono}[Mapping=tex-ansi]{Ubuntu Mono}
-   \newcommand{\ESHInlineFontFamily}{\UbuntuMono}
+   \renewcommand{\ESHInlineFontFamily}{\UbuntuMono}
 
    ;; Use Symbola for special characters
    \newfontfamily{\Symbola}{Symbola}
-   \newcommand{\ESHFallbackFontFamily}{\Symbola}
+   \renewcommand{\ESHFallbackFontFamily}{\Symbola}
 
 Customizing spacing:
 
 .. code:: latex
 
    ;; Leave two blank lines before and after each code block
-   \newlength{\ESHSkip}
    \setlength{\ESHSkip}{2\baselineskip}
 
 Overriding the ``ESHBlock`` environment:
 
 .. code:: latex
 
-   \newenvironment{ESHBlock}{%
-     \par\addvspace{\ESHSkip}\ESHBlockInternalSetup\ESHBlockBasicSetup\hrule\addvspace{0.5em}%
-   }{%
-     \par\addvspace{0.5em}\hrule\addvspace{2\ESHSkip}
-   }
+   \renewenvironment{ESHBlock}{...}{...}
 
 All these tricks, and more, are demonstrated in the ``example/example.tex``
 subfolder of the repository.
@@ -436,7 +431,7 @@ You may want to redefine that to a font with good Unicode coverage:
 
    \usepackage{fontspec}
    \newfontfamily{\XITSMath}{XITS Math}
-   \newcommand{\ESHFallbackFontFamily}{\XITSMath}
+   \renewcommand{\ESHFallbackFontFamily}{\XITSMath}
 
 Using a different version of Emacs
 ----------------------------------
