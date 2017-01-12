@@ -215,8 +215,21 @@ ESH works inline as well:
     Some Elisp with prettification: & \prettylisp,(lambda (x y) (or (<= x y) (approx= (/+/ x y) 0))), \\
             without prettification: & \normallisp!(lambda (x y) (or (<= x y) (approx= (/+/ x y) 0)))!
   \end{tabular}
-\item And finally an inline block: \fbox{% Using raggedright because verbatim breaks when used inline
+\item And finally a few inline blocks:
+\fbox{% Using raggedright because verbatim breaks when used inline
 %% ESHInlineBlock: python
+\begin{raggedright}
+def main():
+    return 0
+\end{raggedright}}
+\fbox{%
+%% ESHInlineBlock[t]: python
+\begin{raggedright}
+def main():
+    return 0
+\end{raggedright}}
+\fbox{%
+%% ESHInlineBlock[b]: python
 \begin{raggedright}
 def main():
     return 0
