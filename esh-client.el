@@ -38,7 +38,7 @@
   "Full path to directory of this script.")
 
 (defvar esh-client-use-cask t
-  "Whether to use `cask exec' to start the highlighting server.")
+  "Whether to start the server with Cask-supplied environment variables.")
 
 (defvar esh-client-pass-Q-to-server t
   "Whether to pass -Q to the server.")
@@ -210,11 +210,26 @@ That is, if SERVER-INIT-INFO does not match EXPECTED-INIT-INFO."
   (if (eq system-type 'windows-nt)
       ;; `cask exec' doesn't seem to work on Windows
       (ignore (esh-client--debug "::use-cask: Not using Cask (running on Windows)."))
-    (and esh-client-use-cask (file-exists-p "Cask") (executable-find "cask"))))
+    ))
 
 (defun esh-client--find-emacs ()
   "Find Emacs binary."
   (or (getenv "EMACS") "emacs"))
+
+(defun esh-client--cask-path (kind)
+  "Query Cask to determine value of path KIND."
+  (with-temp-buffer
+    (unless (eq (call-process "cask" nil (current-buffer) nil kind) 0)
+      (error "Failed to run cask %s" kind))
+    (replace-regexp-in-string "[\r\n]+" "" (buffer-string) t t)))
+
+(defun esh-client--process-environment ()
+  "Compute appropriate process environment for server."
+  (let ((env process-environment))
+    (when (and esh-client-use-cask (file-exists-p "Cask") (executable-find "cask"))
+      (push (concat "PATH=" (esh-client--cask-path "path")) env)
+      (push (concat "EMACSLOADPATH=" (esh-client--cask-path "load-path")) env))
+    env))
 
 (defun esh-client--ensure-server-1 ()
   "Start server process.
@@ -225,9 +240,9 @@ return.  Instead, the client passes (require 'esh-server) before
 each `esh-server-eval' query."
   (when (and (eq system-type 'windows) (< emacs-major-version 25))
     (error "ESH needs Emacs 25 to run on Windows"))
-  (let* ((server-name-form `(setq server-name ,esh-client--server-name))
-         (emacs-cmdline `(,@(when (esh-client--use-cask) '("cask" "exec"))
-                          ,(esh-client--find-emacs) ,@(when esh-client-pass-Q-to-server '("-Q"))
+  (let* ((process-environment (esh-client--process-environment))
+         (server-name-form `(setq server-name ,esh-client--server-name))
+         (emacs-cmdline `(,(esh-client--find-emacs) ,@(when esh-client-pass-Q-to-server '("-Q"))
                           "-L" ,esh-client--script-directory ;; no -l esh-server
                           "--eval" ,(prin1-to-string server-name-form)
                           "--daemon")))

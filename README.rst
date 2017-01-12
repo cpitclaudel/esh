@@ -448,8 +448,7 @@ ESH works on Windows, with the following limitations:
 
 * Emacs 25 is required.
 * ``--persist`` is not supported.
-* ``cask exec`` doesn't work, so you must manage your dependencies manually.
-* The ``pdflatex`` Makefile target of the example does not work.
+* The ``pdflatex`` target of the example Makefile does not work.
 
 Debugging
 ---------
@@ -459,6 +458,4 @@ the repository) to work.  If you can't get the example to work, please open
 a GitHub issue.
 
 For more advanced debugging, you can load the ``esh`` package into Emacs, and
-use ``M-x esh2tex-current-buffer`` on your TeX file::
-
-  cask exec emacs -Q -L . -l esh your-file.tex
+use ``M-x esh2tex-current-buffer`` on your TeX file.
