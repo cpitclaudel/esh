@@ -22,12 +22,13 @@
                             BoldItalicFont=*-BI.ttf,
                             Mapping=tex-ansi]{UbuntuMono}
 
-\newcommand{\ESHFontFamily}{\UbuntuMono}
-\newcommand{\ESHBlockFontSize}{\small}
-\newcommand{\ESHFallbackFont}{\XITSMath}
-
 % Load the ESH preamble
 %% ESH-preamble-here
+
+% Set up font sizes and families
+\renewcommand{\ESHFontFamily}{\UbuntuMono}
+\renewcommand{\ESHBlockFontSize}{\small}
+\renewcommand{\ESHFallbackFontFamily}{\XITSMath}
 
 % Define \cverb as an alias of verb (useful when compiling without ESH)
 \def\cverb{\verb}

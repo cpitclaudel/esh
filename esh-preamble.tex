@@ -30,41 +30,41 @@
 %%%%%%%
 
 % Code blocks
-\providecommand*{\ESHFontSize}{}
-\providecommand*{\ESHFontFamily}{\ttfamily}
-\providecommand*{\ESHFont}{\ESHFontSize\ESHFontFamily}
+\newcommand*{\ESHFontSize}{}
+\newcommand*{\ESHFontFamily}{\ttfamily}
+\newcommand*{\ESHFont}{\ESHFontSize\ESHFontFamily}
 
 % Inline snippets
-\providecommand*{\ESHInlineFontSize}{\ESHFontSize}
-\providecommand*{\ESHInlineFontFamily}{\ESHFontFamily}
-\providecommand*{\ESHInlineFont}{\ESHInlineFontSize\ESHInlineFontFamily}
+\newcommand*{\ESHInlineFontSize}{\ESHFontSize}
+\newcommand*{\ESHInlineFontFamily}{\ESHFontFamily}
+\newcommand*{\ESHInlineFont}{\ESHInlineFontSize\ESHInlineFontFamily}
 
 % Inline blocks
-\providecommand*{\ESHInlineBlockFontSize}{\ESHFontSize}
-\providecommand*{\ESHInlineBlockFontFamily}{\ESHFontFamily}
-\providecommand*{\ESHInlineBlockFont}{\ESHInlineBlockFontSize\ESHInlineBlockFontFamily}
+\newcommand*{\ESHInlineBlockFontSize}{\ESHFontSize}
+\newcommand*{\ESHInlineBlockFontFamily}{\ESHFontFamily}
+\newcommand*{\ESHInlineBlockFont}{\ESHInlineBlockFontSize\ESHInlineBlockFontFamily}
 
 % Blocks
-\providecommand*{\ESHBlockFontSize}{\ESHFontSize}
-\providecommand*{\ESHBlockFontFamily}{\ESHFontFamily}
-\providecommand*{\ESHBlockFont}{\ESHBlockFontSize\ESHBlockFontFamily}
+\newcommand*{\ESHBlockFontSize}{\ESHFontSize}
+\newcommand*{\ESHBlockFontFamily}{\ESHFontFamily}
+\newcommand*{\ESHBlockFont}{\ESHBlockFontSize\ESHBlockFontFamily}
 
 % Characters not covered by \ESHFont (XeTeX/LuaTeX only)
-\providecommand*{\ESHFallbackFontFamily}{\ESHFontFamily}
-\providecommand*{\ESHFallbackFont}{\ESHFallbackFontFamily}
+\newcommand*{\ESHFallbackFontFamily}{\ESHFontFamily}
+\newcommand*{\ESHFallbackFont}{\ESHFallbackFontFamily}
 
 % Utils
 %%%%%%%
 
 % \ESHNoHyphens disables hyphenation
-\providecommand*{\ESHNoHyphens}{\hyphenpenalty=10000}
+\newcommand*{\ESHNoHyphens}{\hyphenpenalty=10000}
 
 % \ESHConstantSpace ensures that spaces can't stretch
-\providecommand*{\ESHConstantSpace}{\spaceskip=\fontdimen2\font\xspaceskip=0pt}
+\newcommand*{\ESHConstantSpace}{\spaceskip=\fontdimen2\font\xspaceskip=0pt}
 
 % \ESHCenterInWidthOf{#A}{#B} prints #B centered in a box as large as #A.
 \newdimen\ESHtempdim%
-\providecommand*{\ESHCenterInWidthOf}[2]
+\newcommand*{\ESHCenterInWidthOf}[2]
   {\settowidth\ESHtempdim{#1}%
    \makebox[\ESHtempdim][c]{#2}}
 
@@ -123,14 +123,15 @@
 \font\ESHSmallWaveFont=lasyb10 scaled 400
 
 % \ESHBoxSep is the vertical padding of \ESHFBox
-\@ifundefined{ESHBoxSep}{\newlength{\ESHBoxSep}\setlength{\ESHBoxSep}{1pt}}{}
+\newlength{\ESHBoxSep}
+\setlength{\ESHBoxSep}{1pt}
 
 % \ESHFBox{#color}{#lineWidth}{#contents} wraps #contents in an border of width
 % #lineWidth and of color #color.  The box has no horizontal padding, its
 % vertical padding is determined by \ESHBoxSep, and it doesn't affect the height
 % of the current line.
 \newdimen\ESHBoxTempDim%
-\providecommand*{\ESHBox}[3]
+\newcommand*{\ESHBox}[3]
   {\setlength{\fboxsep}{\ESHBoxSep}%
    \setlength{\fboxrule}{#2}%
    \setlength{\ESHBoxTempDim}{\dimexpr-\fboxsep-\fboxrule\relax}%
@@ -138,19 +139,19 @@
 \makeatother
 
 % \ESHWeight* and \ESHSlant* adjust weight and slant
-\providecommand*{\ESHWeightLight}[1]{\textlf{#1}}
-\providecommand*{\ESHWeightRegular}[1]{\textmd{#1}}
-\providecommand*{\ESHWeightBold}[1]{\textbf{#1}}
-\providecommand*{\ESHInlineSlantItalic}[1]{\textit{#1}}
-\providecommand*{\ESHBlockSlantItalic}[1]{{\itshape{#1}}} % No italic correction
-\providecommand*{\ESHSlantOblique}[1]{\textsl{#1}}
-\providecommand*{\ESHSlantNormal}[1]{\textup{#1}}
+\newcommand*{\ESHWeightLight}[1]{\textlf{#1}}
+\newcommand*{\ESHWeightRegular}[1]{\textmd{#1}}
+\newcommand*{\ESHWeightBold}[1]{\textbf{#1}}
+\newcommand*{\ESHInlineSlantItalic}[1]{\textit{#1}}
+\newcommand*{\ESHBlockSlantItalic}[1]{{\itshape{#1}}} % No italic correction
+\newcommand*{\ESHSlantOblique}[1]{\textsl{#1}}
+\newcommand*{\ESHSlantNormal}[1]{\textup{#1}}
 
 % Environments and macros
 %%%%%%%%%%%%%%%%%%%%%%%%%
 
-\providecommand*{\ESHBreakingSpace}{\ }
-\providecommand*{\ESHNonbreakingSpace}{~}
+\newcommand*{\ESHBreakingSpace}{\ }
+\newcommand*{\ESHNonbreakingSpace}{~}
 
 % Internal plumbing needed to make the same code work with Inline, Block, and
 % InlineBlock.  See http://tex.stackexchange.com/questions/336936/ for details.
@@ -182,47 +183,45 @@
 % Basic setup used when entering each type of environment or macro
 % See http://tex.stackexchange.com/questions/22852 for \leavevmode
 % \ESHBlockBasicSetup used to set \parskip to 0, but \ESHEol isn't \par anymore
-\providecommand*{\ESHInlineBasicSetup}
+\newcommand*{\ESHInlineBasicSetup}
   {\leavevmode\ESHNoHyphens\ESHInlineFont}
-\providecommand*{\ESHInlineBlockBasicSetup}
+\newcommand*{\ESHInlineBlockBasicSetup}
   {\ESHNoHyphens\ESHInlineBlockFont\ESHConstantSpace}
-\providecommand*{\ESHBlockBasicSetup}
+\newcommand*{\ESHBlockBasicSetup}
   {\setlength{\parindent}{0pt}\raggedright\ESHNoHyphens%
    \ESHBlockFont\ESHConstantSpace}
 
 % ESH*Hook is used to inject code before every ESH segment
-\providecommand*{\ESHHook}{}
-\providecommand*{\ESHInlineHook}{\ESHHook}
-\providecommand*{\ESHInlineBlockHook}{\ESHHook}
-\providecommand*{\ESHBlockHook}{\ESHHook}
+\newcommand*{\ESHHook}{}
+\newcommand*{\ESHInlineHook}{\ESHHook}
+\newcommand*{\ESHInlineBlockHook}{\ESHHook}
+\newcommand*{\ESHBlockHook}{\ESHHook}
 
 \makeatletter
 % \ESHInline is used for inline code
-\@ifundefined{ESHInline}
-  {\DeclareRobustCommand*{\ESHInline}[1]
-     {\bgroup\ESHText{\ESHInlineInternalSetup\ESHInlineBasicSetup\ESHInlineHook#1}\egroup}}{}
+\DeclareRobustCommand*{\ESHInline}[1]
+  {\bgroup\ESHText{\ESHInlineInternalSetup\ESHInlineBasicSetup\ESHInlineHook#1}\egroup}
 
 % \ESHInlineBlockVerticalAlignment is the default vertical alignment of inline blocks
-\providecommand*{\ESHInlineBlockVerticalAlignment}{c}
+\newcommand*{\ESHInlineBlockVerticalAlignment}{c}
 
 % \ESHInlineBlock is used for inline code blocks
-\@ifundefined{ESHInlineBlock}
-  {\newenvironment{ESHInlineBlock}[1][\ESHInlineBlockVerticalAlignment]
-     {\bgroup\ESHInlineBlockInternalSetup\ESHInlineBlockBasicSetup\ESHInlineBlockHook\begin{tabular}[#1]{@{}l@{}}}
-     {\end{tabular}\egroup}}{}
+\newenvironment{ESHInlineBlock}[1][\ESHInlineBlockVerticalAlignment]
+  {\bgroup\ESHInlineBlockInternalSetup\ESHInlineBlockBasicSetup\ESHInlineBlockHook\begin{tabular}[#1]{@{}l@{}}}
+  {\end{tabular}\egroup}
 
 % \ESHSkip is the amount to skip before and after an \ESHBlock
-\@ifundefined{ESHSkip}{\newlength{\ESHSkip}\setlength{\ESHSkip}{\baselineskip}}{}
+\newlength{\ESHSkip}
+\setlength{\ESHSkip}{\baselineskip}
 
 % \ESHNoBreakAddVSpace adds vertical space, but prevents a page break.
 % \nobreak would use a \penalty (which breaks \addvspace), hence \addpenalty.
 \newcommand{\ESHNoBreakAddVSpace}[1]{\addpenalty{\@M}\addvspace{#1}}
 
 % \ESHBlock is used for code blocks
-\@ifundefined{ESHBlock}
-  {\newenvironment{ESHBlock}
-     {\par\ESHNoBreakAddVSpace{\ESHSkip}\bgroup\ESHBlockInternalSetup\ESHBlockBasicSetup\ESHBlockHook}
-     {\par\egroup\addvspace{\ESHSkip}}}{}
+\newenvironment{ESHBlock}
+  {\par\ESHNoBreakAddVSpace{\ESHSkip}\bgroup\ESHBlockInternalSetup\ESHBlockBasicSetup\ESHBlockHook}
+  {\par\egroup\addvspace{\ESHSkip}}
 \makeatother
 
 %% \input wrappers

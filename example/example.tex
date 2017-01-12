@@ -12,6 +12,12 @@
 \usepackage[margin=0.8in]{geometry}
 \usepackage{amsmath,amssymb}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%
+% Load the ESH preamble %
+%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% ESH-preamble-here
+
 %%%%%%%%%%%%%%%%%%%%%%
 % *Load custom fonts %
 %%%%%%%%%%%%%%%%%%%%%%
@@ -48,8 +54,8 @@
   % Tell ESH about these fonts
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-  \newcommand{\ESHFontFamily}{\UbuntuMono}
-  \newcommand{\ESHFallbackFontFamily}{\XITSMath}
+  \renewcommand{\ESHFontFamily}{\UbuntuMono}
+  \renewcommand{\ESHFallbackFontFamily}{\XITSMath}
 }
 \makeatother
 
@@ -57,34 +63,29 @@
 % *Customize spacing %
 %%%%%%%%%%%%%%%%%%%%%%
 
-\newlength{\ESHSkip}
 \setlength{\ESHSkip}{0.8\baselineskip}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
 % *Customize environments %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% \ESHInline
-%%%%%%%%%%%%
-
-% Note the extra pair of braces in the definition, which prevent fonts and
-% settings from affecting subsequent text
-\DeclareRobustCommand*{\ESHInline}[1]{{\ESHInlineInternalSetup\ESHInlineBasicSetup$\langle\,$#1$\,\rangle$}}
-
-% \ESHBlock
+% ESHInline
 %%%%%%%%%%%
 
-\newenvironment{ESHBlock}{%
-  \par\addvspace{\ESHSkip}\ESHBlockInternalSetup\ESHBlockBasicSetup\hrule\addvspace{0.5em}%
+\newcommand{\angles}[1]{$\langle\,$#1$\,\rangle$}
+
+\DeclareRobustCommand*{\ESHInline}[1]
+  {{\ESHText{\ESHInlineInternalSetup\ESHInlineBasicSetup\angles{#1}}}}
+
+% ESHBlock
+%%%%%%%%%%
+
+\renewenvironment{ESHBlock}{%
+  \par\ESHNoBreakAddVSpace{\ESHSkip}\bgroup\ESHBlockInternalSetup\ESHBlockBasicSetup%
+  \hrule\addvspace{0.5em}%
 }{%
-  \par\addvspace{0.5em}\hrule\addvspace{2\ESHSkip}
+  \par\egroup\addvspace{0.5em}\hrule\addvspace{2\ESHSkip}%
 }
-
-%%%%%%%%%%%%%%%%%%%%%%%%%
-% Load the ESH preamble %
-%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%% ESH-preamble-here
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Define and register a few inline macros %
