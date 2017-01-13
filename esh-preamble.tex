@@ -297,3 +297,22 @@
 % \ESHpvDefineVerb#lang creates a new [code → highlight] record in table macro-#A
 \DeclareRobustCommand*{\ESHpvDefineVerb}[1]
   {\begingroup\ESHpvEnterVerbMode\ESHpvReadDelimitedAndDefineSubstitution{macro-#1}}
+
+%% Convenience functions for wrapping verbs in boxes
+
+\newcommand*{\ESHSaveBoxName}[1]{ESHSaveBox:#1}
+
+\makeatletter
+% \ESHEnsureSaveBox{#name} calls \newsavebox{#name} if needed.
+\newcommand{\ESHEnsureSaveBox}[1]
+  {\@ifundefined{#1}{\expandafter\newsavebox\csname#1\endcsname}{}}
+\makeatother
+
+% \begin{ESHSavedVerb}{#name}#def\end{ESHSavedVerb} creates a box called
+% ESHSaveBox:#name, and saves #def into it.
+\newenvironment*{ESHSavedVerb}[1]
+  {\def\ESHCurBox{\ESHSaveBoxName{#1}}\ESHEnsureSaveBox{\ESHCurBox}\begin{lrbox}{0}\ignorespaces}
+  {\unskip\end{lrbox}\global\expandafter\setbox\csname\ESHCurBox\endcsname=\box0\relax}
+
+% \ESHUseVerb{#name} retrieves the contents of the box ESHSaveBox:#name
+\newcommand{\ESHUseVerb}[1]{\expandafter\usebox\csname\ESHSaveBoxName{#1}\endcsname}

@@ -386,18 +386,29 @@ Precomputed verb maps
 ~~~~~~~~~~~~~~~~~~~~~
 
 The ``--precompute-verbs-map`` flag instructs ESH to generate a table mapping
-each code snippet in your original LaTeX file to its highlighted counterpart.
-This table is saved under the name ``<your-file>.esh-pv.tex``.
+each inline code snippet in your original LaTeX file to its highlighted
+counterpart.  This table is saved under the name ``<your-file>.esh-pv.tex``.
 ``esh-preamble.tex`` includes the required machinery to manipulate these
 mappings, and the generated ``.esh-pv.tex`` file redefines each of your inline
-macros to perform the appropriate lookups.
+macros to perform the appropriate lookups (ESH learns about your inline macros
+from the declarations in your ``esh-init.el``).
 
 This works very well as long as your inline snippets are at the top level of
 your file.  If they appear as arguments to another macro, things get tricky
 (remember that you can't have ``\verb`` as an argument to a macro, for
 catcode-related reasons).  In a nutshell, if you use an inline snippet inside
 the argument of another macro, the snippet must contain neither unbalanced
-braces nor ``%`` signs.
+braces nor ``%`` or ``#`` signs (the former will yield "File ended while
+scanning use of ...", and the latter an "Illegal parameter number in definition
+of \reserved@a." error).  To work around this, you can either use an external
+file processed with ``--standalone``, or use ``ESHSavedVerb`` and ``ESHUseVerb``
+in conjunction with ``--precompute-verb-map``::
+
+  \begin{ESHSavedVerb}{yuck-yuck}
+    \cverb|You can write anything here: %, #, and {{{|
+  \end{ESHSavedVerb}
+
+  Here's a reference to the saved verb: \footnote{\ESHUseVerb{yuck-yuck}}
 
 Using ``esh2tex`` with ``org-mode``
 -----------------------------------
