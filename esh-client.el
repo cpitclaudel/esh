@@ -269,7 +269,9 @@ each `esh-server-eval' query."
         (delete-by-moving-to-trash nil))
     (when socket-fname
       (unwind-protect
-          (signal-process (server-eval-at esh-client--server-name '(emacs-pid)) 'kill)
+          ;; Use `esh-client--run-1' instead of `server-eval-at', because the latter
+          ;; creates a visible frame on Windows while it runs.
+          (esh-client--run-1 '(kill-emacs))
         (ignore-errors (delete-file socket-fname))))))
 
 ;;; Main entry point
