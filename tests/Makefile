@@ -1,6 +1,6 @@
 ESH2TEX="$(realpath ../bin/esh2tex)" --debug-on-error
 
-all: clean cli minimal misc pv standalone reference strip
+all: clean cli minimal misc pv standalone lua reference strip
 
 clean:
 	git clean -Xfd
@@ -30,6 +30,11 @@ standalone:
 	${ESH2TEX} --standalone standalone.py
 	xelatex standalone.tex
 
+lua:
+	cd lua; ${ESH2TEX} lualatex.tex
+	cd lua; lualatex --jobname=lualatex lualatex.esh.tex
+	mv lua/lualatex.pdf ./lualatex.pdf
+
 reference:
 	make -C ../example/ reference
 	cp ../example/reference.pdf reference.pdf
@@ -39,4 +44,4 @@ strip:
 	for f in *.ps; do sed --in-place -e '/^%%CreationDate: .*/d' "$$f"; done
 	rm *.pdf
 
-.PHONY: all clean cli minimal misc standalone reference
+.PHONY: all clean cli lua minimal misc standalone reference
