@@ -30,8 +30,11 @@
 
 ;;; Code:
 
-;; Can't depend on anything outside of core Emacs
+;; Can't depend on external packages
+(require 'esh-dll)
 (require 'color)
+(require 'cl-lib) ;; incf, decf, position, values
+(require 'cl-macs) ;; assert, multiple-values-setq
 
 (defconst esh--script-full-path
   (or (and load-in-progress load-file-name)
@@ -95,12 +98,6 @@ nil instead."
               (push elem deduped))))))
     (nreverse deduped)))
 
-(defun esh--extract-props (props pos)
-  "Read PROPS from POS as an ALIST or (PROP . VAL)."
-  (mapcar (lambda (prop)
-            (cons prop (get-char-property pos prop)))
-          props))
-
 (defvar esh-name-to-mode-alist nil
   "Alist of block name → mode function.")
 
@@ -144,6 +141,24 @@ call signature, and a workaround for an Emacs bug."
   (let ((enable-local-variables :all))
     (insert-file-contents fname)))
 
+(defun esh--merge-sorted (s1 s2 pred)
+  "Merge two lists S1 S2 sorted by PRED."
+  (let ((acc nil))
+    (while (or s1 s2)
+      (cond
+       ((and s1 s2)
+        (if (funcall pred (car s1) (car s2))
+            (push (pop s1) acc)
+          (push (pop s2) acc)))
+       (s1 (push (pop s1) acc))
+       (s2 (push (pop s2) acc))))
+    (nreverse acc)))
+
+(defun esh--repeat-until-nil (f input)
+  "Apply F to INPUT, then to F(INPUT), etc.\ until it returns nil."
+  (while input
+    (setq input (funcall f input))))
+
 ;;; Segmenting a buffer
 
 (defun esh--buffer-ranges-from (start prop)
@@ -169,7 +184,13 @@ have the same value of PROP or, if PROP is nil, of all
 properties."
   (esh--buffer-ranges-from 1 prop))
 
-;;; Merging faces
+;;; Extracting faces and properties
+
+(defun esh--extract-props (props pos)
+  "Read PROPS from POS as an ALIST or (PROP . VAL)."
+  (mapcar (lambda (prop)
+            (cons prop (get-char-property pos prop)))
+          props))
 
 (defun esh--face-get (face attribute)
   "Read ATTRIBUTE from (potentially anonymous) FACE.
@@ -265,28 +286,187 @@ about underful hboxes)."
                                   (if (eq (point-at-bol 0) (match-beginning 0))
                                       'empty 'non-empty))))))
 
-(defun esh--mark-boxes ()
-  "Replace :box face attributes.
-Each buffer span whose face has a :box property is modified so
-that its first character has a `begin-box' property, and its last
-character has an `end-box' property."
-  (goto-char (point-min))
-  (let ((prev-start nil)
-        (prev-box nil))
-    (pcase-dolist (`(,start . ,_) (esh--buffer-ranges))
-      (let* ((box-attr (esh--pos-face-attribute start :box))
-             (box (unless (eq box-attr 'unspecified) box-attr))
-             (box-continues (equal box prev-box)))
-        (if box-continues
-            (setq start prev-start)
-          (when prev-box
-            (put-text-property (1- start) start 'esh-end-box prev-box))
-          (when box
-            (put-text-property start (1+ start) 'esh-begin-box box)))
-        (setq prev-box box)
-        (setq prev-start start)))
-    (when prev-box
-      (put-text-property (1- (point-max)) (point-max) 'esh-end-box t))))
+;;; Constructing a stream of events
+
+(defun esh--annotate-ranges (ranges text-props face-attrs)
+  "Annotate each range in RANGES with a property alist.
+Returns a list of (START END ALIST); the keys of ALIST are
+properties in TEXT-PROPS or face attributes in FACE-ATTRS; its
+values are the values of these properties.  START is inclusive;
+END is exclusive."
+  (let ((acc nil))
+    (pcase-dolist (`(,start . ,end) ranges)
+      (let* ((props-alist (esh--extract-props text-props start))
+             (attrs-alist (esh--extract-face-attributes face-attrs start))
+             (merged-alist (nconc (esh--filter-cdr 'unspecified attrs-alist)
+                                  (esh--filter-cdr nil props-alist))))
+        (push (nconc (list start end) (list merged-alist)) acc)))
+    (nreverse acc)))
+
+(defun esh--ranges-to-events (ranges props)
+  "Generate opening and closing events from annotated RANGES.
+Each returned element has one of the following forms:
+  (\\='text START END)
+  (\\='open POSITION (PROPERTY . VALUE))
+  (\\='close POSITION (PROPERTY . VALUE))
+Each PROPERTY is one of PROPS.  There can be multiple consecutive (text …) nodes
+if two consecutive ranges agree on all PROPS.  Text nodes could store the source
+buffer, but then their serialized representation wouldn't be readable."
+  (let ((events nil)
+        (prev-alist nil)
+        (prev-end nil))
+    (pcase-dolist (`(,start ,end ,alist) ranges)
+      (let ((open-events nil)
+            (close-events nil))
+        (dolist (prop props)
+          (let ((old (assq prop prev-alist))
+                (new (assq prop alist)))
+            (unless (equal (cdr old) (cdr new))
+              (when old
+                (push `(close ,start ,old) close-events))
+              (when new
+                (push `(open ,start ,new) open-events)))))
+        (let ((text-node `((text ,start ,end))))
+          ;; `nreverse' ensures that closers are enumerated in reverse order
+          ;; from openers
+          (setq events (nconc text-node (nreverse open-events) close-events events))))
+      (setq prev-end end)
+      (setq prev-alist alist))
+    (dolist (pair prev-alist)
+      (push `(close ,prev-end ,pair) events))
+    (nreverse events)))
+
+(defun esh--event-property (event)
+  "Read property changed by EVENT."
+  (car (nth 2 event)))
+
+(defun esh--discard-balanced-events (stream)
+  "Drop elements of STREAM until an unbalanced close event is found."
+  (let ((depth 1))
+    (while (> depth 0)
+      (pcase (car (pop stream))
+        (`nil (error "No closing tag found"))
+        (`open (cl-incf depth))
+        (`close (cl-decf depth)))))
+  stream)
+
+;;; Comparing and ordering events
+
+(defun esh--memoize-priority-order (properties)
+  "Create a hashmap mapping symbols to their index in PROPERTIES."
+  (let ((idx 0)
+        (priorities (make-hash-table :test #'eq)))
+    (dolist (symb properties)
+      (puthash symb (setq idx (1+ idx)) priorities))
+    priorities))
+
+(defvar esh--prop-priorities nil
+  "Internal variable used to pass priority hashmaps around.")
+
+(defun esh--compare-events (e1 e2)
+  "Compare two events E1 and E2."
+  (let ((pos1 (nth 1 e1)) (pos2 (nth 1 e2)))
+    (cond
+     ((< pos1 pos2) -1)
+     ((> pos1 pos2) 1)
+     (t (let* ((types '(close open text))
+               (type1 (car e1)) (type2 (car e2))
+               (tp1 (cl-position type1 types))
+               (tp2 (cl-position type2 types)))
+          (cond
+           ((< tp1 tp2) -1)
+           ((> tp1 tp2) 1)
+           (t (cl-assert (not (eq type1 'text)))
+              (let* ((pri1 (gethash (esh--event-property e1) esh--prop-priorities))
+                     (pri2 (gethash (esh--event-property e2) esh--prop-priorities))
+                     (highest-priority-first (eq type1 'open)))
+                (cond
+                 ((< pri1 pri2) (if highest-priority-first 1 -1))
+                 ((> pri1 pri2) (if highest-priority-first -1 1))
+                 (t 0))))))))))
+
+(defun esh--event-less-p (e1 e2)
+  "Check whether E1 < E2."
+  (< (esh--compare-events e1 e2) 0))
+
+;;; Breaking up overlapping spans to enforce a tree structure
+
+(defun esh--find-overlapping-spans-1 (event dll conflicts)
+  "Find conflicts for closing EVENT in DLL.
+Corresponding opening event is removed.  Conflicts are added to
+CONFLICTS.  Returns (DLL CONFLICTS)."
+  (let ((pointer dll)
+        (prop (esh--event-property event)))
+    (catch 'found
+      (while t
+        (let* ((prev-event (esh-dll-val pointer))
+               (prev-kind (car prev-event)))
+          (cl-assert (eq prev-kind 'open) t "Unexpected: %S" prev-event)
+          (if (eq (esh--event-property prev-event) prop)
+              (throw 'found nil)
+            (push (cons prev-event event) conflicts)))
+        (setq pointer (esh-dll-next pointer))))
+    (if (eq pointer dll)
+        ;; Opener was just before closer
+        (setq dll (esh-dll-pop pointer))
+      (esh-dll-pop pointer))
+    (cl-values dll conflicts)))
+
+(defun esh--find-overlapping-spans (events)
+  "Find conflicts implied by EVENTS.
+Two events conflict if the overlap, but neither is included in the
+other.  Returns results as a list of (OPEN-1 . CLOSE-2)."
+  (let ((dll nil)
+        (conflicts nil))
+    (dolist (event events)
+      (pcase (car event)
+        (`text)
+        (`open (esh-dll-push-front event dll))
+        (`close
+         (cl-multiple-value-setq (dll conflicts)
+           (esh--find-overlapping-spans-1 event dll conflicts)))))
+    conflicts))
+
+(defun esh--compute-events-to-resolve-conflicts (conflicts)
+  "Compute a list of additional openers and closers to resolve CONFLICTS.
+`esh--prop-priorities' is used to resolve conflicts, i.e. to determine which
+span to split when two spans intersect without nesting.  Earlier
+properties are split first."
+  (let ((extra-events nil))
+    (pcase-dolist (`((open ,op-pos ,op-pr) . (close ,cl-pos ,cl-pr)) conflicts)
+      (let* ((op-prio (gethash (car op-pr) esh--prop-priorities))
+             (cl-prio (gethash (car cl-pr) esh--prop-priorities)))
+        (unless op-prio (error "Unknown property %S" (car op-pr)))
+        (unless cl-prio (error "Unknown property %S" (car cl-pr)))
+        (let ((tl (if (<= op-prio cl-prio) `(,cl-pos ,op-pr) `(,op-pos ,cl-pr))))
+          (push (cons 'close tl) extra-events)
+          (push (cons 'open tl) extra-events))))
+    (sort extra-events #'esh--event-less-p)))
+
+(defun esh--resolve-event-conflicts (events properties)
+  "Enrich and return EVENTS to remove overlapping spans.
+See `esh--compute-events-to-resolve-conflicts' for info on
+PROPERTIES."
+  (let* ((conflicts (esh--find-overlapping-spans events))
+         (esh--prop-priorities (esh--memoize-priority-order properties))
+         (extra-events (esh--compute-events-to-resolve-conflicts conflicts)))
+    (esh--merge-sorted events extra-events #'esh--event-less-p)))
+
+;;; High-level interface to tree-related code
+
+(defun esh--buffer-to-events (text-props face-attrs priority-ranking)
+  "Construct a properly nesting list of event from current buffer.
+TEXT-PROPS and FACE-ATTRS specify which properties to keep track
+of.  PRIORITY-RANKING ranks all these properties in order of
+tolerance to splitting (if a property comes late in this list,
+ESH will try to preserve this property's spans when resolving
+conflicts).  Splitting is needed because in Emacs text properties
+can overlap in ways that are not representable as a tree."
+  (let* ((ranges (esh--buffer-ranges))
+         (annotated-ranges (esh--annotate-ranges ranges text-props face-attrs))
+         (events (esh--ranges-to-events annotated-ranges priority-ranking))
+         (unconflicted (esh--resolve-event-conflicts events priority-ranking)))
+    unconflicted))
 
 ;;; Fontifying
 
@@ -333,15 +513,6 @@ the required mode isn't available."
           (insert (esh--missing-mode-error-msg mode))))
       buf)))
 
-;; (defun esh--prepare-for-export ()
-;;   "Prepare current buffer for export.
-;; Add final newline, widen, etc."
-;;   (widen)
-;;   (save-excursion
-;;     (goto-char (point-max))
-;;     (unless (eq (char-before) ?\n)
-;;       (insert "\n"))))
-
 (defvar esh-pre-highlight-hook nil)
 (defvar esh-post-highlight-hook nil) ;; FIXME document these
 
@@ -362,8 +533,14 @@ EXPORT-FN should do the actual exporting."
 
 ;;; Producing LaTeX
 
-(defvar esh--latex-props '(display invisible line-height esh-begin-box esh-end-box newline))
-(defvar esh--latex-face-attrs '(:underline :background :foreground :weight :slant :height))
+(defconst esh--latex-props '(display invisible line-height esh-begin-box esh-end-box newline))
+(defconst esh--latex-face-attrs '(:underline :background :foreground :weight :slant :height))
+
+(defconst esh--latex-priorities
+  `(,@'(line-height newline :underline :foreground :weight :height :background) ;; Fine to split
+    ,@'(:slant :box display invisible)) ;; Should not split
+  "Priority order for text properties in LaTeX export.
+See `esh--resolve-event-conflicts'.")
 
 (eval-and-compile
   (defvar esh--latex-specials
@@ -495,123 +672,141 @@ Puts text property `non-ascii' on non-ascii characters."
                     ,(plist-get box :color)
                     ,(plist-get box :style)))))
 
-(defun esh--latexify-raise (str amount)
-  "Issue a LaTeX command to raise STR by AMOUNT."
-  (format "\\ESHRaise{%gex}{%s}" amount str))
+(defun esh--latex-export-text-event (start end buffer stream)
+  "Insert text from range START..END of BUFFER into current buffer.
+Returns STREAM."
+  (insert
+   (esh--escape-for-latex
+    (with-current-buffer buffer
+      (buffer-substring-no-properties start end))))
+  stream)
 
-(defun esh--latexify-span (range)
-  "Render RANGE as a LaTeX string."
-  (let* ((template "%s")
-         (span (buffer-substring-no-properties (car range) (cdr range)))
-         (latex-str (esh--escape-for-latex span))
-         (props-alist (esh--extract-props esh--latex-props (car range)))
-         (attrs-alist (esh--extract-face-attributes esh--latex-face-attrs (car range))))
-    (pcase-dolist (`(,attribute . ,val) (esh--filter-cdr 'unspecified attrs-alist))
-      (when val
-        (setq template
-              (pcase attribute
-                (:foreground
-                 (setq val (esh--normalize-color-unless val :foreground))
-                 (if val (format "\\textcolor[HTML]{%s}{%s}" val template)
-                   template))
-                (:background
-                 (setq val (esh--normalize-color-unless val :background))
-                 ;; FIXME: Force all lines to have the the same height?
-                 ;; Could use \\vphantom{'g}\\smash{…}
-                 (if val
-                     (format "\\colorbox[HTML]{%s}{%s}" val template)
-                   template))
-                (:weight
-                 (format (pcase (esh--normalize-weight-coarse val)
-                           (`light "\\ESHWeightLight{%s}")
-                           (`regular "\\ESHWeightRegular{%s}")
-                           (`bold "\\ESHWeightBold{%s}")
-                           (_ (error "Unexpected weight %S" val)))
-                         template))
-                (:height
-                 (pcase (esh--normalize-height val)
-                   (`nil template)
-                   (rel-h (format "\\textscale{%0.2g}{%s}" rel-h template))))
-                (:slant
-                 (format (pcase val
-                           (`italic "\\ESHSlantItalic{%s}")
-                           (`oblique "\\ESHSlantOblique{%s}")
-                           (`normal "\\ESHSlantNormal{%s}")
-                           (_ (error "Unexpected slant %S" val)))
-                         template))
-                (:underline
-                 (pcase (esh--normalize-underline val)
-                   (`(,color . ,type)
-                    (setq color (esh--normalize-color color))
-                    ;; There are subtle spacing issues with \\ESHUnder, so don't
-                    ;; use it unless the underline needs to be colored.
-                    (let* ((prefix (if color "\\ESHUnder" "\\u"))
-                           (command (format "%s%S" prefix type))
-                           (color-arg (if color (format "{\\color[HTML]{%s}}" color) "")))
-                      (format "%s%s{%s}" command color-arg template)))
-                   (_ (error "Unexpected underline %S" val))))
-                (_ (error "Unexpected attribute %S" attribute))))))
-    (pcase-dolist (`(,property . ,val) (esh--filter-cdr nil props-alist))
-      (pcase property
-        (`display
-         (pcase val
-           (`(raise ,amount)
-            (setq template (esh--latexify-raise template amount)))
-           ((pred stringp)
-            (setq latex-str val))
-           (_ (error "Unexpected display property %S" val))))
-        (`invisible
-         ;; FIXME remove template too?
-         (when val (setq latex-str "")))
-        (`line-height
-         (unless (floatp val)
-           (error "Unexpected line-height property %S" val))
-         (setq template (format "\\ESHStrut{%.2g}%s" val template)))
-        (`esh-begin-box
-         (pcase (esh--normalize-box val)
-           (`(,line-width ,color ,style)
-            (setq color (esh--normalize-color color))
-            (unless (eq style nil)
-              (error "Unsupported box style %S" style))
-            (setq template
-                  (format "\\ESHBox{%s}{%gpt}{%s"
-                          (or color ".") (abs line-width) template)))
-           (_ (error "Unexpected box %S" val))))
-        (`esh-end-box
-         (setq template (concat template "}")))
-        (`newline
-         ;; Ensure that no newlines are added inside commands (instead the
-         ;; newline is added to the end of the template), and add an mbox to
-         ;; prevent TeX from complaining about underfull boxes.
-         (setq latex-str "")
-         (setq val (cdr val))
-         (let ((mbox (pcase val (`empty "\\mbox{}"))))
-           (setq template (concat template mbox "\n"))))
-        (_ (error "Unexpected property %S" property))))
-    (format template latex-str)))
+(defun esh--latex-export-open-event (property val stream)
+  "Insert a string implementing value VAL of PROPERTY in LaTeX.
+Returns the new state of STREAM, a list of events left to be
+processed."
+  (insert
+   (pcase property
+     (:foreground
+      (setq val (esh--normalize-color-unless val :foreground))
+      (if val (format "\\textcolor[HTML]{%s}{" val) "\\ESHId{"))
+     (:background
+      (setq val (esh--normalize-color-unless val :background))
+      ;; FIXME: Force all lines to have the the same height?
+      ;; Could use \\vphantom{'g}\\smash{…}
+      (if val (format "\\colorbox[HTML]{%s}{" val) "\\ESHId{"))
+     (:weight
+      (pcase (esh--normalize-weight-coarse val)
+        (`light "\\ESHWeightLight{")
+        (`regular "\\ESHWeightRegular{")
+        (`bold "\\ESHWeightBold{")
+        (_ (error "Unexpected weight %S" val))))
+     (:height
+      (pcase (esh--normalize-height val)
+        (`nil "\\ESHId{")
+        (rel-h (format "\\textscale{%0.2g}{" rel-h))))
+     (:slant
+      (pcase val
+        (`italic "\\ESHSlantItalic{")
+        (`oblique "\\ESHSlantOblique{")
+        (`normal "\\ESHSlantNormal{")
+        (_ (error "Unexpected slant %S" val))))
+     (:underline
+      (pcase (esh--normalize-underline val)
+        (`(,color . ,type)
+         (setq color (esh--normalize-color color))
+         ;; There are subtle spacing issues with \\ESHUnder, so don't
+         ;; use it unless the underline needs to be colored.
+         (let* ((prefix (if color "\\ESHUnder" "\\u"))
+                (command (format "%s%S" prefix type))
+                (arg (if color (format "{\\color[HTML]{%s}}" color) "")))
+           (format "%s%s{" command arg)))
+        (_ (error "Unexpected underline %S" val))))
+     (`display
+      (pcase val
+        (`(raise ,amount)
+         (format "\\ESHRaise{%gex}{" amount))
+        ((pred stringp)
+         ;; FIXME we might want to close and reopen everything around this.
+         (setq stream (esh--discard-balanced-events stream))
+         (esh--escape-for-latex val))
+        (_ (error "Unexpected display property %S" val))))
+     (`invisible
+      (setq stream (esh--discard-balanced-events stream))
+      "")
+     (`line-height
+      (unless (floatp val)
+        (error "Unexpected line-height property %S" val))
+      (format "\\ESHStrut{%.2g}" val))
+     (`esh-begin-box
+      (pcase (esh--normalize-box val)
+        (`(,line-width ,color ,style)
+         (setq color (esh--normalize-color color))
+         (unless (eq style nil)
+           (error "Unsupported box style %S" style))
+         (format "\\ESHBox{%s}{%gpt}{" (or color ".") (abs line-width)))
+        (_ (error "Unexpected box %S" val))))
+     (`newline
+      ;; Add an mbox to prevent TeX from complaining about underfull boxes.
+      (if (eq (cdr val) 'empty) "\\mbox{}" ""))
+     (_ (error "Unexpected property %S" property))))
+  stream)
 
-(defun esh--latexify-protect-bols (str)
-  "Prefix each line of STR with a call to \\ESHBol{}.
+(defun esh--latex-export-close-event (property _ stream)
+  "Insert a string completing syntax for PROPERTY in LaTeX.
+Returns STREAM."
+  (unless (memq property '(newline line-height)) (insert "}"))
+  stream)
+
+(defun esh--latex-export-one (source-buf events)
+  "Export car of EVENTS to LaTeX.
+SOURCE-BUF is the buffer that TEXT events point to.  Returns the
+list of events left to be processed."
+  (pcase (pop events)
+    (`(text ,start ,end)
+     (esh--latex-export-text-event start end source-buf events))
+    (`(open ,_ (,property . ,val))
+     (esh--latex-export-open-event property val events))
+    (`(close ,_ (,property . ,val))
+     (esh--latex-export-close-event property val events))))
+
+(defun esh--latex-exporter (source-buf)
+  "Specialize `esh--latex-export-one' to SOURCE-BUF."
+  (apply-partially #'esh--latex-export-one source-buf))
+
+(defun esh--latexify-protect-bols ()
+  "Prefix each line of current buffer with a call to \\ESHBol{}.
 This used to only be needed for lines starting with whitespace,
 but leading dashes sometimes behave strangely; it's simpler (and
 safer) to prefix all lines.  \\ESHBol is a no-op in inline mode."
-  (replace-regexp-in-string "^" "\\ESHBol{}" str t t))
+  (goto-char (point-min))
+  (while (re-search-forward "^" nil t)
+    (replace-match "\\ESHBol{}" t t)))
 
-(defun esh--latexify-protect-eols (str)
-  "Suffix each line of STR with a call to \\ESHEol.
+(defun esh--latexify-protect-eols ()
+  "Suffix each line of current buffer with a call to \\ESHEol.
 Do this instead of using catcodes, for robustness.  Including a
 brace pair after \\ESHEol would break alignment of continuation
 lines in inline blocks."
-  (replace-regexp-in-string "\n" "\\ESHEol\n" str t t))
+  (goto-char (point-min))
+  (while (search-forward "\n" nil t)
+    (replace-match "\\ESHEol\n" t t)))
 
 (defun esh--latexify-current-buffer ()
   "Export current buffer to LaTeX."
   (esh--remove-final-newline)
   (esh--commit-compositions)
   (esh--mark-newlines)
-  (esh--mark-boxes)
-  (let* ((str (mapconcat #'esh--latexify-span (esh--buffer-ranges) "")))
-    (esh--latexify-protect-eols (esh--latexify-protect-bols str))))
+  (let ((events (esh--buffer-to-events
+                 esh--latex-props
+                 esh--latex-face-attrs
+                 esh--latex-priorities))
+        (source-buf (current-buffer)))
+    (with-temp-buffer
+      (esh--repeat-until-nil (esh--latex-exporter source-buf) events)
+      (esh--latexify-protect-eols)
+      (esh--latexify-protect-bols)
+      (buffer-string))))
 
 (defun esh--latexify-insert-preamble ()
   "Read ESH's LaTeX preamble from disk and insert it at point."
