@@ -257,14 +257,13 @@ dummy element on empty lines to prevent LaTeX from complaining
 about underful hboxes)."
   (goto-char (point-min))
   (while (search-forward "\n" nil t)
-    (put-text-property (match-beginning 0) (match-end 0) 'newline
-                       (cons (point) ;; Prevent collapsing
-                             ;; (point-at-bol 0) is beginning of previous line
-                             ;; (match-beginning 0) is end of previous line
-                             (if (eq (point-at-bol 0) (match-beginning 0))
-                                 'empty 'non-empty)))
-    ;; Break up boxes spanning more than one line
-    (put-text-property (match-beginning 0) (match-end 0) 'face nil)))
+    (set-text-properties (match-beginning 0) (match-end 0)
+                         `(newline
+                           ,(cons (point) ;; Prevent merging of equal properties
+                                  ;; (point-at-bol 0) is beginning of previous line
+                                  ;; (match-beginning 0) is end of previous line
+                                  (if (eq (point-at-bol 0) (match-beginning 0))
+                                      'empty 'non-empty))))))
 
 (defun esh--mark-boxes ()
   "Replace :box face attributes.
