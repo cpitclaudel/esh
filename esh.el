@@ -459,8 +459,8 @@ EXPORT-FN should do the actual exporting."
 
 ;;; Producing LaTeX
 
-(defconst esh--latex-props '(display invisible line-height esh-begin-box esh-end-box newline))
-(defconst esh--latex-face-attrs '(:underline :background :foreground :weight :slant :height))
+(defconst esh--latex-props '(display invisible line-height newline))
+(defconst esh--latex-face-attrs '(:underline :background :foreground :weight :slant :box :height))
 
 (defconst esh--latex-priorities
   `(,@'(line-height newline :underline :foreground :weight :height :background) ;; Fine to split
@@ -667,6 +667,16 @@ AFTER."
            (format "%s%s{" command arg)))
         (_ (error "Unexpected underline %S" val)))
       subtrees "}"))
+    (:box
+     (esh--latex-export-wrapped
+      (pcase (esh--normalize-box val)
+        (`(,line-width ,color ,style)
+         (setq color (esh--normalize-color color))
+         (unless (eq style nil)
+           (error "Unsupported box style %S" style))
+         (format "\\ESHBox{%s}{%gpt}{" (or color ".") (abs line-width)))
+        (_ (error "Unexpected box %S" val)))
+      subtrees "}"))
     (`display
      (pcase val
        (`(raise ,amount)
@@ -681,16 +691,7 @@ AFTER."
        (error "Unexpected line-height property %S" val))
      (esh--latex-export-wrapped-if val
        "\\ESHStrut{%.2g}" subtrees ""))
-    (`esh-box
-     (esh--latex-export-wrapped
-      (pcase (esh--normalize-box val)
-        (`(,line-width ,color ,style)
-         (setq color (esh--normalize-color color))
-         (unless (eq style nil)
-           (error "Unsupported box style %S" style))
-         (format "\\ESHBox{%s}{%gpt}{" (or color ".") (abs line-width)))
-        (_ (error "Unexpected box %S" val)))
-      subtrees "}"))
+
     (`newline
      ;; Add an mbox to prevent TeX from complaining about underfull boxes.
      (esh--latex-export-wrapped-if (eq (cdr val) 'empty)
