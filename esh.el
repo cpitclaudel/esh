@@ -159,6 +159,16 @@ call signature, and a workaround for an Emacs bug."
   (while input
     (setq input (funcall f input))))
 
+(defmacro esh--pp (x)
+  "Pretty-print X and its value, then return the value."
+  (let ((xx (make-symbol "x")))
+    `(progn (prin1 ',x)
+            (princ "\n")
+            (let ((,xx ,x))
+              (pp ,xx)
+              (princ "\n")
+              ,xx))))
+
 ;;; Segmenting a buffer
 
 (defun esh--buffer-ranges-from (start prop)
