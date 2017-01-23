@@ -316,30 +316,21 @@ END is exclusive."
 (defun esh--ranges-to-events (ranges props)
   "Generate opening and closing events from annotated RANGES.
 Each returned element has one of the following forms:
-  (\\='text START END)
   (\\='open POSITION (PROPERTY . VALUE))
   (\\='close POSITION (PROPERTY . VALUE))
-Each PROPERTY is one of PROPS.  There can be multiple consecutive (text …) nodes
-if two consecutive ranges agree on all PROPS.  Text nodes could store the source
-buffer, but then their serialized representation wouldn't be readable."
+Each PROPERTY is one of PROPS."
   (let ((events nil)
         (prev-alist nil)
         (prev-end nil))
     (pcase-dolist (`(,start ,end ,alist) ranges)
-      (let ((open-events nil)
-            (close-events nil))
-        (dolist (prop props)
-          (let ((old (assq prop prev-alist))
-                (new (assq prop alist)))
-            (unless (equal (cdr old) (cdr new))
-              (when old
-                (push `(close ,start ,old) close-events))
-              (when new
-                (push `(open ,start ,new) open-events)))))
-        (let ((text-node `((text ,start ,end))))
-          ;; `nreverse' ensures that closers are enumerated in reverse order
-          ;; from openers
-          (setq events (nconc text-node (nreverse open-events) close-events events))))
+      (dolist (prop props)
+        (let ((old (assq prop prev-alist))
+              (new (assq prop alist)))
+          (unless (equal (cdr old) (cdr new))
+            (when old
+              (push `(close ,start ,old) events))
+            (when new
+              (push `(open ,start ,new) events)))))
       (setq prev-end end)
       (setq prev-alist alist))
     (dolist (pair prev-alist)
