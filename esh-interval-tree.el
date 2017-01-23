@@ -44,6 +44,10 @@
 
 ;;; Code:
 
+(defun esh-interval-tree-new (low high)
+  "Make a new text node with bounds LOW and HIGH."
+  `(text ,low ,high))
+
 (defun esh-interval-tree--branch (t1 t2)
   "Merge interval trees T1 and T2."
   (cond
@@ -57,7 +61,8 @@
   "Construct an annotation node (_ _ ANNOT TREE)."
   (pcase tree
     (`empty 'empty)
-    (`(,_ ,low ,high . ,_) `(annotation ,low ,high ,annot ,tree))))
+    (`(,_ ,low ,high . ,_) `(annotation ,low ,high ,annot ,tree))
+    (_ (error "Unexpected tree %S" tree))))
 
 (defun esh-interval-tree--split (tree threshold)
   "Split TREE around THRESHOLD.
@@ -83,15 +88,51 @@ T1 < THRESHOLD <= T2.  Returns a cons (T1 . T2)."
     (`(annotation ,_ ,_ ,annot ,tree)
      (pcase-let* ((`(,l . ,r) (esh-interval-tree--split tree threshold)))
        (cons (esh-interval-tree--annotation annot l)
-             (esh-interval-tree--annotation annot r))))))
+             (esh-interval-tree--annotation annot r))))
+    (_ (error "Unexpected tree %S" tree))))
+
+(defun esh-interval-tree--subset (l1 h1 l2 h2)
+  "Check whether [L1, H1[ ⊆ [L2, H2[."
+  (and (<= l2 l1) (<= h1 h2)))
+
+(defun esh-interval-tree--add-no-split (annot low high tree)
+  "Insert interval LOW .. HIGH annotated with ANNOT into TREE.
+This function doesn't split TREE (but it may split subtrees of
+TREE); instead, it returns nil if it can't insert without
+splitting TREE."
+  (pcase tree
+    ;; Nothing interesting to do in these two cases
+    ((or `empty `(text . ,_)) nil)
+    ;; If annotation covers entire tree, stop recursing
+    ((and `(,_ ,low1 ,high1 . ,_)
+          (guard (esh-interval-tree--subset low1 high1 low high)))
+     (ignore low1 high1) ;; Silence byte-compiler
+     `(annotation ,low ,high ,annot ,tree))
+    ;; Otherwise, try to tuck new annotation under existing one
+    (`(annotation ,low1 ,high1 ,annot1 ,tree1)
+     (and (esh-interval-tree--subset low high low1 high1)
+          `(annotation ,low1 ,high1 ,annot1 ,(esh-interval-tree-add annot low high tree1))))
+    ;; …or inside one of the branches of the existing branch
+    (`(branch ,low1 ,high1 ,l ,r)
+     (and (esh-interval-tree--subset low high low1 high1)
+          (or (let ((ll (esh-interval-tree--add-no-split annot low high l)))
+                ;; Insert in left branch…
+                (and ll `(branch ,low1 ,high1 ,ll ,r)))
+              (let ((rr (esh-interval-tree--add-no-split annot low high r)))
+                ;; …or in right branch
+                (and rr `(branch ,low1 ,high1 ,l ,rr))))))
+    (_ (error "Unexpected tree %S" tree))))
 
 (defun esh-interval-tree-add (annot low high tree)
   "Insert interval LOW .. HIGH annotated with ANNOT into TREE."
-  (pcase-let* ((`(,l   . ,rest) (esh-interval-tree--split tree low))
-               (`(,middle . ,r) (esh-interval-tree--split rest high))
-               (annotated (esh-interval-tree--annotation annot middle)))
-    (cl-assert (not (eq middle 'empty)))
-    (esh-interval-tree--branch l (esh-interval-tree--branch annotated r))))
+  (pcase tree
+    (`empty `empty)
+    (_ (or (esh-interval-tree--add-no-split annot low high tree)
+           (pcase-let* ((`(,l   . ,rest) (esh-interval-tree--split tree low))
+                        (`(,middle . ,r) (esh-interval-tree--split rest high))
+                        (annotated (esh-interval-tree--annotation annot middle)))
+             (cl-assert (not (eq middle 'empty)))
+             (esh-interval-tree--branch l (esh-interval-tree--branch annotated r)))))))
 
 (defun esh-interval-tree--flatten-1 (tree acc)
   "Flatten TREE, adding nodes to ACC."
