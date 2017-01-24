@@ -256,13 +256,10 @@ Faces is a list of (possibly anonymous) faces."
                                      (esh--as-list (get-char-property pos 'face)))
                      attribute))
 
-(defun esh--pos-face-attribute-cons (pos attribute)
-  "Look at POS and form cons (ATTRIBUTE . ATTRIBUTE-VALUE)."
-  (cons attribute (esh--pos-face-attribute pos attribute)))
-
 (defun esh--extract-face-attributes (face-attributes pos)
   "Extract FACE-ATTRIBUTES from POS."
-  (mapcar (apply-partially #'esh--pos-face-attribute-cons pos)
+  (mapcar (lambda (attr)
+            (cons attr (esh--pos-face-attribute pos attr)))
           face-attributes))
 
 ;;; Massaging properties
