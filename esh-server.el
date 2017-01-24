@@ -51,7 +51,8 @@ be huge — so only do it if requested.")
   "Retrieve a backtrace and clean it up."
   (with-temp-buffer ;; Could use a sequence of (backtrace-frame) calls
     (let ((standard-output (current-buffer)))
-      (backtrace)
+      (let ((print-circle t))
+        (backtrace))
       (goto-char (point-min))
       (when (re-search-forward "^  esh-server--handle-error" nil t)
         (delete-region (point-min) (point-at-bol)))
@@ -103,9 +104,6 @@ will be non-nil only if CAPTURE-BACKTRACES was non-nil."
              (debug-on-error t)
              (debug-on-signal t)
              (debug-ignored-errors nil)
-             ;; Make sure debugger has room to execute
-             (max-specpdl-size (+ 50 max-specpdl-size))
-             (max-lisp-eval-depth (+ 50 max-lisp-eval-depth))
              ;; Register ourselves as the debugger
              (debugger #'esh-server--handle-error)
              ;; Possibly turn backtraces on
@@ -139,15 +137,24 @@ the defaults seems to work fine."
   (set-terminal-coding-system 'utf-8)
   (setq-default locale-coding-system 'utf-8))
 
+(defun esh-server--init-set-variables ()
+  "Set a few defaults useful for ESH."
+  (esh-server--set-coding-systems)
+  ;; Some terminals don't like Unicode
+  (setq-default text-quoting-style 'grave)
+  ;; Interval tree functions are rather GC-heavy
+  (setq-default gc-cons-threshold (expt 2 26))
+  ;; In bad cases, interval tree functions can recurse pretty deep
+  (setq-default max-specpdl-size 2600)
+  (setq-default max-lisp-eval-depth 1600))
+
 (defun esh-server-init (display &optional init-info)
   "Initialize the ESH server.
 Create an invisible frame on DISPLAY after loading INIT-INFO,
 which should be a cons of (INIT-FPATH . CLIENT-PROVIDED-DATA).
 No error checking here; we expect this to be invoked through
 `esh-server-eval'."
-  (esh-server--set-coding-systems)
-  (setq-default load-prefer-newer t)
-  (setq-default text-quoting-style 'grave)
+  (esh-server--init-set-variables)
   (let ((init-fpath (car init-info)))
     (when init-fpath
       (let ((esh-server-initializing t))

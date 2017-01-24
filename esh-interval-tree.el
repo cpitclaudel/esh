@@ -101,9 +101,6 @@
   "Split TREE around THRESHOLD.
 Constructs two interval trees T1 and T2 satisfying the equation
 T1 < THRESHOLD <= T2.  Returns a cons (T1 . T2)."
-  ;; (cl-incf ~/counter)
-  ;; (when (> ~/counter 1212)
-  ;;   (error "Split %d %S" threshold tree))
   (if (esh-interval-tree--empty-p tree) (cons esh-interval-tree--empty esh-interval-tree--empty)
     (let ((low (esh-interval-tree--low tree)) (high (esh-interval-tree--high tree)))
       (cond
@@ -112,7 +109,8 @@ T1 < THRESHOLD <= T2.  Returns a cons (T1 . T2)."
        ((<= high threshold)
         (cons tree esh-interval-tree--empty))
        ((esh-interval-tree--text-p tree)
-        ;; FIXME could (cl-assert nil) here if tree was pre-populated with all text segments
+        ;; Instead of splitting text segments here, one could pre-populate the
+        ;; tree with all text ranges; then this branch would never happen.
         (cons (esh-interval-tree--text low threshold (esh-interval-tree--annots tree))
               (esh-interval-tree--text threshold high (esh-interval-tree--annots tree))))
        ((esh-interval-tree--branch-p tree)

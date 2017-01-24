@@ -381,6 +381,7 @@ INT-LISTS should be a list; each of its elements should be of the
 form (FROM TO . ANNOTATION).  The FROM bound is inclusive; the TO
 bound is exclusive.  Arguments LOW and HIGH are the boundaries of
 the union of all intervals in INT-LISTS."
+  (random "esh") ;; Seed the RNG to get deterministic results
   (let ((tree (esh-interval-tree-new low high)))
     (dolist (ints int-lists)
       (setq ints (esh--shuffle (vconcat ints)))
