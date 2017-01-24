@@ -187,6 +187,35 @@ Returns a single node.  ANNOTATIONS must be non-nil."
             (esh-interval-tree--flatten-1 l (esh-interval-tree--flatten-1 r acc)))))
        (t (error "Unexpected tree %S" tree))))))
 
+(defun esh-interval-tree--depth (tree)
+  "Compute the depth of TREE."
+  (cond
+   ((esh-interval-tree--empty-p tree) 0)
+   ((esh-interval-tree--text-p tree) 1)
+   ((esh-interval-tree--branch-p tree)
+    (+ 1 (max (esh-interval-tree--depth (esh-interval-tree--branch-left tree)) (esh-interval-tree--depth (esh-interval-tree--branch-right tree)))))
+   (t (error "Unexpected tree %S" tree))))
+
+(defun esh-interval-tree--print (tree)
+  "Print TREE."
+  (cond
+   ((esh-interval-tree--empty-p tree) (princ "∅"))
+   ((esh-interval-tree--text-p tree) (princ (format "(%d %d)" (esh-interval-tree--low tree) (esh-interval-tree--high tree))))
+   ((esh-interval-tree--branch-p tree)
+    (princ (format "(b (%d %d) " (esh-interval-tree--low tree) (esh-interval-tree--high tree)))
+    (esh-interval-tree--print (esh-interval-tree--branch-left tree))
+    (princ " ")
+    (esh-interval-tree--print (esh-interval-tree--branch-right tree))
+    (princ ")"))
+   (t (error "Unexpected tree %S" tree))))
+
+(defun esh-interval-tree--write (tree fname)
+  "Write TREE to file FNAME."
+  (with-temp-buffer
+    (let ((standard-output (current-buffer)))
+      (esh-interval-tree--print tree)
+      (write-file fname))))
+
 (defun esh-interval-tree-flatten (tree)
   "Flatten TREE into a list of flat trees (see commentary)."
   (esh-interval-tree--flatten-1 tree nil))
