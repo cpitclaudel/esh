@@ -774,9 +774,10 @@ lines in inline blocks."
 
 (defun esh--latexify-current-buffer ()
   "Export current buffer to LaTeX."
-  (esh--remove-final-newline)
-  (esh--commit-compositions)
-  (esh--mark-newlines)
+  (let ((inhibit-modification-hooks t))
+    (esh--remove-final-newline)
+    (esh--commit-compositions)
+    (esh--mark-newlines))
   (let ((tree (esh--buffer-to-property-tree
                esh--latex-props
                esh--latex-face-attrs
@@ -1129,9 +1130,10 @@ NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
 
 (defun esh--htmlify-current-buffer ()
   "Export current buffer to HTML."
-  (esh--commit-compositions)
-  (esh--mark-newlines)
-  (esh--mark-non-ascii)
+  (let ((inhibit-modification-hooks t))
+    (esh--commit-compositions)
+    (esh--mark-newlines)
+    (esh--mark-non-ascii))
   (mapcar #'esh--htmlify-span (esh--buffer-ranges)))
 
 (defvar esh--html-src-class-prefix "src-"
