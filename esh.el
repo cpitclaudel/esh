@@ -159,6 +159,16 @@ call signature, and a workaround for an Emacs bug."
     (when str
       (insert str))))
 
+(defun esh--shuffle (v)
+  "Shuffle vector V (in place)."
+  (let ((pos (1- (length v))))
+    (while (> pos 0)
+      (let ((target (random pos)))
+        (cl-psetf (aref v pos) (aref v target)
+                  (aref v target) (aref v pos)))
+      (setq pos (1- pos))))
+  v)
+
 (defmacro esh--pp (x)
   "Pretty-print X and its value, then return the value."
   (let ((xx (make-symbol "x")))
@@ -366,15 +376,18 @@ PRIORITY-RANKING."
       (nreverse int-lists))))
 
 (defun esh--intervals-to-tree (int-lists low high)
-  "Construct an interval tree from text ranges in INTS.
+  "Construct an interval tree from text ranges in INT-LISTS.
 INT-LISTS should be a list; each of its elements should be of the
 form (FROM TO . ANNOTATION).  The FROM bound is inclusive; the TO
 bound is exclusive.  Arguments LOW and HIGH are the boundaries of
 the union of all intervals in INT-LISTS."
   (let ((tree (esh-interval-tree-new low high)))
     (dolist (ints int-lists)
-      (pcase-dolist (`(,from ,to . ,annot) ints)
-        (setq tree (esh-interval-tree-add annot from to tree))))
+      (setq ints (esh--shuffle (vconcat ints)))
+      (dotimes (n (length ints))
+        (pcase (aref ints n)
+          (`(,from ,to . ,annot)
+           (setq tree (esh-interval-tree-add annot from to tree))))))
     tree))
 
 ;;; High-level interface to tree-related code
