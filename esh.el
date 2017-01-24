@@ -295,16 +295,20 @@ the original string."
   "Add a `newline' text property to each \\n character.
 The value is either `empty' or `non-empty' (we need this to add a
 dummy element on empty lines to prevent LaTeX from complaining
-about underful hboxes)."
+about underful hboxes).  Adding these properties also make it
+easy to group ranges by line, which yields a significant speedup
+when processing long files (compared to putting all lines in one
+large interval tree)."
   (goto-char (point-min))
   (while (search-forward "\n" nil t)
-    (set-text-properties (match-beginning 0) (match-end 0)
-                         `(newline
-                           ,(cons (point) ;; Prevent merging of equal properties
-                                  ;; (point-at-bol 0) is beginning of previous line
-                                  ;; (match-beginning 0) is end of previous line
-                                  (if (eq (point-at-bol 0) (match-beginning 0))
-                                      'empty 'non-empty))))))
+    (set-text-properties
+     (match-beginning 0) (match-end 0)
+     `(newline
+       ,(cons (point) ;; Prevent merging of equal properties
+              ;; (point-at-bol 0) is beginning of previous line
+              ;; (match-beginning 0) is end of previous line
+              (if (eq (point-at-bol 0) (match-beginning 0))
+                  'empty 'non-empty))))))
 
 ;;; Constructing a stream of events
 
@@ -350,6 +354,23 @@ Each PROPERTY is one of PROPS."
 (defun esh--event-property (event)
   "Read property changed by EVENT."
   (car (nth 2 event)))
+
+(defun esh--group-ranges-by-line-rev (ranges)
+  "Group RANGES by line.
+Return a list (in reverse order of buffer position); each element
+is a list (BOL EOL RANGES)."
+  (let ((lines nil)
+        (cur-line nil)
+        (cur-bol (point-min)))
+    (dolist (range ranges)
+      (push range cur-line)
+      ;; Newlines are marked with a single property, `newline'
+      (when (eq 'newline (caar (cl-caddr range)))
+        (let ((end (cadr range)))
+          (push `(,cur-bol ,end ,(nreverse cur-line)) lines)
+          (setq cur-line nil cur-bol end))))
+    (push `(,cur-bol ,(point-max) ,(nreverse cur-line)) lines)
+    lines))
 
 ;;; Building property trees
 
@@ -401,12 +422,15 @@ tolerance to splitting (if a property comes late in this list,
 ESH will try to preserve this property's spans when resolving
 conflicts).  Splitting is needed because in Emacs text properties
 can overlap in ways that are not representable as a tree."
-  (let* ((ranges (esh--buffer-ranges))
-         (annotated-ranges (esh--annotate-ranges ranges text-props face-attrs))
-         (events (esh--ranges-to-events annotated-ranges priority-ranking))
-         (ints (esh--events-to-intervals events priority-ranking))
-         (tree (esh--intervals-to-tree ints (point-min) (point-max))))
-    (esh-interval-tree-flatten tree)))
+  (let* ((flat-tree nil)
+         (ranges (esh--buffer-ranges))
+         (ann-ranges (esh--annotate-ranges ranges text-props face-attrs)))
+    (pcase-dolist (`(,bol ,eol ,ranges) (esh--group-ranges-by-line-rev ann-ranges))
+      (let* ((events (esh--ranges-to-events ranges priority-ranking))
+             (intervals (esh--events-to-intervals events priority-ranking))
+             (tree (esh--intervals-to-tree intervals bol eol)))
+        (setq flat-tree (esh-interval-tree-flatten-acc tree flat-tree))))
+    flat-tree))
 
 ;;; Fontifying
 

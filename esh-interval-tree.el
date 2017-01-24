@@ -167,8 +167,8 @@ Returns a single node.  ANNOTATIONS must be non-nil."
     (setq trees `((tag ,ann ,@trees))))
   (car trees))
 
-(defun esh-interval-tree--flatten-1 (tree acc)
-  "Flatten TREE, adding nodes to ACC."
+(defun esh-interval-tree-flatten-acc (tree acc)
+  "Flatten TREE, adding nodes to front of ACC."
   (if (esh-interval-tree--empty-p tree) acc
     (let ((annots (esh-interval-tree--annots tree)))
       (cond
@@ -180,9 +180,9 @@ Returns a single node.  ANNOTATIONS must be non-nil."
         (let ((l (esh-interval-tree--branch-left tree))
               (r (esh-interval-tree--branch-right tree)))
           (if annots
-              (let ((flat (esh-interval-tree--flatten-1 l (esh-interval-tree--flatten-1 r nil))))
+              (let ((flat (esh-interval-tree-flatten-acc l (esh-interval-tree-flatten-acc r nil))))
                 (cons (esh-interval-tree--flat-annotate annots flat) acc))
-            (esh-interval-tree--flatten-1 l (esh-interval-tree--flatten-1 r acc)))))
+            (esh-interval-tree-flatten-acc l (esh-interval-tree-flatten-acc r acc)))))
        (t (error "Unexpected tree %S" tree))))))
 
 (defun esh-interval-tree--depth (tree)
@@ -216,7 +216,7 @@ Returns a single node.  ANNOTATIONS must be non-nil."
 
 (defun esh-interval-tree-flatten (tree)
   "Flatten TREE into a list of flat trees (see commentary)."
-  (esh-interval-tree--flatten-1 tree nil))
+  (esh-interval-tree-flatten-acc tree nil))
 
 (provide 'esh-interval-tree)
 ;;; esh-interval-tree.el ends here
