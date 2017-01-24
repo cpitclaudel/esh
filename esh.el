@@ -223,6 +223,7 @@ Does not take inheritance into account."
            'unspecified))
         (t (error "Invalid face %S" face))))
 
+;; Caching this function speeds things up by just a few percentage points
 (defun esh--single-face-attribute (face attribute)
   "Read ATTRIBUTE from (potentially anonymous) FACE.
 Takes inheritance into account."
@@ -249,18 +250,20 @@ Faces is a list of (possibly anonymous) faces."
   "Wrap X in a list, if needed."
   (if (listp x) x (list x)))
 
-(defun esh--pos-face-attribute (pos attribute)
-  "Look at POS and find out value of face ATTRIBUTE."
-  ;; If we don't deduplicate relative font sizes get squared
-  (esh--faces-attribute (esh--append-dedup (esh--as-list (get-text-property pos 'face))
-                                     (esh--as-list (get-char-property pos 'face)))
-                     attribute))
+(defun esh--faces-at-point (pos)
+  "Compute list of faces at POS."
+  ;; `get-char-property' returns either overlay properties (if any), or text
+  ;; properties — never both.  Hence the two lists (and the deduplication, since
+  ;; otherwise relative font sizes get squared).
+  (esh--append-dedup (esh--as-list (get-text-property pos 'face))
+                  (esh--as-list (get-char-property pos 'face))))
 
 (defun esh--extract-face-attributes (face-attributes pos)
   "Extract FACE-ATTRIBUTES from POS."
-  (mapcar (lambda (attr)
-            (cons attr (esh--pos-face-attribute pos attr)))
-          face-attributes))
+  (let ((faces (esh--faces-at-point pos)))
+    (and  faces ;; Empty list of faces → no face attributes
+          (mapcar (lambda (attr) (cons attr (esh--faces-attribute faces attr)))
+                  face-attributes))))
 
 ;;; Massaging properties
 
