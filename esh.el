@@ -207,7 +207,7 @@ properties."
 ;;; Extracting faces and properties
 
 (defun esh--extract-props (props pos)
-  "Read PROPS from POS as an ALIST or (PROP . VAL)."
+  "Read PROPS from POS as an ALIST of (PROP . VAL)."
   (mapcar (lambda (prop)
             (cons prop (get-char-property pos prop)))
           props))
@@ -414,14 +414,15 @@ the union of all intervals in INT-LISTS."
 
 ;;; High-level interface to tree-related code
 
-(defun esh--buffer-to-property-tree (text-props face-attrs priority-ranking)
+(defun esh--buffer-to-property-trees (text-props face-attrs priority-ranking)
   "Construct a properly nesting list of event from current buffer.
 TEXT-PROPS and FACE-ATTRS specify which properties to keep track
 of.  PRIORITY-RANKING ranks all these properties in order of
 tolerance to splitting (if a property comes late in this list,
 ESH will try to preserve this property's spans when resolving
 conflicts).  Splitting is needed because in Emacs text properties
-can overlap in ways that are not representable as a tree."
+can overlap in ways that are not representable as a tree.
+Result is influenced by `esh-interval-tree-nest-annotations'."
   (let* ((flat-tree nil)
          (ranges (esh--buffer-ranges))
          (ann-ranges (esh--annotate-ranges ranges text-props face-attrs)))
@@ -737,7 +738,7 @@ AFTER."
     (_ (error "Unexpected property %S" property))))
 
 (defun esh--latex-export-tree (tree)
-  "Export a single TREE."
+  "Export a single TREE to LaTeX."
   (pcase tree
     (`(text ,start ,end)
      (esh--latex-export-text-node start end))
@@ -778,13 +779,14 @@ lines in inline blocks."
     (esh--remove-final-newline)
     (esh--commit-compositions)
     (esh--mark-newlines))
-  (let ((tree (esh--buffer-to-property-tree
-               esh--latex-props
-               esh--latex-face-attrs
-               esh--latex-priorities))
-        (source-buf (current-buffer)))
+  (let ((source-buf (current-buffer))
+        (trees (let ((esh-interval-tree-nest-annotations t))
+                 (esh--buffer-to-property-trees
+                  esh--latex-props
+                  esh--latex-face-attrs
+                  esh--latex-priorities))))
     (with-temp-buffer
-      (esh--latex-export source-buf tree)
+      (esh--latex-export source-buf trees)
       (esh--latexify-protect-eols)
       (esh--latexify-protect-bols)
       (buffer-string))))

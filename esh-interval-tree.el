@@ -57,6 +57,11 @@
      (:constructor esh-interval-tree--branch (low high annots left right)))
   low high annots left right)
 
+(defvar esh-interval-tree-nest-annotations nil
+  "How annotations are rendered in flattened trees.
+When non-nil, each `tag' node contains a single annotation.
+Otherwise, tag nodes contain lists of annotations.")
+
 (defsubst esh-interval-tree--empty-p (tree)
   "Check if TREE is the empty tree."
   (eq tree esh-interval-tree--empty))
@@ -161,11 +166,16 @@ splitting the top node of TREE."
 
 (defun esh-interval-tree--flat-annotate (annotations trees)
   "Annotate TREES with all ANNOTATIONS.
-Returns a single node.  ANNOTATIONS must be non-nil."
+Returns a single node.  ANNOTATIONS must be non-nil.  Result
+depends on `esh-interval-tree-nest-annotations': when non-nil,
+this function generates one tag node per annotation in
+ANNOTATIONS."
   (cl-assert annotations)
-  (dolist (ann (reverse annotations))
-    (setq trees `((tag ,ann ,@trees))))
-  (car trees))
+  (if (not esh-interval-tree-nest-annotations)
+      `(tag ,annotations ,@trees)
+    (dolist (ann (reverse annotations))
+      (setq trees `((tag ,ann ,@trees))))
+    (car trees)))
 
 (defun esh-interval-tree-flatten-acc (tree acc)
   "Flatten TREE, adding nodes to front of ACC."
