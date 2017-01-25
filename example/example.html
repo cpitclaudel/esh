@@ -142,7 +142,7 @@ instance Monoid (Endo a) where
                  [_ (pattern-failure user-stx &#39;pattern)]))))]</pre>
 
     <h2>OCaml (source: <code>genlex.ml</code> in OCaml’s standard library)</h2>
-    <pre class="src-ocaml">(** The lexer **)
+    <pre class="src-tuareg">(** The lexer **)
 let make_lexer keywords =
   let kwd_table = Hashtbl.create 17 in
   List.iter (fun s -&gt; Hashtbl.add kwd_table s (Kwd s)) keywords;
@@ -181,7 +181,7 @@ let processServerFinished ks log (m, l) =
      let svd = KeySchedule.ks_client_12_server_finished ks in
      if (equalBytes svd f.fin_vd) then
         let _ = log @@ (Finished (f)) in
-    Correct svd
+        Correct svd
      else Error (AD_decode_error, &quot;Finished MAC did not verify&quot;)
    | _ -&gt; Error (AD_decode_error, &quot;Unexpected state&quot;)</pre>
 

@@ -12,7 +12,7 @@ endif
 
 all: xelatex
 
-html: dep example.tex
+html: dep example.html
 	${ESH2HTML} --debug-on-error ${ARGS} example.html
 
 xelatex: dep example.tex
