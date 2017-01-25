@@ -730,7 +730,6 @@ AFTER."
        (error "Unexpected line-height property %S" val))
      (esh--latex-export-wrapped-if val
        "\\ESHStrut{%.2g}" subtrees ""))
-
     (`newline
      ;; Add an mbox to prevent TeX from complaining about underfull boxes.
      (esh--latex-export-wrapped-if (eq (cdr val) 'empty)
@@ -1042,7 +1041,7 @@ NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
      (insert "<!--" comment "-->"))
     (`(,tag ,attributes . ,children)
      (unless escape-specials
-       (error "Must escape specials in %S" escape-specials))
+       (error "Must escape specials in %S" tag))
      (let ((tag-name (symbol-name tag))
            (escape-specials (not (memq tag '(script style)))))
        (insert "<" tag-name)
@@ -1058,20 +1057,24 @@ NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
          (insert "</" tag-name ">"))))
     (_ (error "Unprintable node %S" node))))
 
-(defvar esh--html-props '(display invisible non-ascii newline))
-(defvar esh--html-face-attrs '(:underline :background :foreground :weight :slant)) ;; TODO :height :line-height
+(defconst esh--html-props '(display invisible non-ascii newline))
+(defconst esh--html-face-attrs '(:underline :background :foreground :weight :slant)) ;; TODO :height :line-height :box
 
-(defun esh--htmlify-span (range)
-  "Render RANGE as an HTML tree."
+(defconst esh--html-priorities
+  `(,@'(line-height newline :underline :foreground :weight :height :background) ;; Fine to split
+    ,@'(:slant :box display non-ascii invisible)) ;; Should not split
+  "Priority order for text properties in HTML export.
+See `esh--resolve-event-conflicts'.")
+
+(defun esh--html-export-tag-node (attributes subtrees)
+  "Export SUBTREES wrapped in a HTML implementation of ATTRIBUTES."
   (let ((styles nil)
         (raised nil)
         (non-ascii nil)
-        (text (buffer-substring-no-properties (car range) (cdr range)))
-        (props-alist (esh--extract-props esh--html-props (car range)))
-        (attrs-alist (esh--extract-face-attributes esh--html-face-attrs (car range))))
-    (pcase-dolist (`(,attribute . ,val) (esh--filter-cdr 'unspecified attrs-alist))
+        (children (esh--html-export subtrees)))
+    (pcase-dolist (`(,property . ,val) attributes)
       (when val
-        (pcase attribute
+        (pcase property
           (:foreground
            (when (setq val (esh--normalize-color-unless val :foreground))
              (push (concat "color: #" val) styles)))
@@ -1095,40 +1098,46 @@ NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
               (when (setq color (esh--normalize-color color))
                 (push (concat "text-decoration-color: #" color) styles)))
              (_ (error "Unexpected underline %S" val))))
-          (_ (error "Unexpected attribute %S" attribute)))))
-    (pcase-dolist (`(,property . ,val) (esh--filter-cdr nil props-alist))
-      (pcase property
-        (`display
-         (pcase val
-           (`(raise ,amount)
-            (setq raised t) ;;FIXME handle amount > 0 case
-            (push (format "bottom: %gem" amount) styles))
-           ((pred stringp)
-            (setq text val))
-           (_ (error "Unexpected display property %S" val))))
-        (`invisible
-         (when val (setq text "")))
-        (`non-ascii
-         (when val (setq non-ascii t)))
-        (`newline
-         ;; Ensure that no newlines are added inside commands.
-         ;; FIXME handle background colors extending past end of line
-         (setq styles nil))
-        (_ (error "Unexpected property %S" property))))
-    (cond
-     ((equal text "") "")
-     ((and (null styles) (not non-ascii)) text)
-     (t
-      (let ((attrs (when styles
-                     `((style . ,(mapconcat #'identity styles ";"))))))
-        (setq text `(span ,attrs ,text)))
-      (when non-ascii ;; Need nested divs to align wide character properly
-        (setq text `(span ((class . "non-ascii")) (span nil ,text))))
+          (`display
+           (pcase val
+             (`(raise ,amount)
+              (setq raised t) ;;FIXME handle amount < 0 case
+              (push (format "bottom: %gem" amount) styles))
+             ((pred stringp)
+              (setq children (list val)))
+             (_ (error "Unexpected display property %S" val))))
+          (`invisible
+           (when val (setq children nil)))
+          (`non-ascii
+           (when val (setq non-ascii t)))
+          ;; FIXME handle background colors extending past end of line
+          (`newline
+           (cl-assert (null styles)))
+          (_ (error "Unexpected property %S" property)))))
+    (if (null children) nil
+      (cl-assert (or styles non-ascii))
+      (when styles
+        (let ((attrs `((style . ,(mapconcat #'identity styles ";")))))
+          (setq children `((span ,attrs ,@children)))))
+      (when non-ascii ;; Aligning wide characters properly requires nested divs
+        (setq children `((span ((class . "non-ascii")) (span nil ,@children)))))
       (when raised
-        (setq text `(span ((class . "raised"))
-                          (span ((class . "raised-text")) ,text)
-                          (span ((class . "raised-phantom")) ,text))))
-      text))))
+        (setq children `((span ((class . "raised"))
+                               (span ((class . "raised-text")) ,@children)
+                               (span ((class . "raised-phantom")) ,@children)))))
+      (car children))))
+
+(defun esh--html-export-tree (tree)
+  "Export a single TREE to HTML."
+  (pcase tree
+    (`(text ,start ,end)
+     (buffer-substring-no-properties start end))
+    (`(tag ,attributes . ,trees)
+     (esh--html-export-tag-node attributes trees))))
+
+(defun esh--html-export (trees)
+  "Export TREES to HTML."
+  (delq nil (mapcar #'esh--html-export-tree trees)))
 
 (defun esh--htmlify-current-buffer ()
   "Export current buffer to HTML."
@@ -1136,7 +1145,12 @@ NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
     (esh--commit-compositions)
     (esh--mark-newlines)
     (esh--mark-non-ascii))
-  (mapcar #'esh--htmlify-span (esh--buffer-ranges)))
+  (let ((trees (let ((esh-interval-tree-nest-annotations nil))
+                 (esh--buffer-to-property-trees
+                  esh--html-props
+                  esh--html-face-attrs
+                  esh--html-priorities))))
+    (esh--html-export trees)))
 
 (defvar esh--html-src-class-prefix "src-"
   "HTML class prefix indicating a fontifiable tag.")
