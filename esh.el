@@ -501,6 +501,13 @@ EXPORT-FN should do the actual exporting."
     (insert str)
     (esh--export-buffer export-fn)))
 
+(defun esh--export-file (source-path export-fn)
+  "Fontify contents of SOURCE-PATH, then invoke EXPORT-FN."
+  (let ((mode-fn (esh--find-auto-mode source-path)))
+    (with-current-buffer (esh--make-temp-buffer mode-fn)
+      (esh--insert-file-contents source-path)
+      (esh--export-buffer export-fn))))
+
 ;;; Producing LaTeX
 
 (defconst esh--latex-props '(display invisible line-height newline))
@@ -1005,10 +1012,7 @@ code” pairs (in \\ESHpvDefine form)."
 (defun esh2tex-source-file (source-path)
   "Fontify contents of SOURCE-PATH.
 Return result as a LaTeX string."
-  (let ((mode-fn (esh--find-auto-mode source-path)))
-    (with-current-buffer (esh--make-temp-buffer mode-fn)
-      (esh--insert-file-contents source-path)
-      (esh--export-buffer #'esh--latexify-current-buffer))))
+  (esh--export-file source-path #'esh--latexify-current-buffer))
 
 ;;; Producing HTML
 
