@@ -1120,7 +1120,6 @@ See `esh--resolve-event-conflicts'.")
            (cl-assert (null styles)))
           (_ (error "Unexpected property %S" property)))))
     (if (null children) nil
-      (cl-assert (or styles non-ascii))
       (when styles
         (let ((attrs `((style . ,(mapconcat #'identity styles ";")))))
           (setq children `((span ,attrs ,@children)))))
@@ -1130,6 +1129,8 @@ See `esh--resolve-event-conflicts'.")
         (setq children `((span ((class . "raised"))
                                (span ((class . "raised-text")) ,@children)
                                (span ((class . "raised-phantom")) ,@children)))))
+      ;; Properties like 'newline don't translate into CSS attributes
+      (cl-assert (null (cdr children)))
       (car children))))
 
 (defun esh--html-export-tree (tree)
