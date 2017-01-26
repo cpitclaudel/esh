@@ -1086,32 +1086,32 @@ See `esh--resolve-event-conflicts'.")
         (pcase property
           (:foreground
            (when (setq val (esh--normalize-color-unless val :foreground))
-             (push (concat "color: #" val) styles)))
+             (push (concat "color:#" val) styles)))
           (:background
            (when (setq val (esh--normalize-color-unless val :background))
-             (push (concat "background-color: #" val) styles)))
+             (push (concat "background-color:#" val) styles)))
           (:weight
            (if (setq val (esh--normalize-weight val))
-               (push (format "font-weight: %d" val) styles)
+               (push (format "font-weight:%d" val) styles)
              (error "Unexpected weight %S" val)))
           (:slant
            (if (memq val '(italic oblique normal))
-               (push (concat "font-style: " (symbol-name val)) styles)
+               (push (concat "font-style:" (symbol-name val)) styles)
              (error "Unexpected slant %S" val)))
           (:underline
            (pcase (esh--normalize-underline val)
              (`(,color . ,type)
-              (push "text-decoration: underline" styles)
+              (push "text-decoration:underline" styles)
               (when (eq type 'wave)
-                (push "text-decoration-style: wavy" styles))
+                (push "text-decoration-style:wavy" styles))
               (when (setq color (esh--normalize-color color))
-                (push (concat "text-decoration-color: #" color) styles)))
+                (push (concat "text-decoration-color:#" color) styles)))
              (_ (error "Unexpected underline %S" val))))
           (`display
            (pcase val
              (`(raise ,amount)
               (setq raised t) ;;FIXME handle amount < 0 case
-              (push (format "bottom: %gem" amount) styles))
+              (push (format "bottom:%gem" amount) styles))
              ((pred stringp)
               (setq children (list val)))
              (_ (error "Unexpected display property %S" val))))
