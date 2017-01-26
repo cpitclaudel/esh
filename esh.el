@@ -171,6 +171,7 @@ call signature, and a workaround for an Emacs bug."
 
 (defmacro esh--pp (x)
   "Pretty-print X and its value, then return the value."
+  (declare (debug t))
   (let ((xx (make-symbol "x")))
     `(progn (prin1 ',x)
             (princ "\n")
@@ -223,7 +224,6 @@ Does not take inheritance into account."
            'unspecified))
         (t (error "Invalid face %S" face))))
 
-;; Caching this function speeds things up by just a few percentage points
 (defun esh--single-face-attribute (face attribute)
   "Read ATTRIBUTE from (potentially anonymous) FACE.
 Takes inheritance into account."
@@ -258,12 +258,17 @@ Faces is a list of (possibly anonymous) faces."
   (esh--append-dedup (esh--as-list (get-text-property pos 'face))
                   (esh--as-list (get-char-property pos 'face))))
 
+;; Caching this function speeds things up by about 5%
+(defun esh--extract-face-attributes-1 (face-attributes faces)
+  "Extract FACE-ATTRIBUTES from FACES."
+  (mapcar (lambda (attr) (cons attr (esh--faces-attribute faces attr)))
+          face-attributes))
+
 (defun esh--extract-face-attributes (face-attributes pos)
   "Extract FACE-ATTRIBUTES from POS."
   (let ((faces (esh--faces-at-point pos)))
-    (and  faces ;; Empty list of faces → no face attributes
-          (mapcar (lambda (attr) (cons attr (esh--faces-attribute faces attr)))
-                  face-attributes))))
+    (and faces ;; Empty list of faces → no face attributes
+         (esh--extract-face-attributes-1 face-attributes faces))))
 
 ;;; Massaging properties
 
@@ -324,7 +329,7 @@ END is exclusive."
              (attrs-alist (esh--extract-face-attributes face-attrs start))
              (merged-alist (nconc (esh--filter-cdr 'unspecified attrs-alist)
                                   (esh--filter-cdr nil props-alist))))
-        (push (nconc (list start end) (list merged-alist)) acc)))
+        (push (list start end merged-alist) acc)))
     (nreverse acc)))
 
 (defun esh--ranges-to-events (ranges props)
