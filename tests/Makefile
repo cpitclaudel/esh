@@ -27,7 +27,7 @@ tricky:
 	cd tricky; xelatex --jobname=main main.esh.tex
 	mv tricky/main.pdf ./tricky.pdf
 	cd tricky; ${ESH2HTML} main.html
-	mv tricky/main.esh.html ./tricky.html
+	mv tricky/main.esh.html ./tricky.esh.html
 
 pv:
 	${ESH2TEX} --write-preamble
@@ -48,7 +48,7 @@ lua:
 reference:
 	make -C ../example/ reference html
 	cp ../example/reference.pdf reference.pdf
-	cp ../example/example.esh.html reference.html
+	cp ../example/example.esh.html reference.esh.html
 
 strip:
 	for f in *.pdf; do exiftool '-all:all=' -overwrite_original "$$f"; pdf2ps "$$f"; done
