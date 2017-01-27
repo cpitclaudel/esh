@@ -379,7 +379,8 @@ is a list (BOL EOL RANGES)."
         (let ((end (cadr range)))
           (push `(,cur-bol ,end ,(nreverse cur-line)) lines)
           (setq cur-line nil cur-bol end))))
-    (push `(,cur-bol ,(point-max) ,(nreverse cur-line)) lines)
+    (when cur-line ;; empty if buffer has final newline
+      (push `(,cur-bol ,(point-max) ,(nreverse cur-line)) lines))
     lines))
 
 ;;; Building property trees
@@ -1182,6 +1183,7 @@ See `esh--resolve-event-conflicts'.")
   "Export current buffer to HTML."
   (let ((inhibit-modification-hooks t))
     (untabify (point-min) (point-max))
+    (esh--remove-final-newline)
     (esh--commit-compositions)
     (esh--mark-newlines)
     (esh--mark-non-ascii))
