@@ -32,6 +32,7 @@
 
 ;; Can't depend on external packages
 (require 'color)
+(require 'tabify)
 (require 'cl-lib) ;; cl-assert
 (require 'esh-interval-tree)
 
@@ -791,6 +792,7 @@ lines in inline blocks."
 (defun esh--latexify-current-buffer ()
   "Export current buffer to LaTeX."
   (let ((inhibit-modification-hooks t))
+    (untabify (point-min) (point-max))
     (esh--remove-final-newline)
     (esh--commit-compositions)
     (esh--mark-newlines))
@@ -1179,6 +1181,7 @@ See `esh--resolve-event-conflicts'.")
 (defun esh--htmlify-current-buffer ()
   "Export current buffer to HTML."
   (let ((inhibit-modification-hooks t))
+    (untabify (point-min) (point-max))
     (esh--commit-compositions)
     (esh--mark-newlines)
     (esh--mark-non-ascii))
