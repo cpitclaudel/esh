@@ -311,14 +311,15 @@ when processing long files (compared to putting all lines in one
 large interval tree)."
   (goto-char (point-min))
   (while (search-forward "\n" nil t)
-    (set-text-properties
-     (match-beginning 0) (match-end 0)
-     `(newline
-       ,(cons (point) ;; Prevent merging of equal properties
-              ;; (point-at-bol 0) is beginning of previous line
-              ;; (match-beginning 0) is end of previous line
-              (if (eq (point-at-bol 0) (match-beginning 0))
-                  'empty 'non-empty))))))
+    ;; (point-at-bol 0) is beginning of previous line
+    ;; (match-beginning 0) is end of previous line
+    ;; Inclusion of (point) prevents collapsing of adjacent properties
+    (let* ((empty (= (point-at-bol 0) (match-beginning 0)))
+           (newline (cons (point) (if empty 'empty 'non-empty)))
+           (line-height (get-text-property (match-beginning 0) 'line-height)))
+      (set-text-properties
+       (match-beginning 0) (match-end 0)
+       `(newline ,newline ,@(when line-height `(line-height ,line-height)))))))
 
 ;;; Constructing a stream of events
 
