@@ -180,6 +180,10 @@ call signature, and a workaround for an Emacs bug."
               (princ "\n")
               ,xx))))
 
+(defun esh--join (strs sep)
+  "Joins STRS with SEP."
+  (mapconcat #'identity strs sep))
+
 ;;; Segmenting a buffer
 
 (defun esh--buffer-ranges-from (start prop)
@@ -1066,14 +1070,23 @@ NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
          (insert "</" tag-name ">"))))
     (_ (error "Unprintable node %S" node))))
 
-(defconst esh--html-props '(display invisible non-ascii newline))
-(defconst esh--html-face-attrs '(:underline :background :foreground :weight :slant)) ;; TODO :height :line-height :box
+(defconst esh--html-props '(display invisible non-ascii newline)) ;; TODO line-height
+(defconst esh--html-face-attrs '(:underline :background :foreground :weight :slant :box :height))
 
 (defconst esh--html-priorities
   `(,@'(line-height newline :underline :foreground :weight :height :background) ;; Fine to split
     ,@'(:slant :box display non-ascii invisible)) ;; Should not split
   "Priority order for text properties in HTML export.
 See `esh--resolve-event-conflicts'.")
+
+(defun esh--html-wrap-children (styles non-ascii children)
+  "Apply STYLES and NON-ASCII markup to CHILDREN."
+  (when styles
+    (let* ((css (mapconcat (lambda (p) (concat (car p) ":" (cdr p))) styles ";")))
+      (setq children `((span ((style . ,css)) ,@children)))))
+  (when non-ascii ;; Aligning wide characters properly requires nested divs
+    (setq children `((span ((class . "esh-non-ascii")) (span nil ,@children)))))
+  children)
 
 (defun esh--html-export-tag-node (attributes subtrees)
   "Export SUBTREES wrapped in a HTML implementation of ATTRIBUTES."
@@ -1086,32 +1099,46 @@ See `esh--resolve-event-conflicts'.")
         (pcase property
           (:foreground
            (when (setq val (esh--normalize-color-unless val :foreground))
-             (push (concat "color:#" val) styles)))
+             (push (cons "color" (concat "#" val)) styles)))
           (:background
            (when (setq val (esh--normalize-color-unless val :background))
-             (push (concat "background-color:#" val) styles)))
+             (push (cons "background-color" (concat "#" val)) styles)))
           (:weight
            (if (setq val (esh--normalize-weight val))
-               (push (format "font-weight:%d" val) styles)
+               (push (cons "font-weight" (format "%d" val)) styles)
              (error "Unexpected weight %S" val)))
+          (:height
+           (when (esh--normalize-height val)
+             (push (cons "font-size" (format "%d%%" (* val 100))) styles)))
           (:slant
            (if (memq val '(italic oblique normal))
-               (push (concat "font-style:" (symbol-name val)) styles)
+               (push (cons "font-style" (symbol-name val)) styles)
              (error "Unexpected slant %S" val)))
           (:underline
            (pcase (esh--normalize-underline val)
              (`(,color . ,type)
-              (push "text-decoration:underline" styles)
+              (push (cons "text-decoration" "underline") styles)
               (when (eq type 'wave)
-                (push "text-decoration-style:wavy" styles))
+                (push (cons "text-decoration-style" "wavy") styles))
               (when (setq color (esh--normalize-color color))
-                (push (concat "text-decoration-color:#" color) styles)))
+                (push (cons "text-decoration-color" (concat "#" color))
+                      styles)))
              (_ (error "Unexpected underline %S" val))))
+          (:box
+           (pcase (esh--normalize-box val)
+             (`(,line-width ,color ,style)
+              (unless (eq style nil)
+                (error "Unsupported box style %S" style))
+              (let ((box-style `(,(format "%dpt" (abs line-width)) "solid"
+                                 ,@(when (setq color (esh--normalize-color color))
+                                     `(,color)))))
+                (push (cons "border" (esh--join box-style " ")) styles)))
+             (_ (error "Unexpected box %S" val))))
           (`display
            (pcase val
              (`(raise ,amount)
               (setq raised t) ;;FIXME handle amount < 0 case
-              (push (format "bottom:%gem" amount) styles))
+              (push (cons "bottom" (format "%2gem" amount)) styles))
              ((pred stringp)
               (setq children (list val)))
              (_ (error "Unexpected display property %S" val))))
@@ -1119,23 +1146,23 @@ See `esh--resolve-event-conflicts'.")
            (when val (setq children nil)))
           (`non-ascii
            (when val (setq non-ascii t)))
-          ;; FIXME handle background colors extending past end of line
           (`newline
+           ;; FIXME handle background colors extending past end of line
            (cl-assert (null styles)))
           (_ (error "Unexpected property %S" property)))))
-    (if (null children) nil
-      (when styles
-        (let ((attrs `((style . ,(mapconcat #'identity styles ";")))))
-          (setq children `((span ,attrs ,@children)))))
-      (when non-ascii ;; Aligning wide characters properly requires nested divs
-        (setq children `((span ((class . "non-ascii")) (span nil ,@children)))))
-      (when raised
-        (setq children `((span ((class . "raised"))
-                               (span ((class . "raised-text")) ,@children)
-                               (span ((class . "raised-phantom")) ,@children)))))
+    (cond
+     ((null children) nil)
+     (raised
+      `(span ((class . "esh-raised"))
+             (span ((class . "esh-raised-contents"))
+                   ,@(esh--html-wrap-children styles non-ascii children))
+             (span ((class . "esh-raised-placeholder"))
+                   ,@(esh--html-wrap-children nil non-ascii children))))
+     (t
+      (setq children (esh--html-wrap-children styles non-ascii children))
       ;; Properties like 'newline don't translate into CSS attributes
       (cl-assert (null (cdr children)))
-      (car children))))
+      (car children)))))
 
 (defun esh--html-export-tree (tree)
   "Export a single TREE to HTML."
