@@ -130,11 +130,13 @@ call signature, and a workaround for an Emacs bug."
   (font-lock-add-keywords nil forms how))
 
 (defun esh--remove-final-newline ()
-  "Remove last newline of current buffer, if present."
+  "Hide last newline of current buffer, if present.
+The line is hidden, rather than removed entirely, because it may
+have interesting text properties (e.g. `line-height')."
   (goto-char (point-max))
   ;; There may not be a final newline in standalone mode
   (when (eq (char-before) ?\n)
-    (delete-char -1)))
+    (put-text-property (1- (point)) (point) 'invisible t)))
 
 (defun esh--insert-file-contents (fname)
   "Like (`insert-file-contents' FNAME), but allow all local variables."
@@ -316,10 +318,13 @@ large interval tree)."
     ;; Inclusion of (point) prevents collapsing of adjacent properties
     (let* ((empty (= (point-at-bol 0) (match-beginning 0)))
            (newline (cons (point) (if empty 'empty 'non-empty)))
+           (invisible (get-text-property (match-beginning 0) 'invisible))
            (line-height (get-text-property (match-beginning 0) 'line-height)))
       (set-text-properties
        (match-beginning 0) (match-end 0)
-       `(newline ,newline ,@(when line-height `(line-height ,line-height)))))))
+       (append `(newline ,newline)
+               (when line-height `(line-height ,line-height))
+               (when invisible `(invisible ,invisible)))))))
 
 ;;; Constructing a stream of events
 
