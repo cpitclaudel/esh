@@ -42,7 +42,8 @@
 
 ;;; Code:
 
-(require 'cl-lib) ;; cl-assert
+(require 'cl-lib)
+(require 'esh-assert)
 
 (defconst esh-interval-tree--empty
   'empty)
@@ -140,11 +141,11 @@ T1 < THRESHOLD <= T2.  Returns a list (ANNOTS T1 T2)."
 
 (defun esh-interval-tree--add-split (annot low high tree)
   "Insert interval LOW .. HIGH annotated with ANNOT into TREE."
-  (cl-assert (not (esh-interval-tree--empty-p tree)) t)
+  (esh-assert (not (esh-interval-tree--empty-p tree)))
   (pcase-let* ((`(,lannots ,l ,rest) (esh-interval-tree--split tree low))
                (`(,rannots ,mid ,r) (esh-interval-tree--split rest high))
                (annotated (esh-interval-tree--annotate-1 annot mid)))
-    (cl-assert (not (esh-interval-tree--empty-p mid)) t)
+    (esh-assert (not (esh-interval-tree--empty-p mid)))
     (esh-interval-tree--annotate lannots
                 (esh-interval-tree--merge l (esh-interval-tree--annotate rannots
                                        (esh-interval-tree--merge annotated r))))))
@@ -160,7 +161,7 @@ This function will never split the range LOW .. HIGH; if needed,
 it will reorganize and split TREE instead.  Range LOW .. HIGH
 must be a subset of the range covered by TREE."
   (if (esh-interval-tree--empty-p tree) esh-interval-tree--empty
-    (cl-assert (esh-interval-tree--fits-in low high tree))
+    (esh-assert (esh-interval-tree--fits-in low high tree))
     (cond
      ((esh-interval-tree--subset (esh-interval-tree--low tree) (esh-interval-tree--high tree) low high)
       (esh-interval-tree--annotate-1 annot tree))
@@ -186,7 +187,7 @@ Returns a single node.  ANNOTATIONS must be non-nil.  Result
 depends on `esh-interval-tree-nest-annotations': when non-nil,
 this function generates one tag node per annotation in
 ANNOTATIONS."
-  (cl-assert annotations)
+  (esh-assert annotations)
   (if (not esh-interval-tree-nest-annotations)
       `(tag ,annotations ,@trees)
     (dolist (ann (reverse annotations))

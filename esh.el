@@ -33,7 +33,7 @@
 ;; Can't depend on external packages
 (require 'color)
 (require 'tabify)
-(require 'cl-lib) ;; cl-assert
+(require 'cl-lib)
 (require 'esh-interval-tree)
 
 (defconst esh--script-full-path
@@ -401,7 +401,7 @@ PRIORITY-RANKING."
          (push `(,pos nil . ,annot) (gethash (car annot) ints-tbl)))
         (`(close ,pos ,annot)
          ;; …which gets completed here:
-         (cl-assert (equal annot (cddr (car (gethash (car annot) ints-tbl)))) t)
+         (esh-assert (equal annot (cddr (car (gethash (car annot) ints-tbl)))))
          (setf (cadr (car (gethash (car annot) ints-tbl))) pos))))
     (let ((int-lists nil))
       (dolist (property priority-ranking)
@@ -1157,7 +1157,7 @@ See `esh--resolve-event-conflicts'.")
            (when val (setq non-ascii t)))
           (`newline
            ;; FIXME handle background colors extending past end of line
-           (cl-assert (null styles)))
+           (esh-assert (null styles)))
           (_ (error "Unexpected property %S" property)))))
     (cond
      ((null children) nil)
