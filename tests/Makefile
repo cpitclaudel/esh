@@ -51,7 +51,7 @@ reference:
 	cp ../example/example.esh.html reference.esh.html
 
 strip:
-	for f in *.pdf; do exiftool '-all:all=' -overwrite_original "$$f"; pdf2ps "$$f"; done
+	for f in *.pdf; do pdf2ps "$$f"; done
 	for f in *.ps; do sed --in-place -e '/^%%CreationDate: .*/d' "$$f"; done
 	rm *.pdf
 

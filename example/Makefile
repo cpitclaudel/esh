@@ -8,6 +8,9 @@ else
 CASK := $(shell command -v cask 2> /dev/null)
 endif
 
+# Ensure some amount of reproducibility on TexLive 2016:
+export SOURCE_DATE_EPOCH=1483228800
+
 .PHONY: all xelatex pdflatex dep clean reference
 
 all: xelatex
