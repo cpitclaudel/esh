@@ -71,27 +71,30 @@
 % ESHText switches out of math mode if needed (textnormal amstext-friendly)
 \DeclareRobustCommand*{\ESHText}[1]{\ifmmode{\textnormal{#1}}\else{#1}\fi}
 
+% \ESHIfFontChar{#A} uses a XeLaTeX/LuaTeX primitive to print #A in
+% \ESHFallbackFont if it isn't covered by the current font.
+\newcommand*{\ESHIfFontChar}[1]
+  {\iffontchar\font`#1{#1}\else{\ESHFallbackFont#1}\fi}
+
 \makeatletter
+% In XeTeX and LuaTeX, \ESHWithFallback{#A} prints #A in the current font if
+% possible and falls back to \ESHFallbackFont. In other engines, it always uses
+% the fallback font.  The XeTeX implementation is derived from
+% https://tug.org/pipermail/xetex/2011-November/022319.html.
 \@ifundefined{XeTeXinterchartoks}
   {\@ifundefined{luatexversion}
      {% Not using XeTeX, nor LuaTeX: fall back to just using \ESHFallbackFont
       \def\ESHWithFallback#1{\ESHFallbackFont#1}}
      {% Using LuaTeX
-      \def\ESHWithFallback#1{\iffontchar\font`#1{#1}\else{\ESHFallbackFont#1}\fi}}}
+      \def\ESHWithFallback#1{\ESHIfFontChar{#1}}}}
   {% Using XeTeX
-   % \ESHWithFallback{#A} prints #A in the current font if possible, falling back to \ESHFallbackFont
-   % Adapted from https://tug.org/pipermail/xetex/2011-November/022319.html
    \def\ESHWithFallback#1{%
-     \begingroup
-       \def\found{#1}%
-       \def\notfound{\ESHFallbackFont#1}%
-       \ifnum\XeTeXfonttype\font>0%
-         \ifnum\XeTeXcharglyph`#1>0\found\else\notfound\fi
-       \else
-         \setbox0=\hbox{\tracinglostchars=0\kern1sp#1\expandafter}%
-         \ifnum\lastkern=1\notfound\else\found\fi
-       \fi
-     \endgroup}}
+     \ifnum\XeTeXfonttype\font>0% Graphite, OpenType, or AAT font
+       \ESHIfFontChar{#1}%
+     \else% Legacy TeX font
+       \setbox0=\hbox{\tracinglostchars=0\kern1sp#1\expandafter}%
+       \ifnum\lastkern=1{\ESHFallbackFont#1}\else{#1}\fi
+     \fi}}
 \makeatother
 
 % \ESH*SpecialChar is used to wrap non-ascii characters, which may need a fallback font

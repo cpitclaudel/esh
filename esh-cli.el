@@ -71,7 +71,7 @@ Use 'esh2tex --usage' for more information.
 
 (defun esh-cli--init ()
   "See option --init."
-  (let ((template-dir (expand-file-name "template" esh-cli--esh-directory))
+  (let ((template-dir (expand-file-name "etc/template" esh-cli--esh-directory))
         (fonts-dir (expand-file-name "example/fonts" esh-cli--esh-directory))
         (esh2tex (expand-file-name "bin/esh2tex" esh-cli--esh-directory))
         (esh2html (expand-file-name "bin/esh2html" esh-cli--esh-directory)))
@@ -87,10 +87,15 @@ Use 'esh2tex --usage' for more information.
       (insert (format "ESH2HTML := %S\n" esh2html))
       (insert-file-contents "Makefile"))))
 
-(defun esh-cli--write-preamble ()
-  "Copy esh-preamble.tex to current directory, possibly overwriting it."
-  (copy-file (expand-file-name "esh-preamble.tex" esh-cli--esh-directory)
-             (expand-file-name "esh-preamble.tex") t t))
+(defconst esh-cli--preamble-ext-alist
+  '((html . "css") (latex . "tex") (latex-pv . "tex")))
+
+(defun esh-cli--write-preamble (format)
+  "Copy esh-preamble.FORMAT to current directory, possibly overwriting it."
+  (let* ((ext (cdr (assq format esh-cli--preamble-ext-alist)))
+         (fname (format "esh-preamble.%s" ext)))
+    (copy-file (expand-file-name (concat "etc/" fname) esh-cli--esh-directory)
+               (expand-file-name fname) t t)))
 
 (defconst esh-cli--type-ext-alist
   '((html . "html") (latex . "tex") (latex-pv . "tex")))
@@ -180,7 +185,7 @@ Are you missing --standalone?\n" in-path))
           (when (and (not has-inputs) complain-about-missing-input)
             (error "No input files given"))
           (when write-preamble
-            (esh-cli--write-preamble)))
+            (esh-cli--write-preamble format)))
       (when (and has-inputs (not persist))
         (esh-client-kill-server)))))
 

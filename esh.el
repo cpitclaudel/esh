@@ -817,7 +817,7 @@ lines in inline blocks."
 
 (defun esh--latexify-insert-preamble ()
   "Read ESH's LaTeX preamble from disk and insert it at point."
-  (insert-file-contents (expand-file-name "esh-preamble.tex" esh--directory)))
+  (insert-file-contents (expand-file-name "etc/esh-preamble.tex" esh--directory)))
 
 (defvar esh--latexify-preamble-marker "^%%[ \t]*ESH-preamble-here[ \t]*$")
 
