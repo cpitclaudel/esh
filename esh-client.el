@@ -95,8 +95,11 @@ Also, don't interact in weird ways with `message' (bug #24157)."
   "Construct a form to eval FORM on server.
 Output of FORM is saved to DEST.  `esh-server' is required here
 instead of when starting the server due to the better error
-reporting (see docstring of `esh-client--ensure-server-1')."
+reporting (see docstring of `esh-client--ensure-server-1');
+requiring it here also allows us to set `load-prefer-newer'
+first, guaranteeing that we don't get a stale copy of ESH."
   `(progn
+     (setq-default load-prefer-newer t)
      (require 'esh-server)
      (esh-server-eval ',form ,dest ,esh-client-debug-server)))
 

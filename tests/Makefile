@@ -1,6 +1,7 @@
 ESH2TEX="$(realpath ../bin/esh2tex)" --debug-on-error
+ESH2HTML="$(realpath ../bin/esh2html)" --debug-on-error
 
-all: clean cli minimal misc pv standalone lua reference strip
+all: clean cli minimal misc tricky pv standalone lua reference strip
 
 clean:
 	git clean -Xfd
@@ -14,10 +15,19 @@ cli:
 minimal:
 	${ESH2TEX} minimal.tex
 	xelatex --jobname=minimal minimal.esh.tex
+	${ESH2HTML} minimal.html
 
 misc:
 	${ESH2TEX} misc.tex
 	xelatex --jobname=misc misc.esh.tex
+	${ESH2HTML} misc.html
+
+tricky:
+	cd tricky; ${ESH2TEX} main.tex
+	cd tricky; xelatex --jobname=main main.esh.tex
+	mv tricky/main.pdf ./tricky.pdf
+	cd tricky; ${ESH2HTML} main.html
+	mv tricky/main.esh.html ./tricky.html
 
 pv:
 	${ESH2TEX} --write-preamble
@@ -36,12 +46,13 @@ lua:
 	mv lua/lualatex.pdf ./lualatex.pdf
 
 reference:
-	make -C ../example/ reference
+	make -C ../example/ reference html
 	cp ../example/reference.pdf reference.pdf
+	cp ../example/example.esh.html reference.html
 
 strip:
 	for f in *.pdf; do exiftool '-all:all=' -overwrite_original "$$f"; pdf2ps "$$f"; done
 	for f in *.ps; do sed --in-place -e '/^%%CreationDate: .*/d' "$$f"; done
 	rm *.pdf
 
-.PHONY: all clean cli lua minimal misc standalone reference
+.PHONY: all clean cli lua minimal misc tricky standalone reference

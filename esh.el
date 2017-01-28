@@ -30,8 +30,10 @@
 
 ;;; Code:
 
-;; Can't depend on anything outside of core Emacs
+;; Can't depend on external packages
 (require 'color)
+(require 'cl-lib) ;; cl-assert
+(require 'esh-interval-tree)
 
 (defconst esh--script-full-path
   (or (and load-in-progress load-file-name)
@@ -95,12 +97,6 @@ nil instead."
               (push elem deduped))))))
     (nreverse deduped)))
 
-(defun esh--extract-props (props pos)
-  "Read PROPS from POS as an ALIST or (PROP . VAL)."
-  (mapcar (lambda (prop)
-            (cons prop (get-char-property pos prop)))
-          props))
-
 (defvar esh-name-to-mode-alist nil
   "Alist of block name → mode function.")
 
@@ -144,6 +140,45 @@ call signature, and a workaround for an Emacs bug."
   (let ((enable-local-variables :all))
     (insert-file-contents fname)))
 
+(defun esh--merge-sorted (s1 s2 pred)
+  "Merge two lists S1 S2 sorted by PRED."
+  (let ((acc nil))
+    (while (or s1 s2)
+      (cond
+       ((and s1 s2)
+        (if (funcall pred (car s1) (car s2))
+            (push (pop s1) acc)
+          (push (pop s2) acc)))
+       (s1 (push (pop s1) acc))
+       (s2 (push (pop s2) acc))))
+    (nreverse acc)))
+
+(defun esh--insert (&rest strs)
+  "Insert all non-nil elements of STRS."
+  (dolist (str strs)
+    (when str
+      (insert str))))
+
+(defun esh--shuffle (v)
+  "Shuffle vector V (in place)."
+  (let ((pos (1- (length v))))
+    (while (> pos 0)
+      (let ((target (random pos)))
+        (cl-psetf (aref v pos) (aref v target)
+                  (aref v target) (aref v pos)))
+      (setq pos (1- pos))))
+  v)
+
+(defmacro esh--pp (x)
+  "Pretty-print X and its value, then return the value."
+  (let ((xx (make-symbol "x")))
+    `(progn (prin1 ',x)
+            (princ "\n")
+            (let ((,xx ,x))
+              (pp ,xx)
+              (princ "\n")
+              ,xx))))
+
 ;;; Segmenting a buffer
 
 (defun esh--buffer-ranges-from (start prop)
@@ -169,7 +204,13 @@ have the same value of PROP or, if PROP is nil, of all
 properties."
   (esh--buffer-ranges-from 1 prop))
 
-;;; Merging faces
+;;; Extracting faces and properties
+
+(defun esh--extract-props (props pos)
+  "Read PROPS from POS as an ALIST of (PROP . VAL)."
+  (mapcar (lambda (prop)
+            (cons prop (get-char-property pos prop)))
+          props))
 
 (defun esh--face-get (face attribute)
   "Read ATTRIBUTE from (potentially anonymous) FACE.
@@ -182,6 +223,7 @@ Does not take inheritance into account."
            'unspecified))
         (t (error "Invalid face %S" face))))
 
+;; Caching this function speeds things up by just a few percentage points
 (defun esh--single-face-attribute (face attribute)
   "Read ATTRIBUTE from (potentially anonymous) FACE.
 Takes inheritance into account."
@@ -208,21 +250,20 @@ Faces is a list of (possibly anonymous) faces."
   "Wrap X in a list, if needed."
   (if (listp x) x (list x)))
 
-(defun esh--pos-face-attribute (pos attribute)
-  "Look at POS and find out value of face ATTRIBUTE."
-  ;; If we don't deduplicate relative font sizes get squared
-  (esh--faces-attribute (esh--append-dedup (esh--as-list (get-text-property pos 'face))
-                                     (esh--as-list (get-char-property pos 'face)))
-                     attribute))
-
-(defun esh--pos-face-attribute-cons (pos attribute)
-  "Look at POS and form cons (ATTRIBUTE . ATTRIBUTE-VALUE)."
-  (cons attribute (esh--pos-face-attribute pos attribute)))
+(defun esh--faces-at-point (pos)
+  "Compute list of faces at POS."
+  ;; `get-char-property' returns either overlay properties (if any), or text
+  ;; properties — never both.  Hence the two lists (and the deduplication, since
+  ;; otherwise relative font sizes get squared).
+  (esh--append-dedup (esh--as-list (get-text-property pos 'face))
+                  (esh--as-list (get-char-property pos 'face))))
 
 (defun esh--extract-face-attributes (face-attributes pos)
   "Extract FACE-ATTRIBUTES from POS."
-  (mapcar (apply-partially #'esh--pos-face-attribute-cons pos)
-          face-attributes))
+  (let ((faces (esh--faces-at-point pos)))
+    (and  faces ;; Empty list of faces → no face attributes
+          (mapcar (lambda (attr) (cons attr (esh--faces-attribute faces attr)))
+                  face-attributes))))
 
 ;;; Massaging properties
 
@@ -254,40 +295,143 @@ the original string."
   "Add a `newline' text property to each \\n character.
 The value is either `empty' or `non-empty' (we need this to add a
 dummy element on empty lines to prevent LaTeX from complaining
-about underful hboxes)."
+about underful hboxes).  Adding these properties also make it
+easy to group ranges by line, which yields a significant speedup
+when processing long files (compared to putting all lines in one
+large interval tree)."
   (goto-char (point-min))
   (while (search-forward "\n" nil t)
-    (put-text-property (match-beginning 0) (match-end 0) 'newline
-                       (cons (point) ;; Prevent collapsing
-                             ;; (point-at-bol 0) is beginning of previous line
-                             ;; (match-beginning 0) is end of previous line
-                             (if (eq (point-at-bol 0) (match-beginning 0))
-                                 'empty 'non-empty)))
-    ;; Break up boxes spanning more than one line
-    (put-text-property (match-beginning 0) (match-end 0) 'face nil)))
+    (set-text-properties
+     (match-beginning 0) (match-end 0)
+     `(newline
+       ,(cons (point) ;; Prevent merging of equal properties
+              ;; (point-at-bol 0) is beginning of previous line
+              ;; (match-beginning 0) is end of previous line
+              (if (eq (point-at-bol 0) (match-beginning 0))
+                  'empty 'non-empty))))))
 
-(defun esh--mark-boxes ()
-  "Replace :box face attributes.
-Each buffer span whose face has a :box property is modified so
-that its first character has a `begin-box' property, and its last
-character has an `end-box' property."
-  (goto-char (point-min))
-  (let ((prev-start nil)
-        (prev-box nil))
-    (pcase-dolist (`(,start . ,_) (esh--buffer-ranges))
-      (let* ((box-attr (esh--pos-face-attribute start :box))
-             (box (unless (eq box-attr 'unspecified) box-attr))
-             (box-continues (equal box prev-box)))
-        (if box-continues
-            (setq start prev-start)
-          (when prev-box
-            (put-text-property (1- start) start 'esh-end-box prev-box))
-          (when box
-            (put-text-property start (1+ start) 'esh-begin-box box)))
-        (setq prev-box box)
-        (setq prev-start start)))
-    (when prev-box
-      (put-text-property (1- (point-max)) (point-max) 'esh-end-box t))))
+;;; Constructing a stream of events
+
+(defun esh--annotate-ranges (ranges text-props face-attrs)
+  "Annotate each range in RANGES with a property alist.
+Returns a list of (START END ALIST); the keys of ALIST are
+properties in TEXT-PROPS or face attributes in FACE-ATTRS; its
+values are the values of these properties.  START is inclusive;
+END is exclusive."
+  (let ((acc nil))
+    (pcase-dolist (`(,start . ,end) ranges)
+      (let* ((props-alist (esh--extract-props text-props start))
+             (attrs-alist (esh--extract-face-attributes face-attrs start))
+             (merged-alist (nconc (esh--filter-cdr 'unspecified attrs-alist)
+                                  (esh--filter-cdr nil props-alist))))
+        (push (nconc (list start end) (list merged-alist)) acc)))
+    (nreverse acc)))
+
+(defun esh--ranges-to-events (ranges props)
+  "Generate opening and closing events from annotated RANGES.
+Each returned element has one of the following forms:
+  (\\='open POSITION (PROPERTY . VALUE))
+  (\\='close POSITION (PROPERTY . VALUE))
+Each PROPERTY is one of PROPS."
+  (let ((events nil)
+        (prev-alist nil)
+        (prev-end nil))
+    (pcase-dolist (`(,start ,end ,alist) ranges)
+      (dolist (prop props)
+        (let ((old (assq prop prev-alist))
+              (new (assq prop alist)))
+          (unless (equal (cdr old) (cdr new))
+            (when old
+              (push `(close ,start ,old) events))
+            (when new
+              (push `(open ,start ,new) events)))))
+      (setq prev-end end)
+      (setq prev-alist alist))
+    (dolist (pair prev-alist)
+      (push `(close ,prev-end ,pair) events))
+    (nreverse events)))
+
+(defun esh--event-property (event)
+  "Read property changed by EVENT."
+  (car (nth 2 event)))
+
+(defun esh--group-ranges-by-line-rev (ranges)
+  "Group RANGES by line.
+Return a list (in reverse order of buffer position); each element
+is a list (BOL EOL RANGES)."
+  (let ((lines nil)
+        (cur-line nil)
+        (cur-bol (point-min)))
+    (dolist (range ranges)
+      (push range cur-line)
+      ;; Newlines are marked with a single property, `newline'
+      (when (eq 'newline (caar (cl-caddr range)))
+        (let ((end (cadr range)))
+          (push `(,cur-bol ,end ,(nreverse cur-line)) lines)
+          (setq cur-line nil cur-bol end))))
+    (push `(,cur-bol ,(point-max) ,(nreverse cur-line)) lines)
+    lines))
+
+;;; Building property trees
+
+(defun esh--events-to-intervals (events priority-ranking)
+  "Parse sequence of EVENTS into lists of intervals.
+Returns a list of lists suitable for consumption by
+`esh--intervals-to-tree' and containing one entry per property in
+PRIORITY-RANKING."
+  (let ((ints-tbl (make-hash-table :test #'eq)))
+    (dolist (property priority-ranking)
+      (puthash property nil ints-tbl))
+    (dolist (event events)
+      (pcase event
+        (`(open ,pos ,annot)
+         ;; `car' of (gethash … …) becomes a partially constructed interval…
+         (push `(,pos nil . ,annot) (gethash (car annot) ints-tbl)))
+        (`(close ,pos ,annot)
+         ;; …which gets completed here:
+         (cl-assert (equal annot (cddr (car (gethash (car annot) ints-tbl)))) t)
+         (setf (cadr (car (gethash (car annot) ints-tbl))) pos))))
+    (let ((int-lists nil))
+      (dolist (property priority-ranking)
+        (push (nreverse (gethash property ints-tbl)) int-lists))
+      (nreverse int-lists))))
+
+(defun esh--intervals-to-tree (int-lists low high)
+  "Construct an interval tree from text ranges in INT-LISTS.
+INT-LISTS should be a list; each of its elements should be of the
+form (FROM TO . ANNOTATION).  The FROM bound is inclusive; the TO
+bound is exclusive.  Arguments LOW and HIGH are the boundaries of
+the union of all intervals in INT-LISTS."
+  (random "esh") ;; Seed the RNG to get deterministic results
+  (let ((tree (esh-interval-tree-new low high)))
+    (dolist (ints int-lists)
+      (setq ints (esh--shuffle (vconcat ints)))
+      (dotimes (n (length ints))
+        (pcase (aref ints n)
+          (`(,from ,to . ,annot)
+           (setq tree (esh-interval-tree-add annot from to tree))))))
+    tree))
+
+;;; High-level interface to tree-related code
+
+(defun esh--buffer-to-property-trees (text-props face-attrs priority-ranking)
+  "Construct a properly nesting list of event from current buffer.
+TEXT-PROPS and FACE-ATTRS specify which properties to keep track
+of.  PRIORITY-RANKING ranks all these properties in order of
+tolerance to splitting (if a property comes late in this list,
+ESH will try to preserve this property's spans when resolving
+conflicts).  Splitting is needed because in Emacs text properties
+can overlap in ways that are not representable as a tree.
+Result is influenced by `esh-interval-tree-nest-annotations'."
+  (let* ((flat-tree nil)
+         (ranges (esh--buffer-ranges))
+         (ann-ranges (esh--annotate-ranges ranges text-props face-attrs)))
+    (pcase-dolist (`(,bol ,eol ,ranges) (esh--group-ranges-by-line-rev ann-ranges))
+      (let* ((events (esh--ranges-to-events ranges priority-ranking))
+             (intervals (esh--events-to-intervals events priority-ranking))
+             (tree (esh--intervals-to-tree intervals bol eol)))
+        (setq flat-tree (esh-interval-tree-flatten-acc tree flat-tree))))
+    flat-tree))
 
 ;;; Fontifying
 
@@ -334,15 +478,6 @@ the required mode isn't available."
           (insert (esh--missing-mode-error-msg mode))))
       buf)))
 
-;; (defun esh--prepare-for-export ()
-;;   "Prepare current buffer for export.
-;; Add final newline, widen, etc."
-;;   (widen)
-;;   (save-excursion
-;;     (goto-char (point-max))
-;;     (unless (eq (char-before) ?\n)
-;;       (insert "\n"))))
-
 (defvar esh-pre-highlight-hook nil)
 (defvar esh-post-highlight-hook nil) ;; FIXME document these
 
@@ -363,8 +498,14 @@ EXPORT-FN should do the actual exporting."
 
 ;;; Producing LaTeX
 
-(defvar esh--latex-props '(display invisible line-height esh-begin-box esh-end-box newline))
-(defvar esh--latex-face-attrs '(:underline :background :foreground :weight :slant :height))
+(defconst esh--latex-props '(display invisible line-height newline))
+(defconst esh--latex-face-attrs '(:underline :background :foreground :weight :slant :box :height))
+
+(defconst esh--latex-priorities
+  `(,@'(line-height newline :underline :foreground :weight :height :background) ;; Fine to split
+    ,@'(:slant :box display invisible)) ;; Should not split
+  "Priority order for text properties in LaTeX export.
+See `esh--resolve-event-conflicts'.")
 
 (eval-and-compile
   (defvar esh--latex-specials
@@ -496,123 +637,158 @@ Puts text property `non-ascii' on non-ascii characters."
                     ,(plist-get box :color)
                     ,(plist-get box :style)))))
 
-(defun esh--latexify-raise (str amount)
-  "Issue a LaTeX command to raise STR by AMOUNT."
-  (format "\\ESHRaise{%gex}{%s}" amount str))
+(defvar esh--latex-source-buffer-for-export nil
+  "Buffer that text nodes point to.")
 
-(defun esh--latexify-span (range)
-  "Render RANGE as a LaTeX string."
-  (let* ((template "%s")
-         (span (buffer-substring-no-properties (car range) (cdr range)))
-         (latex-str (esh--escape-for-latex span))
-         (props-alist (esh--extract-props esh--latex-props (car range)))
-         (attrs-alist (esh--extract-face-attributes esh--latex-face-attrs (car range))))
-    (pcase-dolist (`(,attribute . ,val) (esh--filter-cdr 'unspecified attrs-alist))
-      (when val
-        (setq template
-              (pcase attribute
-                (:foreground
-                 (setq val (esh--normalize-color-unless val :foreground))
-                 (if val (format "\\textcolor[HTML]{%s}{%s}" val template)
-                   template))
-                (:background
-                 (setq val (esh--normalize-color-unless val :background))
-                 ;; FIXME: Force all lines to have the the same height?
-                 ;; Could use \\vphantom{'g}\\smash{…}
-                 (if val
-                     (format "\\colorbox[HTML]{%s}{%s}" val template)
-                   template))
-                (:weight
-                 (format (pcase (esh--normalize-weight-coarse val)
-                           (`light "\\ESHWeightLight{%s}")
-                           (`regular "\\ESHWeightRegular{%s}")
-                           (`bold "\\ESHWeightBold{%s}")
-                           (_ (error "Unexpected weight %S" val)))
-                         template))
-                (:height
-                 (pcase (esh--normalize-height val)
-                   (`nil template)
-                   (rel-h (format "\\textscale{%0.2g}{%s}" rel-h template))))
-                (:slant
-                 (format (pcase val
-                           (`italic "\\ESHSlantItalic{%s}")
-                           (`oblique "\\ESHSlantOblique{%s}")
-                           (`normal "\\ESHSlantNormal{%s}")
-                           (_ (error "Unexpected slant %S" val)))
-                         template))
-                (:underline
-                 (pcase (esh--normalize-underline val)
-                   (`(,color . ,type)
-                    (setq color (esh--normalize-color color))
-                    ;; There are subtle spacing issues with \\ESHUnder, so don't
-                    ;; use it unless the underline needs to be colored.
-                    (let* ((prefix (if color "\\ESHUnder" "\\u"))
-                           (command (format "%s%S" prefix type))
-                           (color-arg (if color (format "{\\color[HTML]{%s}}" color) "")))
-                      (format "%s%s{%s}" command color-arg template)))
-                   (_ (error "Unexpected underline %S" val))))
-                (_ (error "Unexpected attribute %S" attribute))))))
-    (pcase-dolist (`(,property . ,val) (esh--filter-cdr nil props-alist))
-      (pcase property
-        (`display
-         (pcase val
-           (`(raise ,amount)
-            (setq template (esh--latexify-raise template amount)))
-           ((pred stringp)
-            (setq latex-str val))
-           (_ (error "Unexpected display property %S" val))))
-        (`invisible
-         ;; FIXME remove template too?
-         (when val (setq latex-str "")))
-        (`line-height
-         (unless (floatp val)
-           (error "Unexpected line-height property %S" val))
-         (setq template (format "\\ESHStrut{%.2g}%s" val template)))
-        (`esh-begin-box
-         (pcase (esh--normalize-box val)
-           (`(,line-width ,color ,style)
-            (setq color (esh--normalize-color color))
-            (unless (eq style nil)
-              (error "Unsupported box style %S" style))
-            (setq template
-                  (format "\\ESHBox{%s}{%gpt}{%s"
-                          (or color ".") (abs line-width) template)))
-           (_ (error "Unexpected box %S" val))))
-        (`esh-end-box
-         (setq template (concat template "}")))
-        (`newline
-         ;; Ensure that no newlines are added inside commands (instead the
-         ;; newline is added to the end of the template), and add an mbox to
-         ;; prevent TeX from complaining about underfull boxes.
-         (setq latex-str "")
-         (setq val (cdr val))
-         (let ((mbox (pcase val (`empty "\\mbox{}"))))
-           (setq template (concat template mbox "\n"))))
-        (_ (error "Unexpected property %S" property))))
-    (format template latex-str)))
+(defun esh--latex-export-text-node (start end)
+  "Insert escaped text from range START..END.
+Text is read from `esh--latex-source-buffer-for-export'."
+  (insert
+   (esh--escape-for-latex
+    (with-current-buffer esh--latex-source-buffer-for-export
+      (buffer-substring-no-properties start end)))))
 
-(defun esh--latexify-protect-bols (str)
-  "Prefix each line of STR with a call to \\ESHBol{}.
+(defun esh--latex-export-wrapped (before trees after)
+  "Export TREES, wrapped in BEFORE and AFTER."
+  (insert before)
+  (mapc #'esh--latex-export-tree trees)
+  (insert after))
+
+(defun esh--latex-export-wrapped-if (val before-fmt trees after)
+  "Export TREES, possibly wrapped.
+If VAL is non-nil, wrap SUBTREES in (format BEFORE-FMT VAL) and
+AFTER."
+  (declare (indent 1))
+  (if (null val)
+      (mapc #'esh--latex-export-tree trees)
+    (esh--latex-export-wrapped (format before-fmt val) trees after)))
+
+(defun esh--latex-export-tag-node (property val subtrees)
+  "Export SUBTREES wrapped in a LaTeX implementation of PROPERTY: VAL."
+  (pcase property
+    (:foreground
+     (esh--latex-export-wrapped-if (esh--normalize-color-unless val :foreground)
+       "\\textcolor[HTML]{%s}{" subtrees "}"))
+    (:background
+     ;; FIXME: Force all lines to have the the same height?
+     ;; Could use \\vphantom{'g}\\smash{…}
+     (esh--latex-export-wrapped-if (esh--normalize-color-unless val :background)
+       "\\colorbox[HTML]{%s}{" subtrees "}"))
+    (:weight
+     (esh--latex-export-wrapped
+      (pcase (esh--normalize-weight-coarse val)
+        (`light "\\ESHWeightLight{")
+        (`regular "\\ESHWeightRegular{")
+        (`bold "\\ESHWeightBold{")
+        (_ (error "Unexpected weight %S" val)))
+      subtrees "}"))
+    (:height
+     (esh--latex-export-wrapped-if (esh--normalize-height val)
+       "\\textscale{%0.2g}{" subtrees "}"))
+    (:slant
+     (esh--latex-export-wrapped
+      (pcase val
+        (`italic "\\ESHSlantItalic{")
+        (`oblique "\\ESHSlantOblique{")
+        (`normal "\\ESHSlantNormal{")
+        (_ (error "Unexpected slant %S" val)))
+      subtrees "}"))
+    (:underline
+     (esh--latex-export-wrapped
+      (pcase (esh--normalize-underline val)
+        (`(,color . ,type)
+         (setq color (esh--normalize-color color))
+         ;; There are subtle spacing issues with \\ESHUnder, so don't
+         ;; use it unless the underline needs to be colored.
+         (let* ((prefix (if color "\\ESHUnder" "\\u"))
+                (command (format "%s%S" prefix type))
+                (arg (if color (format "{\\color[HTML]{%s}}" color) "")))
+           (format "%s%s{" command arg)))
+        (_ (error "Unexpected underline %S" val)))
+      subtrees "}"))
+    (:box
+     (esh--latex-export-wrapped
+      (pcase (esh--normalize-box val)
+        (`(,line-width ,color ,style)
+         (setq color (esh--normalize-color color))
+         (unless (eq style nil)
+           (error "Unsupported box style %S" style))
+         (format "\\ESHBox{%s}{%gpt}{" (or color ".") (abs line-width)))
+        (_ (error "Unexpected box %S" val)))
+      subtrees "}"))
+    (`display
+     (pcase val
+       (`(raise ,amount)
+        (esh--latex-export-wrapped-if amount
+          "\\ESHRaise{%gex}{" subtrees "}"))
+       ((pred stringp)
+        (insert (esh--escape-for-latex val)))
+       (_ (error "Unexpected display property %S" val))))
+    (`invisible)
+    (`line-height
+     (unless (floatp val)
+       (error "Unexpected line-height property %S" val))
+     (esh--latex-export-wrapped-if val
+       "\\ESHStrut{%.2g}" subtrees ""))
+    (`newline
+     ;; Add an mbox to prevent TeX from complaining about underfull boxes.
+     (esh--latex-export-wrapped-if (eq (cdr val) 'empty)
+       "\\mbox{}" subtrees ""))
+    (_ (error "Unexpected property %S" property))))
+
+(defun esh--latex-export-tree (tree)
+  "Export a single TREE to LaTeX."
+  (pcase tree
+    (`(text ,start ,end)
+     (esh--latex-export-text-node start end))
+    (`(tag (,property . ,val) . ,trees)
+     (esh--latex-export-tag-node property val trees))))
+
+(defun esh--latex-export (source-buf trees)
+  "Export TREES to LaTeX.
+SOURCE-BUF is the buffer that TEXT nodes point to."
+  (let ((esh--latex-source-buffer-for-export source-buf))
+    (mapc #'esh--latex-export-tree trees)))
+
+(defun esh--latex-exporter (source-buf)
+  "Specialize `esh--latex-export-tree' to SOURCE-BUF."
+  (apply-partially #'esh--latex-export-tree source-buf))
+
+(defun esh--latexify-protect-bols ()
+  "Prefix each line of current buffer with a call to \\ESHBol{}.
 This used to only be needed for lines starting with whitespace,
 but leading dashes sometimes behave strangely; it's simpler (and
 safer) to prefix all lines.  \\ESHBol is a no-op in inline mode."
-  (replace-regexp-in-string "^" "\\ESHBol{}" str t t))
+  (goto-char (point-min))
+  (while (re-search-forward "^" nil t)
+    (replace-match "\\ESHBol{}" t t)))
 
-(defun esh--latexify-protect-eols (str)
-  "Suffix each line of STR with a call to \\ESHEol.
+(defun esh--latexify-protect-eols ()
+  "Suffix each line of current buffer with a call to \\ESHEol.
 Do this instead of using catcodes, for robustness.  Including a
 brace pair after \\ESHEol would break alignment of continuation
 lines in inline blocks."
-  (replace-regexp-in-string "\n" "\\ESHEol\n" str t t))
+  (goto-char (point-min))
+  (while (search-forward "\n" nil t)
+    (replace-match "\\ESHEol\n" t t)))
 
 (defun esh--latexify-current-buffer ()
   "Export current buffer to LaTeX."
-  (esh--remove-final-newline)
-  (esh--commit-compositions)
-  (esh--mark-newlines)
-  (esh--mark-boxes)
-  (let* ((str (mapconcat #'esh--latexify-span (esh--buffer-ranges) "")))
-    (esh--latexify-protect-eols (esh--latexify-protect-bols str))))
+  (let ((inhibit-modification-hooks t))
+    (esh--remove-final-newline)
+    (esh--commit-compositions)
+    (esh--mark-newlines))
+  (let ((source-buf (current-buffer))
+        (trees (let ((esh-interval-tree-nest-annotations t))
+                 (esh--buffer-to-property-trees
+                  esh--latex-props
+                  esh--latex-face-attrs
+                  esh--latex-priorities))))
+    (with-temp-buffer
+      (esh--latex-export source-buf trees)
+      (esh--latexify-protect-eols)
+      (esh--latexify-protect-bols)
+      (buffer-string))))
 
 (defun esh--latexify-insert-preamble ()
   "Read ESH's LaTeX preamble from disk and insert it at point."
@@ -865,7 +1041,7 @@ NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
      (insert "<!--" comment "-->"))
     (`(,tag ,attributes . ,children)
      (unless escape-specials
-       (error "Must escape specials in %S" escape-specials))
+       (error "Must escape specials in %S" tag))
      (let ((tag-name (symbol-name tag))
            (escape-specials (not (memq tag '(script style)))))
        (insert "<" tag-name)
@@ -881,20 +1057,24 @@ NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
          (insert "</" tag-name ">"))))
     (_ (error "Unprintable node %S" node))))
 
-(defvar esh--html-props '(display invisible non-ascii newline))
-(defvar esh--html-face-attrs '(:underline :background :foreground :weight :slant)) ;; TODO :height :line-height
+(defconst esh--html-props '(display invisible non-ascii newline))
+(defconst esh--html-face-attrs '(:underline :background :foreground :weight :slant)) ;; TODO :height :line-height :box
 
-(defun esh--htmlify-span (range)
-  "Render RANGE as an HTML tree."
+(defconst esh--html-priorities
+  `(,@'(line-height newline :underline :foreground :weight :height :background) ;; Fine to split
+    ,@'(:slant :box display non-ascii invisible)) ;; Should not split
+  "Priority order for text properties in HTML export.
+See `esh--resolve-event-conflicts'.")
+
+(defun esh--html-export-tag-node (attributes subtrees)
+  "Export SUBTREES wrapped in a HTML implementation of ATTRIBUTES."
   (let ((styles nil)
         (raised nil)
         (non-ascii nil)
-        (text (buffer-substring-no-properties (car range) (cdr range)))
-        (props-alist (esh--extract-props esh--html-props (car range)))
-        (attrs-alist (esh--extract-face-attributes esh--html-face-attrs (car range))))
-    (pcase-dolist (`(,attribute . ,val) (esh--filter-cdr 'unspecified attrs-alist))
+        (children (esh--html-export subtrees)))
+    (pcase-dolist (`(,property . ,val) attributes)
       (when val
-        (pcase attribute
+        (pcase property
           (:foreground
            (when (setq val (esh--normalize-color-unless val :foreground))
              (push (concat "color: #" val) styles)))
@@ -918,47 +1098,59 @@ NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
               (when (setq color (esh--normalize-color color))
                 (push (concat "text-decoration-color: #" color) styles)))
              (_ (error "Unexpected underline %S" val))))
-          (_ (error "Unexpected attribute %S" attribute)))))
-    (pcase-dolist (`(,property . ,val) (esh--filter-cdr nil props-alist))
-      (pcase property
-        (`display
-         (pcase val
-           (`(raise ,amount)
-            (setq raised t) ;;FIXME handle amount > 0 case
-            (push (format "bottom: %gem" amount) styles))
-           ((pred stringp)
-            (setq text val))
-           (_ (error "Unexpected display property %S" val))))
-        (`invisible
-         (when val (setq text "")))
-        (`non-ascii
-         (when val (setq non-ascii t)))
-        (`newline
-         ;; Ensure that no newlines are added inside commands.
-         ;; FIXME handle background colors extending past end of line
-         (setq styles nil))
-        (_ (error "Unexpected property %S" property))))
-    (cond
-     ((equal text "") "")
-     ((and (null styles) (not non-ascii)) text)
-     (t
-      (let ((attrs (when styles
-                     `((style . ,(mapconcat #'identity styles ";"))))))
-        (setq text `(span ,attrs ,text)))
-      (when non-ascii ;; Need nested divs to align wide character properly
-        (setq text `(span ((class . "non-ascii")) (span nil ,text))))
+          (`display
+           (pcase val
+             (`(raise ,amount)
+              (setq raised t) ;;FIXME handle amount < 0 case
+              (push (format "bottom: %gem" amount) styles))
+             ((pred stringp)
+              (setq children (list val)))
+             (_ (error "Unexpected display property %S" val))))
+          (`invisible
+           (when val (setq children nil)))
+          (`non-ascii
+           (when val (setq non-ascii t)))
+          ;; FIXME handle background colors extending past end of line
+          (`newline
+           (cl-assert (null styles)))
+          (_ (error "Unexpected property %S" property)))))
+    (if (null children) nil
+      (cl-assert (or styles non-ascii))
+      (when styles
+        (let ((attrs `((style . ,(mapconcat #'identity styles ";")))))
+          (setq children `((span ,attrs ,@children)))))
+      (when non-ascii ;; Aligning wide characters properly requires nested divs
+        (setq children `((span ((class . "non-ascii")) (span nil ,@children)))))
       (when raised
-        (setq text `(span ((class . "raised"))
-                          (span ((class . "raised-text")) ,text)
-                          (span ((class . "raised-phantom")) ,text))))
-      text))))
+        (setq children `((span ((class . "raised"))
+                               (span ((class . "raised-text")) ,@children)
+                               (span ((class . "raised-phantom")) ,@children)))))
+      (car children))))
+
+(defun esh--html-export-tree (tree)
+  "Export a single TREE to HTML."
+  (pcase tree
+    (`(text ,start ,end)
+     (buffer-substring-no-properties start end))
+    (`(tag ,attributes . ,trees)
+     (esh--html-export-tag-node attributes trees))))
+
+(defun esh--html-export (trees)
+  "Export TREES to HTML."
+  (delq nil (mapcar #'esh--html-export-tree trees)))
 
 (defun esh--htmlify-current-buffer ()
   "Export current buffer to HTML."
-  (esh--commit-compositions)
-  (esh--mark-newlines)
-  (esh--mark-non-ascii)
-  (mapcar #'esh--htmlify-span (esh--buffer-ranges)))
+  (let ((inhibit-modification-hooks t))
+    (esh--commit-compositions)
+    (esh--mark-newlines)
+    (esh--mark-non-ascii))
+  (let ((trees (let ((esh-interval-tree-nest-annotations nil))
+                 (esh--buffer-to-property-trees
+                  esh--html-props
+                  esh--html-face-attrs
+                  esh--html-priorities))))
+    (esh--html-export trees)))
 
 (defvar esh--html-src-class-prefix "src-"
   "HTML class prefix indicating a fontifiable tag.")
