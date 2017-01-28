@@ -1074,7 +1074,7 @@ NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
          (insert "</" tag-name ">"))))
     (_ (error "Unprintable node %S" node))))
 
-(defconst esh--html-props '(display invisible non-ascii newline)) ;; TODO line-height
+(defconst esh--html-props '(display invisible non-ascii line-height newline))
 (defconst esh--html-face-attrs '(:underline :background :foreground :weight :slant :box :height))
 
 (defconst esh--html-priorities
@@ -1097,6 +1097,7 @@ See `esh--resolve-event-conflicts'.")
   (let ((styles nil)
         (raised nil)
         (non-ascii nil)
+        (line-height nil)
         (children (esh--html-export subtrees)))
     (pcase-dolist (`(,property . ,val) attributes)
       (when val
@@ -1148,6 +1149,10 @@ See `esh--resolve-event-conflicts'.")
              (_ (error "Unexpected display property %S" val))))
           (`invisible
            (when val (setq children nil)))
+          (`line-height
+           (unless (floatp val)
+             (error "Unexpected line-height property %S" val))
+           (setq line-height (format "%.2g" val)))
           (`non-ascii
            (when val (setq non-ascii t)))
           (`newline
@@ -1157,28 +1162,28 @@ See `esh--resolve-event-conflicts'.")
     (cond
      ((null children) nil)
      (raised
-      `(span ((class . "esh-raised"))
-             (span ((class . "esh-raised-contents"))
-                   ,@(esh--html-wrap-children styles non-ascii children))
-             (span ((class . "esh-raised-placeholder"))
-                   ,@(esh--html-wrap-children nil non-ascii children))))
+      `((span ((class . "esh-raised"))
+              (span ((class . "esh-raised-contents"))
+                    ,@(esh--html-wrap-children styles non-ascii children))
+              (span ((class . "esh-raised-placeholder"))
+                    ,@(esh--html-wrap-children nil non-ascii children)))))
+     (line-height
+      (nconc (esh--html-wrap-children `(("line-height" . ,line-height)) nil nil)
+             (esh--html-wrap-children styles non-ascii children)))
      (t
-      (setq children (esh--html-wrap-children styles non-ascii children))
-      ;; Properties like 'newline don't translate into CSS attributes
-      (cl-assert (null (cdr children)))
-      (car children)))))
+      (esh--html-wrap-children styles non-ascii children)))))
 
 (defun esh--html-export-tree (tree)
   "Export a single TREE to HTML."
   (pcase tree
     (`(text ,start ,end)
-     (buffer-substring-no-properties start end))
+     (list (buffer-substring-no-properties start end)))
     (`(tag ,attributes . ,trees)
      (esh--html-export-tag-node attributes trees))))
 
 (defun esh--html-export (trees)
   "Export TREES to HTML."
-  (delq nil (mapcar #'esh--html-export-tree trees)))
+  (mapcan #'esh--html-export-tree trees))
 
 (defun esh--htmlify-current-buffer ()
   "Export current buffer to HTML."
