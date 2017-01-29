@@ -1107,6 +1107,8 @@ See `esh--resolve-event-conflicts'.")
     (let* ((css (mapconcat (lambda (p) (concat (car p) ":" (cdr p))) styles ";")))
       (setq children `((span ((style . ,css)) ,@children)))))
   (when non-ascii ;; Aligning wide characters properly requires nested divs
+    (unless styles ;; Need three levels of <span>s
+      (setq children `((span nil ,@children))))
     (setq children `((span ((class . "esh-non-ascii")) (span nil ,@children)))))
   children)
 
