@@ -522,21 +522,30 @@ EXPORT-FN should do the actual exporting."
 
 ;;; Producing LaTeX
 
-(defconst esh--latex-props '(display invisible line-height newline))
-(defconst esh--latex-face-attrs '(:underline :background :foreground :weight :slant :box :height))
+(defconst esh--latex-props
+  '(display invisible line-height newline))
+(defconst esh--latex-face-attrs
+  '(:underline :background :foreground :weight :slant :box :height))
 
 (defconst esh--latex-priorities
-  `(,@'(line-height newline :underline :foreground :weight :height :background) ;; Fine to split
-    ,@'(:slant :box display invisible)) ;; Should not split
+  `(;; Fine to split
+    ,@'(line-height newline :underline :foreground :weight :height :background)
+    ;; Should not split
+    ,@'(:slant :box display invisible))
   "Priority order for text properties in LaTeX export.
 See `esh--resolve-event-conflicts'.")
 
 (eval-and-compile
   (defvar esh--latex-specials
-    ;; http://tex.stackexchange.com/questions/67997/escaped-characters-in-typewriter-font/68002#68002
-    '((?$ . "\\$") (?% . "\\%") (?& . "\\&") (?{ . "\\{") (?} . "\\}") (?_ . "\\_") (?# . "\\#")
-      (?` . "{`}") (?' . "{'}") (?< . "{<}") (?> . "{>}") ;; A few ligatures
-      (?\\ . "\\textbackslash{}") (?^ . "\\textasciicircum{}") (?~ . "\\textasciitilde{}")
+    '(;; Special characters
+      (?$ . "\\$") (?% . "\\%") (?& . "\\&")
+      (?{ . "\\{") (?} . "\\}") (?_ . "\\_") (?# . "\\#")
+      ;; http://tex.stackexchange.com/questions/67997/
+      (?\\ . "\\textbackslash{}") (?^ . "\\textasciicircum{}")
+      (?~ . "\\textasciitilde{}")
+      ;; A few ligatures
+      (?` . "{`}") (?' . "{'}") (?< . "{<}") (?> . "{>}")
+      ;; Characters that behave differently in inline and block modes
       (?\s . "\\ESHSpace{}") (?- . "\\ESHDash{}"))))
 
 (defvar esh--latex-specials-re
@@ -1079,12 +1088,16 @@ NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
          (insert "</" tag-name ">"))))
     (_ (error "Unprintable node %S" node))))
 
-(defconst esh--html-props '(display invisible non-ascii line-height newline))
-(defconst esh--html-face-attrs '(:underline :background :foreground :weight :slant :box :height))
+(defconst esh--html-props
+  '(display invisible non-ascii line-height newline))
+(defconst esh--html-face-attrs
+  '(:underline :background :foreground :weight :slant :box :height))
 
 (defconst esh--html-priorities
-  `(,@'(line-height newline :underline :foreground :weight :height :background) ;; Fine to split
-    ,@'(:slant :box display non-ascii invisible)) ;; Should not split
+  `( ;; Fine to split
+    ,@'(line-height newline :underline :foreground :weight :height :background)
+    ;; Should not split
+    ,@'(:slant :box display non-ascii invisible))
   "Priority order for text properties in HTML export.
 See `esh--resolve-event-conflicts'.")
 
