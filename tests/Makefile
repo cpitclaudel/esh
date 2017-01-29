@@ -9,6 +9,7 @@ clean:
 	git clean -Xfd
 	rm -rf outputs
 	mkdir -p outputs
+	cd outputs; ${ESH2HTML} --write-preamble
 
 cli:
 	mkdir -p cli

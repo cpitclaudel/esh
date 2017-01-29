@@ -116,9 +116,15 @@
   {{\ESHCenterInWidthOf{\ESHBlockFontFamily{a}}{\ESHBlockFontFamily#1}}}
 \DeclareRobustCommand*{\ESHMathSymbol}[1]{\ensuremath{#1}}
 
+% \ESHSetCurFontSize sets \ESHCurFontSize to the current font size (1 CSS em)
+\makeatletter
+\newlength{\ESHCurFontSize}
+\newcommand*{\ESHSetCurFontSize}{\setlength{\ESHCurFontSize}{\f@size pt}}
+\makeatother
+
 % \ESH*Raise implements sub/superscripts
 \DeclareRobustCommand*{\ESHInlineRaise}[2]
-  {\raisebox{#1}{\relsize{-2}#2}}
+  {\ESHSetCurFontSize\raisebox{#1\ESHCurFontSize}{\relsize{-2}#2}}
 \DeclareRobustCommand*{\ESHBlockRaise}[2]
   {\rlap{\ESHInlineRaise{#1}{#2}}\hphantom{#2}}
 

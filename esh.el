@@ -746,14 +746,14 @@ AFTER."
          (setq color (esh--normalize-color color))
          (unless (eq style nil)
            (error "Unsupported box style %S" style))
-         (format "\\ESHBox{%s}{%gpt}{" (or color ".") (abs line-width)))
+         (format "\\ESHBox{%s}{%.2fpt}{" (or color ".") (abs line-width)))
         (_ (error "Unexpected box %S" val)))
       subtrees "}"))
     (`display
      (pcase val
        (`(raise ,amount)
         (esh--latex-export-wrapped-if amount
-          "\\ESHRaise{%gex}{" subtrees "}"))
+          "\\ESHRaise{%.2f}{" subtrees "}"))
        ((pred stringp)
         (insert (esh--escape-for-latex val)))
        (_ (error "Unexpected display property %S" val))))
@@ -1162,7 +1162,7 @@ See `esh--resolve-event-conflicts'.")
           (`display
            (pcase val
              (`(raise ,amount)
-              (setq raised t) ;;FIXME handle amount < 0 case
+              (setq raised t)
               (push (cons "bottom" (format "%2gem" amount)) styles))
              ((pred stringp)
               (setq children (list val)))

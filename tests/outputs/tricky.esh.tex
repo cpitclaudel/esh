@@ -115,9 +115,15 @@
   {{\ESHCenterInWidthOf{\ESHBlockFontFamily{a}}{\ESHBlockFontFamily#1}}}
 \DeclareRobustCommand*{\ESHMathSymbol}[1]{\ensuremath{#1}}
 
+% \ESHSetCurFontSize sets \ESHCurFontSize to the current font size (1 CSS em)
+\makeatletter
+\newlength{\ESHCurFontSize}
+\newcommand*{\ESHSetCurFontSize}{\setlength{\ESHCurFontSize}{\f@size pt}}
+\makeatother
+
 % \ESH*Raise implements sub/superscripts
 \DeclareRobustCommand*{\ESHInlineRaise}[2]
-  {\raisebox{#1}{\relsize{-2}#2}}
+  {\ESHSetCurFontSize\raisebox{#1\ESHCurFontSize}{\relsize{-2}#2}}
 \DeclareRobustCommand*{\ESHBlockRaise}[2]
   {\rlap{\ESHInlineRaise{#1}{#2}}\hphantom{#2}}
 
@@ -336,7 +342,7 @@
 Tricky examples:
 
 \begin{ESHBlock}
-\ESHBol{}\ESHSlantItalic{a}\ESHBox{.}{1pt}{\ESHSlantItalic{bcd\textcolor[HTML]{FF0000}{ef}}\textcolor[HTML]{FF0000}{gh}\ESHWeightBold{\textcolor[HTML]{FF0000}{ij}kl}}\ESHWeightBold{mn}\ESHEol
+\ESHBol{}\ESHSlantItalic{a}\ESHBox{.}{1.00pt}{\ESHSlantItalic{bcd\textcolor[HTML]{FF0000}{ef}}\textcolor[HTML]{FF0000}{gh}\ESHWeightBold{\textcolor[HTML]{FF0000}{ij}kl}}\ESHWeightBold{mn}\ESHEol
 \ESHBol{}123\textscale{2.5}{4}56789
 \end{ESHBlock}
 
@@ -346,4 +352,10 @@ Tricky examples:
 \ESHBol{}short\ESHEol
 \ESHBol{}short
 \end{ESHBlock}
+
+\begin{ESHBlock}
+\ESHBol{}x\ESHRaise{1.00}{abc123}\ESHEol
+\ESHBol{}y\ESHRaise{-1.00}{abc123}
+\end{ESHBlock}
+
 \end{document}
