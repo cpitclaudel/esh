@@ -1312,6 +1312,12 @@ Hook may e.g. make modifications to the buffer.")
          (tree (libxml-parse-html-region (point) (point-max))))
     (list xml-decl doctype tree)))
 
+(defun esh--html-parse-file (path)
+  "Parse HTML file PATH."
+  (with-temp-buffer
+    (insert-file-contents path)
+    (esh--html-parse-buffer)))
+
 (defun esh--html-prepare-html-output (&rest tags)
   "Clear current buffer and insert TAGS not handled by libxml."
   (erase-buffer)
@@ -1337,6 +1343,42 @@ Highlight sources in any environments containing a class matching
     (esh--insert-file-contents path)
     (esh2html-current-buffer)
     (buffer-string)))
+
+;; Exporting a full buffer to HTML (htmlfontify-style)
+
+(defvar esh--html-template-path
+  (expand-file-name "etc/esh-standalone-template.html" esh--directory)
+  "Path to ESH template for exporting standalone documents.")
+
+(defun esh--html-substitute (ast substitutions)
+  "Replace (FROM . TO) pairs from SUBSTITUTIONS in AST."
+  (pcase ast
+    ((pred stringp) ast)
+    (`(,tag ,attrs . ,children)
+     (or (cdr (assq tag substitutions))
+         (let* ((subst-fun (lambda (c) (esh--html-substitute c substitutions)))
+                (children (mapcar subst-fun children)))
+           `(,tag ,attrs . ,children))))))
+
+(defun esh--html-wrap-in-body-tag (children)
+  "Wrap CHILDREN in <body> and <pre> tags."
+  (let* ((attrs (esh--extract-face-attributes esh--html-face-attrs '(default)))
+         (normalized (esh--tree-map-attrs-1 #'esh--normalize-defaults attrs))
+         (pre `((pre ((class . "esh-standalone")) ,@children))))
+    (esh--html-export-tag-node normalized pre 'body)))
+
+(defun esh-htmlfontify-buffer ()
+  "Render the current buffer as a webpage."
+  (interactive)
+  (pcase-let* ((title (format "ESH: %s" (buffer-name)))
+               (body (esh--html-wrap-in-body-tag (esh--html-export-buffer)))
+               (substitutions `((esh-title . (,title)) (esh-body . ,body)))
+               (`(,xml ,dt ,ast) (esh--html-parse-file esh--html-template-path))
+               (out-buf-name (format "*esh-htmlfontify: %s*" (buffer-name))))
+    (with-current-buffer (generate-new-buffer out-buf-name)
+      (esh--html-prepare-html-output xml dt)
+      (esh--html-serialize (esh--html-substitute ast substitutions) t)
+      (pop-to-buffer (current-buffer)))))
 
 (provide 'esh)
 ;;; esh.el ends here
