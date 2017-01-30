@@ -46,7 +46,8 @@ standalone:
 	${ESH2TEX} --write-preamble
 	${ESH2TEX} --standalone standalone.py
 	${XELATEX} standalone.tex
-	mv standalone.py.esh.tex standalone.pdf outputs/
+	${ESH2HTML} --standalone standalone.py
+	mv standalone.py.esh.html standalone.py.esh.tex standalone.pdf outputs/
 
 lua:
 	cd lua; ${ESH2TEX} lualatex.tex

@@ -173,15 +173,16 @@ No error checking here; we expect this to be invoked through
        (pcase in-type
          (`mixed (esh2tex-tex-file in-path))
          (`source (esh2tex-source-file in-path))
-         (_ (error "Unknown input type %S" in-type))))
+         (_ (error "Unknown input type `%S'" in-type))))
       (`latex-pv
        (pcase in-type
          (`mixed (esh2tex-tex-file-pv in-path))
-         (_ (error "Unsupported input type %S for --precompute-verbs" in-type))))
+         (_ (error "Unsupported input type `%S' for --precompute-verbs" in-type))))
       (`html
        (pcase in-type
          (`mixed (esh2html-html-file in-path))
-         (_ (error "Unsupported input type %S for HTML backend" in-type))))
+         (`source (esh2html-source-file in-path))
+         (_ (error "Unsupported input type `%S' for HTML backend" in-type))))
       (_ (error "Unknown output type %S" out-type)))))
 
 (defun esh-server-process (in-path out-path in-type out-type)

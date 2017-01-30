@@ -1367,18 +1367,43 @@ Highlight sources in any environments containing a class matching
          (pre `((pre ((class . "esh-standalone")) ,@children))))
     (esh--html-export-tag-node normalized pre 'body)))
 
+(defun esh--html-export-wrapped ()
+  "Render the current buffer as an HTML AST.
+Unlike `esh--html-export-buffer', this produces a complete
+webpage: the result of exporting is inserted into a template
+found at `esh--html-template-path'.  Returns a 3-elements
+list: (XML-HEADER DOCTYPE AST)."
+  (pcase-let* ((title (format "ESH: %s" (buffer-name)))
+               (body (car (esh--html-wrap-in-body-tag (esh--html-export-buffer))))
+               (`(,xml ,dt ,template) (esh--html-parse-file esh--html-template-path))
+               (substitutions `((esh-title . ,title) (esh-body . ,body)))
+               (document (esh--html-substitute template substitutions)))
+    (list xml dt document)))
+
 (defun esh-htmlfontify-buffer ()
   "Render the current buffer as a webpage."
   (interactive)
-  (pcase-let* ((title (format "ESH: %s" (buffer-name)))
-               (body (esh--html-wrap-in-body-tag (esh--html-export-buffer)))
-               (substitutions `((esh-title . (,title)) (esh-body . ,body)))
-               (`(,xml ,dt ,ast) (esh--html-parse-file esh--html-template-path))
+  (pcase-let* ((`(,xml ,dt ,document) (esh--html-export-wrapped))
                (out-buf-name (format "*esh-htmlfontify: %s*" (buffer-name))))
     (with-current-buffer (generate-new-buffer out-buf-name)
       (esh--html-prepare-html-output xml dt)
-      (esh--html-serialize (esh--html-substitute ast substitutions) t)
+      (esh--html-serialize document t)
+      (html-mode)
       (pop-to-buffer (current-buffer)))))
+
+(defun esh--htmlfontify-to-string ()
+  "Render the current buffer as a webpage.
+Returns HTML source code as a string."
+  (pcase-let* ((`(,xml ,dt ,document) (esh--html-export-wrapped)))
+    (with-temp-buffer
+      (esh--html-prepare-html-output xml dt)
+      (esh--html-serialize document t)
+      (buffer-string))))
+
+(defun esh2html-source-file (source-path)
+  "Fontify contents of SOURCE-PATH.
+Return result as a LaTeX string."
+  (esh--export-file source-path #'esh--htmlfontify-to-string))
 
 (provide 'esh)
 ;;; esh.el ends here
