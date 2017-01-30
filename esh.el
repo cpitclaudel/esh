@@ -279,29 +279,38 @@ Faces is a list of (possibly anonymous) faces."
 
 ;;; Massaging properties
 
+(defun esh--commit-compositions-1 (from to str)
+  "Commit composition STR to FROM .. TO."
+  (let ((props (text-properties-at from)))
+    (goto-char from)
+    (delete-region from to)
+    (insert str)
+    (set-text-properties from (+ from (length str)) props)
+    (remove-text-properties from (+ from (length str)) '(composition))))
+
+(defun esh--parse-composition (components)
+  "Translation sequence of composition COMPONENTS to a string."
+  (let ((str (char-to-string (aref components 0)))
+        (nrules (/ (length components) 2)))
+    (dotimes (nrule nrules)
+      (let* ((rule (aref components (+ 1 (* 2 nrule))))
+             (char (aref components (+ 2 (* 2 nrule)))))
+        (pcase rule
+          (`(Br . Bl) (setq str (concat str (char-to-string char))))
+          (_ (error "Unsupported composition COMPONENTS")))))
+    str))
+
 (defun esh--commit-compositions ()
   "Apply compositions in current buffer.
 This replaced each composed string by its composition, forgetting
 the original string."
-  (let ((composed-ranges (esh--buffer-ranges 'composition)))
-    (dolist (pair (reverse composed-ranges))
-      (pcase pair
-        (`(,from . ,to)
-         (let ((composition (get-char-property from 'composition))
-               (char nil))
-           (pcase composition
-             (`((,_ . ,c))
-              (setq char c))
-             (`(,_ ,_ ,vc) ;; No support for ,[] QPatterns in 24.5
-              (when (and (vectorp vc) (= (length vc) 1))
-                (setq char (aref vc 0)))))
-           (when char
-             (goto-char from)
-             (let ((props (text-properties-at from)))
-               (delete-region from to)
-               (insert char)
-               (set-text-properties from (1+ from) props)
-               (remove-text-properties from (1+ from) '(composition))))))))))
+  (pcase-dolist (`(,from . ,to) (reverse (esh--buffer-ranges 'composition)))
+    (let ((comp-data (find-composition from nil nil t)))
+      (when comp-data
+        (pcase-let* ((`(,_ ,_ ,components ,relative-p ,_ ,_) comp-data)
+                     (str (if relative-p (concat components)
+                            (esh--parse-composition components))))
+          (esh--commit-compositions-1 from to str))))))
 
 (defun esh--mark-newlines ()
   "Add a `newline' text property to each \\n character.
@@ -1039,9 +1048,9 @@ Return result as a LaTeX string."
 ;;; Producing HTML
 
 (defconst esh--html-specials '((?< . "&lt;")
-                            (?> . "&gt;")
-                            (?& . "&amp;")
-                            (?\" . "&quot;")))
+                               (?> . "&gt;")
+                               (?& . "&amp;")
+                               (?\" . "&quot;")))
 
 (defconst esh--html-specials-re
   (regexp-opt-charset (mapcar #'car esh--html-specials)))
@@ -1056,7 +1065,7 @@ Return result as a LaTeX string."
    esh--html-specials-re #'esh--html-substitute-special str t t))
 
 (defconst esh--html-void-tags '(area base br col embed hr img input
-                                  link menuitem meta param source track wbr))
+                                     link menuitem meta param source track wbr))
 
 (defun esh--htmlify-serialize (node escape-specials)
   "Write NODE as HTML string to current buffer.
