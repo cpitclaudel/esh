@@ -61,22 +61,6 @@ Instead, go through `auto-mode-alist' ourselves."
       (error "Unexpected auto-mode spec for %S: %S" mode fpath))
     mode))
 
-(defun esh--normalize-color (color)
-  "Return COLOR as a hex string."
-  (unless (member color '("unspecified-fg" "unspecified-bg" "" nil))
-    (let ((color (if (= (aref color 0) ?#) color
-                   (apply #'color-rgb-to-hex (color-name-to-rgb color)))))
-      (substring (upcase color) 1))))
-
-(defun esh--normalize-color-unless (color attr)
-  "Return COLOR as a hex string.
-If COLOR matches value of ATTR in default face, return
-nil instead."
-  (let ((val (esh--normalize-color color))
-        (attr-default (face-attribute 'default attr)))
-    (unless (and attr (equal val (esh--normalize-color attr-default)))
-      val)))
-
 (defun esh--filter-cdr (val alist)
   "Remove conses in ALIST whose `cdr' is VAL."
   ;; FIXME phase this out once Emacs 25 is everywhere
@@ -266,16 +250,17 @@ Faces is a list of (possibly anonymous) faces."
                   (esh--as-list (get-char-property pos 'face))))
 
 ;; Caching this function speeds things up by about 5%
-(defun esh--extract-face-attributes-1 (face-attributes faces)
+(defun esh--extract-face-attributes (face-attributes faces)
   "Extract FACE-ATTRIBUTES from FACES."
-  (mapcar (lambda (attr) (cons attr (esh--faces-attribute faces attr)))
-          face-attributes))
+  (esh--filter-cdr 'unspecified
+                (mapcar (lambda (attr) (cons attr (esh--faces-attribute faces attr)))
+                        face-attributes)))
 
-(defun esh--extract-face-attributes (face-attributes pos)
+(defun esh--extract-pos-face-attributes (face-attributes pos)
   "Extract FACE-ATTRIBUTES from POS."
   (let ((faces (esh--faces-at-point pos)))
     (and faces ;; Empty list of faces → no face attributes
-         (esh--extract-face-attributes-1 face-attributes faces))))
+         (esh--extract-face-attributes face-attributes faces))))
 
 ;;; Massaging properties
 
@@ -346,9 +331,8 @@ END is exclusive."
   (let ((acc nil))
     (pcase-dolist (`(,start . ,end) ranges)
       (let* ((props-alist (esh--extract-props text-props start))
-             (attrs-alist (esh--extract-face-attributes face-attrs start))
-             (merged-alist (nconc (esh--filter-cdr 'unspecified attrs-alist)
-                                  (esh--filter-cdr nil props-alist))))
+             (attrs-alist (esh--extract-pos-face-attributes face-attrs start))
+             (merged-alist (nconc attrs-alist (esh--filter-cdr nil props-alist))))
         (push (list start end merged-alist) acc)))
     (nreverse acc)))
 
@@ -449,15 +433,16 @@ ESH will try to preserve this property's spans when resolving
 conflicts).  Splitting is needed because in Emacs text properties
 can overlap in ways that are not representable as a tree.
 Result is influenced by `esh-interval-tree-nest-annotations'."
-  (let* ((flat-tree nil)
+  (let* ((flat-trees nil)
          (ranges (esh--buffer-ranges))
          (ann-ranges (esh--annotate-ranges ranges text-props face-attrs)))
     (pcase-dolist (`(,bol ,eol ,ranges) (esh--group-ranges-by-line-rev ann-ranges))
       (let* ((events (esh--ranges-to-events ranges priority-ranking))
              (intervals (esh--events-to-intervals events priority-ranking))
              (tree (esh--intervals-to-tree intervals bol eol)))
-        (setq flat-tree (esh-interval-tree-flatten-acc tree flat-tree))))
-    flat-tree))
+        (setq flat-trees (esh-interval-tree-flatten-acc tree flat-trees))))
+    (mapcar (lambda (tr) (esh--tree-map-attrs #'esh--normalize-suppress-defaults tr))
+            flat-trees)))
 
 ;;; Fontifying
 
@@ -528,6 +513,111 @@ EXPORT-FN should do the actual exporting."
     (with-current-buffer (esh--make-temp-buffer mode-fn)
       (esh--insert-file-contents source-path)
       (esh--export-buffer export-fn))))
+
+;;; Cleaning up face attributes and text properties
+
+(defun esh--normalize-color (color)
+  "Return COLOR as a hex string."
+  (unless (member color '("unspecified-fg" "unspecified-bg" "" nil))
+    (let ((color (if (= (aref color 0) ?#) color
+                   (apply #'color-rgb-to-hex (color-name-to-rgb color)))))
+      (substring (upcase color) 1))))
+
+(defun esh--normalize-underline (underline)
+  "Normalize UNDERLINE."
+  (pcase underline
+    (`nil nil)
+    (`t '(nil . line))
+    ((pred stringp) `(,underline . line))
+    ((pred listp) `(,(esh--normalize-color (plist-get underline :color)) .
+                    ,(or (plist-get underline :style) 'line)))
+    (_ (error "Unexpected underline %S" underline))))
+
+(defun esh--normalize-weight (weight)
+  "Normalize WEIGHT."
+  (pcase weight
+    ((or `thin `ultralight `ultra-light) 100)
+    ((or `extralight `extra-light) 200)
+    ((or `light) 300)
+    ((or `demilight `semilight `semi-light `book) 400)
+    ((or `normal `medium `regular) 500)
+    ((or `demi `demibold `semibold `semi-bold) 600)
+    ((or `bold) 700)
+    ((or `extrabold `extra-bold `black) 800)
+    ((or `ultrabold `ultra-bold) 900)
+    (_ (error "Unexpected weight %S" weight))))
+
+(defun esh--normalize-height (height)
+  "Normalize HEIGHT to a relative (float) height."
+  (let* ((default-height (face-attribute 'default :height))
+         (height (merge-face-attribute :height height default-height)))
+    (unless (eq height default-height)
+      (/ height (float default-height)))))
+
+(defun esh--normalize-slant (slant)
+  "Normalize SLANT."
+  (pcase slant
+    ((or `italic `oblique `normal) slant)
+    (_ (error "Unexpected slant %S" slant))))
+
+(defun esh--normalize-box (box)
+  "Normalize face attribute BOX."
+  (pcase box
+    (`nil nil)
+    (`t `(1 nil nil))
+    ((pred stringp) `(1 ,box nil))
+    ((pred listp) `(,(or (plist-get box :line-width) 1)
+                    ,(esh--normalize-color (plist-get box :color))
+                    ,(plist-get box :style)))
+    (_ (error "Unexpected box %S" box))))
+
+(defun esh--normalize-attribute (property value)
+  "Normalize VALUE of PROPERTY."
+  (pcase property
+    (:foreground (esh--normalize-color value))
+    (:background (esh--normalize-color value))
+    (:underline (esh--normalize-underline value))
+    (:weight (esh--normalize-weight value))
+    (:height (esh--normalize-height value))
+    (:slant (esh--normalize-slant value))
+    (:box (esh--normalize-box value))
+    (_ value)))
+
+(defun esh--normalize-suppress-defaults (property value)
+  "Normalize VALUE of PROPERTY.
+`:foreground' and `:background' values that match the `default'
+face are suppressed."
+  (setq value (esh--normalize-attribute property value))
+  (unless (and (memq property '(:foreground :background))
+               (let ((default (face-attribute 'default property)))
+                 (equal value (esh--normalize-attribute property default))))
+    value))
+
+(defun esh--normalize-defaults (property value)
+  "Normalize the pair PROPERTY: VALUE of the `default' face.
+Useful when exporting the properties of the default face,
+e.g. when rendering a buffer as HTML, htmlfontify-style."
+  (setq value (esh--normalize-attribute property value))
+  (unless (equal value (pcase property
+                         (:weight 500)
+                         (:slant 'normal)))
+    value))
+
+(defun esh--tree-map-attrs-1 (filter attrs)
+  "Apply FILTER to each attribute pair in ATTRS."
+  (if (consp (car attrs))
+      (mapcar (pcase-lambda (`(,k . ,v)) (cons k (funcall filter k v))) attrs)
+    (pcase-let ((`(,k . ,v) attrs))
+      (cons k (funcall filter k v)))))
+
+(defun esh--tree-map-attrs (filter tree)
+  "Apply FILTER to attributes of each tag node in TREE."
+  (pcase tree
+    (`(text . ,_) tree)
+    (`(tag ,attrs . ,trees)
+     `(tag ,(esh--tree-map-attrs-1 filter attrs) .
+           ,(mapcar (lambda (tr) (esh--tree-map-attrs filter tr)) trees)))
+    (_ (error "Unexpected tree %S" tree))))
 
 ;;; Producing LaTeX
 
@@ -633,52 +723,6 @@ Puts text property `non-ascii' on non-ascii characters."
   "Escape LaTeX special characters in STR."
   (esh--latex-wrap-non-ascii (esh--latex-substitute-specials str)))
 
-(defun esh--normalize-underline (underline)
-  "Normalize UNDERLINE."
-  (pcase underline
-    (`t '(nil . line))
-    ((pred stringp) `(,underline . line))
-    ((pred listp) `(,(plist-get underline :color) .
-                    ,(or (plist-get underline :style) 'line)))))
-
-(defun esh--normalize-weight (weight)
-  "Normalize WEIGHT."
-  (pcase weight
-    ((or `thin `ultralight `ultra-light) 100)
-    ((or `extralight `extra-light) 200)
-    ((or `light) 300)
-    ((or `demilight `semilight `semi-light `book) 400)
-    ((or `normal `medium `regular) 500)
-    ((or `demi `demibold `semibold `semi-bold) 600)
-    ((or `bold) 700)
-    ((or `extrabold `extra-bold `black) 800)
-    ((or `ultrabold `ultra-bold) 900)))
-
-(defun esh--normalize-weight-coarse (weight)
-  "Normalize WEIGHT to 3 values."
-  (let ((weight (esh--normalize-weight weight)))
-    (when (numberp weight)
-      (cond
-       ((< weight 500) 'light)
-       ((> weight 500) 'bold)
-       (t 'regular)))))
-
-(defun esh--normalize-height (height)
-  "Normalize HEIGHT to a relative (float) height."
-  (let* ((default-height (face-attribute 'default :height))
-         (height (merge-face-attribute :height height default-height)))
-    (unless (eq height default-height)
-      (/ height (float default-height)))))
-
-(defun esh--normalize-box (box)
-  "Normalize face attribute BOX."
-  (pcase box
-    (`t `(1 nil nil))
-    ((pred stringp) `(1 ,box nil))
-    ((pred listp) `(,(or (plist-get box :line-width) 1)
-                    ,(plist-get box :color)
-                    ,(plist-get box :style)))))
-
 (defvar esh--latex-source-buffer-for-export nil
   "Buffer that text nodes point to.")
 
@@ -709,50 +753,45 @@ AFTER."
   "Export SUBTREES wrapped in a LaTeX implementation of PROPERTY: VAL."
   (pcase property
     (:foreground
-     (esh--latex-export-wrapped-if (esh--normalize-color-unless val :foreground)
+     (esh--latex-export-wrapped-if val
        "\\textcolor[HTML]{%s}{" subtrees "}"))
     (:background
      ;; FIXME: Force all lines to have the the same height?
      ;; Could use \\vphantom{'g}\\smash{…}
-     (esh--latex-export-wrapped-if (esh--normalize-color-unless val :background)
+     (esh--latex-export-wrapped-if val
        "\\colorbox[HTML]{%s}{" subtrees "}"))
     (:weight
      (esh--latex-export-wrapped
-      (pcase (esh--normalize-weight-coarse val)
-        (`light "\\ESHWeightLight{")
-        (`regular "\\ESHWeightRegular{")
-        (`bold "\\ESHWeightBold{")
-        (_ (error "Unexpected weight %S" val)))
+      (cond
+       ((< val 500) "\\ESHWeightLight{")
+       ((> val 500) "\\ESHWeightBold{")
+       (t "\\ESHWeightRegular{"))
       subtrees "}"))
     (:height
-     (esh--latex-export-wrapped-if (esh--normalize-height val)
+     (esh--latex-export-wrapped-if val
        "\\textscale{%0.2g}{" subtrees "}"))
     (:slant
      (esh--latex-export-wrapped
       (pcase val
         (`italic "\\ESHSlantItalic{")
         (`oblique "\\ESHSlantOblique{")
-        (`normal "\\ESHSlantNormal{")
-        (_ (error "Unexpected slant %S" val)))
+        (`normal "\\ESHSlantNormal{"))
       subtrees "}"))
     (:underline
      (esh--latex-export-wrapped
-      (pcase (esh--normalize-underline val)
+      (pcase val
         (`(,color . ,type)
-         (setq color (esh--normalize-color color))
          ;; There are subtle spacing issues with \\ESHUnder, so don't
          ;; use it unless the underline needs to be colored.
          (let* ((prefix (if color "\\ESHUnder" "\\u"))
                 (command (format "%s%S" prefix type))
                 (arg (if color (format "{\\color[HTML]{%s}}" color) "")))
-           (format "%s%s{" command arg)))
-        (_ (error "Unexpected underline %S" val)))
+           (format "%s%s{" command arg))))
       subtrees "}"))
     (:box
      (esh--latex-export-wrapped
-      (pcase (esh--normalize-box val)
+      (pcase val
         (`(,line-width ,color ,style)
-         (setq color (esh--normalize-color color))
          (unless (eq style nil)
            (error "Unsupported box style %S" style))
          (format "\\ESHBox{%s}{%.2fpt}{" (or color ".") (abs line-width)))
@@ -786,15 +825,11 @@ AFTER."
     (`(tag (,property . ,val) . ,trees)
      (esh--latex-export-tag-node property val trees))))
 
-(defun esh--latex-export (source-buf trees)
+(defun esh--latex-export-trees (source-buf trees)
   "Export TREES to LaTeX.
 SOURCE-BUF is the buffer that TEXT nodes point to."
   (let ((esh--latex-source-buffer-for-export source-buf))
     (mapc #'esh--latex-export-tree trees)))
-
-(defun esh--latex-exporter (source-buf)
-  "Specialize `esh--latex-export-tree' to SOURCE-BUF."
-  (apply-partially #'esh--latex-export-tree source-buf))
 
 (defun esh--latexify-protect-bols ()
   "Prefix each line of current buffer with a call to \\ESHBol{}.
@@ -814,7 +849,7 @@ lines in inline blocks."
   (while (search-forward "\n" nil t)
     (replace-match "\\ESHEol\n" t t)))
 
-(defun esh--latexify-current-buffer ()
+(defun esh--latex-export-buffer ()
   "Export current buffer to LaTeX."
   (let ((inhibit-modification-hooks t))
     (untabify (point-min) (point-max))
@@ -828,7 +863,7 @@ lines in inline blocks."
                   esh--latex-face-attrs
                   esh--latex-priorities))))
     (with-temp-buffer
-      (esh--latex-export source-buf trees)
+      (esh--latex-export-trees source-buf trees)
       (esh--latexify-protect-eols)
       (esh--latexify-protect-bols)
       (buffer-string))))
@@ -985,7 +1020,7 @@ Records must match the format of `esh--latex-pv-highlighting-map'."
           (`(,beg ,end ,code-beg ,code-end ,cmd)
            (let* ((mode-fn (cdr (assoc cmd modes-alist)))
                   (code (buffer-substring-no-properties code-beg code-end))
-                  (tex (esh--export-str code mode-fn #'esh--latexify-current-buffer))
+                  (tex (esh--export-str code mode-fn #'esh--latex-export-buffer))
                   (wrapped (format esh--latexify-inline-template tex)))
              (goto-char beg)
              (delete-region beg end)
@@ -1006,7 +1041,7 @@ Records must match the format of `esh--latex-pv-highlighting-map'."
                    (mode-fn (esh--resolve-mode-fn mode-str))
                    (template (cdr (assoc block-type esh--latex-block-templates))))
         (delete-region beg end)
-        (let* ((tex (esh--export-str code mode-fn #'esh--latexify-current-buffer))
+        (let* ((tex (esh--export-str code mode-fn #'esh--latex-export-buffer))
                (wrapped (format template block-opts tex)))
           (insert wrapped))))))
 
@@ -1043,7 +1078,7 @@ code” pairs (in \\ESHpvDefine form)."
 (defun esh2tex-source-file (source-path)
   "Fontify contents of SOURCE-PATH.
 Return result as a LaTeX string."
-  (esh--export-file source-path #'esh--latexify-current-buffer))
+  (esh--export-file source-path #'esh--latex-export-buffer))
 
 ;;; Producing HTML
 
@@ -1067,7 +1102,7 @@ Return result as a LaTeX string."
 (defconst esh--html-void-tags '(area base br col embed hr img input
                                      link menuitem meta param source track wbr))
 
-(defun esh--htmlify-serialize (node escape-specials)
+(defun esh--html-serialize (node escape-specials)
   "Write NODE as HTML string to current buffer.
 With non-nil ESCAPE-SPECIALS, quote special HTML characters in
 NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
@@ -1087,13 +1122,13 @@ NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
        (insert "<" tag-name)
        (pcase-dolist (`(,attr . ,val) attributes)
          (insert " " (symbol-name attr) "=\"")
-         (esh--htmlify-serialize val escape-specials)
+         (esh--html-serialize val escape-specials)
          (insert "\""))
        (if (memq tag esh--html-void-tags)
            (insert " />")
          (insert ">")
          (dolist (c children)
-           (esh--htmlify-serialize c escape-specials))
+           (esh--html-serialize c escape-specials))
          (insert "</" tag-name ">"))))
     (_ (error "Unprintable node %S" node))))
 
@@ -1110,64 +1145,57 @@ NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
   "Priority order for text properties in HTML export.
 See `esh--resolve-event-conflicts'.")
 
-(defun esh--html-wrap-children (styles non-ascii children)
-  "Apply STYLES and NON-ASCII markup to CHILDREN."
-  (when styles
-    (let* ((css (mapconcat (lambda (p) (concat (car p) ":" (cdr p))) styles ";")))
-      (setq children `((span ((style . ,css)) ,@children)))))
-  (when non-ascii ;; Aligning wide characters properly requires nested divs
-    (unless styles ;; Need three levels of <span>s
-      (setq children `((span nil ,@children))))
-    (setq children `((span ((class . "esh-non-ascii")) (span nil ,@children)))))
-  children)
+(defun esh--html-wrap-children (styles non-ascii children &optional tag)
+  "Apply STYLES and NON-ASCII markup to CHILDREN.
+STYLES are applied using a new TAG node."
+  (when non-ascii ;; Aligning wide characters properly requires 3 nested spans
+    (setq children `((span nil (span nil ,@children)))))
+  (if (or styles non-ascii tag)
+      (let ((style (mapconcat (lambda (p) (concat (car p) ":" (cdr p))) styles ";")))
+        `((,(or tag 'span) (,@(when styles `((style . ,style)))
+                            ,@(when non-ascii `((class . "esh-non-ascii"))))
+           ,@children)))
+    children))
 
-(defun esh--html-export-tag-node (attributes subtrees)
-  "Export SUBTREES wrapped in a HTML implementation of ATTRIBUTES."
+(defun esh--html-export-tag-node (attributes children &optional tag)
+  "Wrap CHILDREN in a HTML implementation of ATTRIBUTES.
+Return an HTML AST; the root is a TAG node (default: span)."
   (let ((styles nil)
         (raised nil)
         (non-ascii nil)
-        (line-height nil)
-        (children (esh--html-export subtrees)))
+        (line-height nil))
     (pcase-dolist (`(,property . ,val) attributes)
       (when val
         (pcase property
           (:foreground
-           (when (setq val (esh--normalize-color-unless val :foreground))
-             (push (cons "color" (concat "#" val)) styles)))
+           (push (cons "color" (concat "#" val)) styles))
           (:background
-           (when (setq val (esh--normalize-color-unless val :background))
-             (push (cons "background-color" (concat "#" val)) styles)))
+           (push (cons "background-color" (concat "#" val)) styles))
           (:weight
-           (if (setq val (esh--normalize-weight val))
-               (push (cons "font-weight" (format "%d" val)) styles)
-             (error "Unexpected weight %S" val)))
+           (push (cons "font-weight" (format "%d" val)) styles))
           (:height
-           (when (esh--normalize-height val)
-             (push (cons "font-size" (format "%d%%" (* val 100))) styles)))
+           (push (cons "font-size" (format "%d%%" (* val 100))) styles))
           (:slant
-           (if (memq val '(italic oblique normal))
-               (push (cons "font-style" (symbol-name val)) styles)
-             (error "Unexpected slant %S" val)))
+           (push (cons "font-style" (symbol-name val)) styles))
           (:underline
-           (pcase (esh--normalize-underline val)
-             (`(,color . ,type)
-              (push (cons "text-decoration" "underline") styles)
-              (when (eq type 'wave)
-                (push (cons "text-decoration-style" "wavy") styles))
-              (when (setq color (esh--normalize-color color))
-                (push (cons "text-decoration-color" (concat "#" color))
-                      styles)))
-             (_ (error "Unexpected underline %S" val))))
+           (pcase-let ((`(,color . ,type) val))
+             (push (cons "text-decoration" "underline") styles)
+             (when (eq type 'wave)
+               (push (cons "text-decoration-style" "wavy") styles))
+             (when color
+               (push (cons "text-decoration-color" (concat "#" color))
+                     styles))))
           (:box
-           (pcase (esh--normalize-box val)
-             (`(,line-width ,color ,style)
-              (unless (eq style nil)
-                (error "Unsupported box style %S" style))
-              (let ((box-style `(,(format "%dpt" (abs line-width)) "solid"
-                                 ,@(when (setq color (esh--normalize-color color))
-                                     `(,color)))))
-                (push (cons "border" (esh--join box-style " ")) styles)))
-             (_ (error "Unexpected box %S" val))))
+           (pcase-let ((`(,line-width ,color ,style) val))
+             (unless (eq style nil)
+               (error "Unsupported box style %S" style))
+             (let ((box-style `(,(format "%dpt" (abs line-width))
+                                ,(pcase style
+                                   (`released-button "outset")
+                                   (`pressed-button "inset")
+                                   (_ "solid"))
+                                ,@(when color `(,color)))))
+               (push (cons "border" (esh--join box-style " ")) styles))))
           (`display
            (pcase val
              (`(raise ,amount)
@@ -1191,16 +1219,16 @@ See `esh--resolve-event-conflicts'.")
     (cond
      ((null children) nil)
      (raised
-      `((span ((class . "esh-raised"))
-              (span ((class . "esh-raised-contents"))
-                    ,@(esh--html-wrap-children styles non-ascii children))
-              (span ((class . "esh-raised-placeholder"))
-                    ,@(esh--html-wrap-children nil non-ascii children)))))
+      `((,(or tag 'span) ((class . "esh-raised"))
+         (span ((class . "esh-raised-contents"))
+               ,@(esh--html-wrap-children styles non-ascii children))
+         (span ((class . "esh-raised-placeholder"))
+               ,@(esh--html-wrap-children nil non-ascii children)))))
      (line-height
       (nconc (esh--html-wrap-children `(("line-height" . ,line-height)) nil nil)
-             (esh--html-wrap-children styles non-ascii children)))
+             (esh--html-wrap-children styles non-ascii children tag)))
      (t
-      (esh--html-wrap-children styles non-ascii children)))))
+      (esh--html-wrap-children styles non-ascii children tag)))))
 
 (defun esh--html-export-tree (tree)
   "Export a single TREE to HTML."
@@ -1208,14 +1236,14 @@ See `esh--resolve-event-conflicts'.")
     (`(text ,start ,end)
      (list (buffer-substring-no-properties start end)))
     (`(tag ,attributes . ,trees)
-     (esh--html-export-tag-node attributes trees))))
+     (esh--html-export-tag-node attributes (esh--html-export-trees trees)))))
 
-(defun esh--html-export (trees)
+(defun esh--html-export-trees (trees)
   "Export TREES to HTML."
   (mapcan #'esh--html-export-tree trees))
 
-(defun esh--htmlify-current-buffer ()
-  "Export current buffer to HTML."
+(defun esh--html-export-buffer ()
+  "Export current buffer to HTML AST."
   (let ((inhibit-modification-hooks t))
     (untabify (point-min) (point-max))
     (esh--remove-final-newline)
@@ -1227,7 +1255,7 @@ See `esh--resolve-event-conflicts'.")
                   esh--html-props
                   esh--html-face-attrs
                   esh--html-priorities))))
-    (esh--html-export trees)))
+    (esh--html-export-trees trees)))
 
 (defvar esh--html-src-class-prefix "src-"
   "HTML class prefix indicating a fontifiable tag.")
@@ -1260,11 +1288,9 @@ tags with no ESH attribute as Emacs Lisp.")
              (unless (and (stringp code) (null (cdr children)))
                (error "Code block has children: %S" node))
              `(,tag ,attributes
-                    ,@(esh--export-str code mode-fn #'esh--htmlify-current-buffer)))
+                    ,@(esh--export-str code mode-fn #'esh--html-export-buffer)))
          `(,tag ,attributes
-                ,@(mapcar (lambda (c)
-                            (esh--htmlify-do-tree c))
-                          children)))))))
+                ,@(mapcar (lambda (c) (esh--htmlify-do-tree c)) children)))))))
 
 (defvar esh-html-before-parse-hook nil
   "Hook called before parsing input HTML.
