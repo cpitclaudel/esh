@@ -1303,23 +1303,32 @@ Hook may e.g. make modifications to the buffer.")
     (skip-chars-forward " \n\t")
     (buffer-substring-no-properties (match-beginning 0) (point))))
 
+(defun esh--html-parse-buffer ()
+  "Parse HTML document in current buffer."
+  (run-hook-with-args 'esh-html-before-parse-hook)
+  (goto-char (point-min))
+  (let* ((xml-decl (esh--html-read-tag "?xml"))
+         (doctype (esh--html-read-tag "!doctype"))
+         (tree (libxml-parse-html-region (point) (point-max))))
+    (list xml-decl doctype tree)))
+
+(defun esh--html-prepare-html-output (&rest tags)
+  "Clear current buffer and insert TAGS not handled by libxml."
+  (erase-buffer)
+  (dolist (tag tags)
+    (when tag (insert tag))))
+
 (defun esh2html-current-buffer ()
   "Fontify contents of all ESH blocks in current document.
 Highlight sources in any environments containing a class matching
 `esh--html-src-class-prefix', such as `src-c', `src-ocaml', etc."
   (interactive)
-  (run-hook-with-args 'esh-html-before-parse-hook)
-  (goto-char (point-min))
   (unwind-protect
-      (let* ((xml-decl (esh--html-read-tag "?xml"))
-             (doctype (esh--html-read-tag "!doctype"))
-             (tree (libxml-parse-html-region (point) (point-max)))
-             (esh--html-src-class-re (format "\\_<%s\\([^ ]+\\)\\_>"
-                                          esh--html-src-class-prefix)))
-        (erase-buffer)
-        (dolist (tag (list xml-decl doctype))
-          (when tag (insert tag)))
-        (esh--htmlify-serialize (esh--htmlify-do-tree tree) t))
+      (pcase-let* ((`(,xml-decl ,doctype ,tree) (esh--html-parse-buffer))
+                   (esh--html-src-class-re (format "\\_<%s\\([^ ]+\\)\\_>"
+                                                esh--html-src-class-prefix)))
+        (esh--html-prepare-html-output xml-decl doctype)
+        (esh--html-serialize (esh--htmlify-do-tree tree) t))
     (esh--kill-temp-buffers)))
 
 (defun esh2html-html-file (path)
