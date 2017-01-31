@@ -274,16 +274,16 @@ Faces is a list of (possibly anonymous) faces."
     (remove-text-properties from (+ from (length str)) '(composition))))
 
 (defun esh--parse-composition (components)
-  "Translation sequence of composition COMPONENTS to a string."
-  (let ((str (char-to-string (aref components 0)))
+  "Translate composition COMPONENTS into a string."
+  (let ((chars (list (aref components 0)))
         (nrules (/ (length components) 2)))
     (dotimes (nrule nrules)
       (let* ((rule (aref components (+ 1 (* 2 nrule))))
              (char (aref components (+ 2 (* 2 nrule)))))
         (pcase rule
-          (`(Br . Bl) (setq str (concat str (char-to-string char))))
+          (`(Br . Bl) (push char chars))
           (_ (error "Unsupported composition COMPONENTS")))))
-    str))
+    (concat (nreverse chars))))
 
 (defun esh--commit-compositions ()
   "Apply compositions in current buffer.
