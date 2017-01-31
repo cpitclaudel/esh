@@ -23,8 +23,8 @@ xelatex: dep example.tex
 	xelatex -jobname=example example.esh.tex
 
 pdflatex: dep example.tex
-	$(info >> This Makefile rule does not work on non-Cygwin Windows <<)
-	env ESH_PDFLATEX=true ${ESH2TEX} --debug-on-error ${ARGS} example.tex
+	$(eval export ESH_PDFLATEX=true)
+	${ESH2TEX} --debug-on-error ${ARGS} example.tex
 	pdflatex -jobname=example example.esh.tex
 
 dep:

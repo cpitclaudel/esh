@@ -459,7 +459,6 @@ ESH works on Windows, with the following limitations:
 
 * Emacs 25 is required.
 * ``--persist`` is not supported.
-* The ``pdflatex`` target of the example Makefile does not work.
 
 Debugging
 ---------
