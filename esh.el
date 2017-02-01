@@ -1500,6 +1500,16 @@ list: (XML-HEADER DOCTYPE AST)."
       (html-mode)
       (pop-to-buffer (current-buffer)))))
 
+(defun esh-htmlfontify-display ()
+  "Open rendering of current buffer in browser."
+  (interactive)
+  (pcase-let* ((`(,xml ,dt ,document) (esh--html-export-wrapped))
+               (fname (make-temp-file "esh" nil ".html")))
+    (with-temp-file fname
+      (esh--html-prepare-html-output xml dt)
+      (esh--html-serialize document t)
+      (browse-url fname))))
+
 (defun esh--htmlfontify-to-string ()
   "Render the current buffer as a webpage.
 Returns HTML source code as a string."
