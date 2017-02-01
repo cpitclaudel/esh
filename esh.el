@@ -672,7 +672,8 @@ face are suppressed."
   "Normalize the pair PROPERTY: VALUE of the `default' face.
 Useful when exporting the properties of the default face,
 e.g. when rendering a buffer as HTML, htmlfontify-style."
-  (setq value (esh--normalize-attribute property value))
+  (unless (eq property :height)
+    (setq value (esh--normalize-attribute property value)))
   (unless (equal value (pcase property
                          (:weight 500)
                          (:slant 'normal)))
@@ -1469,12 +1470,18 @@ Highlight sources in any environments containing a class matching
                 (children (mapcar subst-fun children)))
            `(,tag ,attrs . ,children))))))
 
+(defun esh--html-pre (children)
+  "Construct a PRE tag and wrap CHILDREN into it."
+  `((pre ((class . "esh-standalone")
+          (style . ,(format "font-family: %S, monospace;"
+                            (face-attribute 'default :family))))
+         ,@children)))
+
 (defun esh--html-wrap-in-body-tag (children)
   "Wrap CHILDREN in <body> and <pre> tags."
   (let* ((attrs (esh--extract-face-attributes esh--html-face-attrs '(default)))
-         (normalized (esh--tree-map-attrs-1 #'esh--normalize-defaults attrs))
-         (pre `((pre ((class . "esh-standalone")) ,@children))))
-    (esh--html-export-tag-node normalized pre 'body)))
+         (normalized (esh--tree-map-attrs-1 #'esh--normalize-defaults attrs)))
+    (esh--html-export-tag-node normalized (esh--html-pre children) 'body)))
 
 (defun esh--html-export-wrapped-1 ()
   "Render the current buffer as an HTML AST wrapped in a body tag."
