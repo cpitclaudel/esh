@@ -1516,8 +1516,11 @@ list: (XML-HEADER DOCTYPE AST)."
   "Open rendering of current buffer in browser."
   (interactive)
   (pcase-let* ((`(,xml ,dt ,document) (esh--html-export-wrapped))
-               (fname (make-temp-file "esh" nil ".html")))
+               (fname (make-temp-file "esh" nil ".html"))
+               (fdir (file-name-directory fname)))
     (with-temp-file fname
+      (copy-file (expand-file-name "etc/esh-preamble.css" esh--directory)
+                 (expand-file-name "esh-preamble.css" fdir) t)
       (esh--html-prepare-html-output xml dt)
       (esh--html-serialize document t)
       (browse-url fname))))
