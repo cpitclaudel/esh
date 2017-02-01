@@ -600,7 +600,7 @@ EXPORT-FN should do the actual exporting."
   (pcase underline
     (`nil nil)
     (`t '(nil . line))
-    ((pred stringp) `(,underline . line))
+    ((pred stringp) `(,(esh--normalize-color underline) . line))
     ((pred listp) `(,(esh--normalize-color (plist-get underline :color)) .
                     ,(or (plist-get underline :style) 'line)))
     (_ (error "Unexpected underline %S" underline))))
