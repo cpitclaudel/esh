@@ -174,6 +174,30 @@ have interesting text properties (e.g. `line-height')."
   "Joins STRS with SEP."
   (mapconcat #'identity strs sep))
 
+(defun esh--copy-overlays (buf)
+  "Copy overlays of BUF into current buffer."
+  (let ((ovs (with-current-buffer buf (overlays-in (point-min) (point-max)))))
+    (dolist (ov ovs)
+      (let ((copy (make-overlay (overlay-start ov) (overlay-end ov)))
+            (ov-props (overlay-properties ov)))
+        (while ov-props
+          (overlay-put copy (pop ov-props) (pop ov-props)))))))
+
+(defun esh--copy-buffer (buf)
+  "Copy contents and overlays of BUF into current buffer."
+  (insert-buffer-substring buf)
+  (setq-local tab-width (buffer-local-value 'tab-width buf))
+  (esh--copy-overlays buf))
+
+(defmacro esh--with-copy-of-current-buffer (&rest body)
+  "Run BODY in a temporary copy of the current buffer."
+  (declare (indent 0) (debug t))
+  (let ((buf (make-symbol "buf")))
+    `(let ((,buf (current-buffer)))
+       (with-temp-buffer
+         (esh--copy-buffer ,buf)
+         ,@body))))
+
 ;;; Segmenting a buffer
 
 (defun esh--buffer-ranges-from (start prop)
@@ -1370,14 +1394,19 @@ Highlight sources in any environments containing a class matching
          (pre `((pre ((class . "esh-standalone")) ,@children))))
     (esh--html-export-tag-node normalized pre 'body)))
 
+(defun esh--html-export-wrapped-1 ()
+  "Render the current buffer as an HTML AST wrapped in a body tag."
+  (esh--with-copy-of-current-buffer
+    (car (esh--html-wrap-in-body-tag (esh--html-export-buffer)))))
+
 (defun esh--html-export-wrapped ()
   "Render the current buffer as an HTML AST.
 Unlike `esh--html-export-buffer', this produces a complete
 webpage: the result of exporting is inserted into a template
 found at `esh--html-template-path'.  Returns a 3-elements
 list: (XML-HEADER DOCTYPE AST)."
-  (pcase-let* ((title (format "ESH: %s" (buffer-name)))
-               (body (car (esh--html-wrap-in-body-tag (esh--html-export-buffer))))
+  (pcase-let* ((body (esh--html-export-wrapped-1))
+               (title (format "ESH: %s" (buffer-name)))
                (`(,xml ,dt ,template) (esh--html-parse-file esh--html-template-path))
                (substitutions `((esh-title . ,title) (esh-body . ,body)))
                (document (esh--html-substitute template substitutions)))
