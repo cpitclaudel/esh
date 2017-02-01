@@ -365,14 +365,14 @@ the original string."
                             (esh--parse-composition components))))
           (esh--commit-compositions-1 from to str))))))
 
-(defun esh--mark-newlines ()
-  "Add an `esh--newline' text property to each \\n character.
-The value is either `empty' or `non-empty' (we need this to add a
-dummy element on empty lines to prevent LaTeX from complaining
-about underful hboxes).  Adding these properties also makes it
-easy to group ranges by line, which yields a significant speedup
-when processing long files (compared to putting all lines in one
-large interval tree)."
+(defun esh--mark-newlines (additional-props)
+  "Add `esh--newline' and ADDITIONAL-PROPS text properties to each \\n.
+The value of `esh--newline' is either `empty' or `non-empty' (we
+need this to add a dummy element on empty lines to prevent LaTeX
+from complaining about underful hboxes).  Adding these properties
+also makes it easy to group ranges by line, which yields a
+significant speedup when processing long files (compared to
+putting all lines in one large interval tree)."
   (goto-char (point-min))
   (while (search-forward "\n" nil t)
     ;; (point-at-bol 0) is beginning of previous line
@@ -381,7 +381,7 @@ large interval tree)."
     (let* ((empty (= (point-at-bol 0) (match-beginning 0)))
            (newline (cons (point) (if empty 'empty 'non-empty))))
       (add-text-properties (match-beginning 0) (match-end 0)
-                           `(esh--break t esh--newline ,newline)))))
+                           `(esh--newline ,newline ,@additional-props)))))
 
 ;;; Constructing a stream of events
 
@@ -947,7 +947,7 @@ lines in inline blocks."
     (esh--commit-overlays (current-buffer))
     (esh--remove-final-newline)
     (esh--commit-compositions)
-    (esh--mark-newlines))
+    (esh--mark-newlines '(esh--break t)))
   (let ((source-buf (current-buffer))
         (trees (let ((esh-interval-tree-nest-annotations t))
                  (esh--buffer-to-property-trees
