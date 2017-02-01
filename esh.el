@@ -632,11 +632,14 @@ EXPORT-FN should do the actual exporting."
     (_ (error "Unexpected slant %S" slant))))
 
 (defun esh--normalize-box (box)
-  "Normalize face attribute BOX."
+  "Normalize face attribute BOX.
+Numeric values are undocumented, but `face-attribute' sometimes
+returns 1 instead of t."
   (pcase box
     (`nil nil)
     (`t `(1 nil nil))
     ((pred stringp) `(1 ,box nil))
+    ((pred numberp) `(,box nil nil))
     ((pred listp) `(,(or (plist-get box :line-width) 1)
                     ,(esh--normalize-color (plist-get box :color))
                     ,(plist-get box :style)))
