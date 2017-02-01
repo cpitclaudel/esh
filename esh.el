@@ -230,8 +230,9 @@ most one overlay."
 (defun esh--copy-buffer (buf)
   "Copy contents and overlays of BUF into current buffer."
   (insert-buffer-substring buf)
-  (setq-local tab-width (buffer-local-value 'tab-width buf))
-  (esh--commit-overlays buf))
+  (esh--commit-overlays buf)
+  (dolist (var '(tab-width buffer-display-table buffer-invisibility-spec))
+    (set (make-local-variable var) (buffer-local-value var buf))))
 
 (defmacro esh--with-copy-of-current-buffer (&rest body)
   "Run BODY in a temporary copy of the current buffer."
@@ -242,7 +243,7 @@ most one overlay."
          (esh--copy-buffer ,buf)
          ,@body))))
 
-;;; Segmenting a buffer
+;;; Segmenting buffers
 
 (defun esh--buffer-ranges-from (start prop)
   "Create a stream of buffer ranges from START.
@@ -331,6 +332,31 @@ Faces is a list of (possibly anonymous) faces."
     (and faces ;; Empty list of faces → no face attributes
          (esh--extract-face-attributes face-attributes faces))))
 
+(defvar-local esh--invisible-replacement-string nil)
+
+(defun esh--glyph-to-string (c)
+  "Convert glyph C to char."
+  (propertize (char-to-string (glyph-char c)) 'face (glyph-face c)))
+
+(defun esh--invisible-replacement-string ()
+  "Compute or return string to display for invisible regions."
+  (or esh--invisible-replacement-string
+      (setq-local
+       esh--invisible-replacement-string
+       (mapconcat #'esh--glyph-to-string
+                  (or (char-table-extra-slot buffer-display-table 4)
+                      (char-table-extra-slot standard-display-table 4)) ""))))
+
+(defun esh--invisible-p (val)
+  "Determine whether invisible:VAL makes text invisible.
+Returns either nil (not invisible), or a string (the text that
+the invisible range is replaced with)."
+  (let ((invisible (invisible-p val)))
+    (pcase invisible
+      (`t "")
+      (`nil nil)
+      (_ (esh--invisible-replacement-string)))))
+
 ;;; Massaging properties
 
 (defun esh--commit-compositions-1 (from to str)
@@ -383,6 +409,17 @@ putting all lines in one large interval tree)."
            (newline (cons (point) (if empty 'empty 'non-empty))))
       (add-text-properties (match-beginning 0) (match-end 0)
                            `(esh--newline ,newline ,@additional-props)))))
+
+(defun esh--translate-invisibility (range)
+  "Replace value of `invisible' text property in RANGE by a string.
+The string indicates what the corresponding text should be
+replaced with.  It is nil if the text should in fact be visible."
+  (let* ((alist (cl-caddr range))
+         (invisible (assq 'invisible (cl-caddr range))))
+    (when invisible
+      (let ((repl (esh--invisible-p (cdr invisible))))
+        (if repl (setf (cdr invisible) repl)
+          (setf (cl-caddr range) (assq-delete-all 'invisible alist)))))))
 
 ;;; Constructing a stream of events
 
@@ -800,6 +837,7 @@ Puts text property `non-ascii' on non-ascii characters."
 Remove most of the properties on ranges marked with
 `esh--newline' (keep only `invisible' and `line-height'
 properties), and remove `line-height' properties on others."
+  (esh--translate-invisibility range)
   (let ((alist (cl-caddr range)))
     (cond
      ((assq 'esh--newline alist)
@@ -897,7 +935,8 @@ AFTER."
        ((pred stringp)
         (insert (esh--escape-for-latex val)))
        (_ (error "Unexpected display property %S" val))))
-    (`invisible)
+    (`invisible
+     (when val (insert val)))
     (`line-height
      (unless (floatp val)
        (error "Unexpected line-height property %S" val))
@@ -1243,6 +1282,7 @@ See `esh--resolve-event-conflicts'.")
 
 (defun esh--html-range-filter (range)
   "Remove incorrectly placed line-height properties of RANGE."
+  (esh--translate-invisibility range)
   (let ((alist (cl-caddr range)))
     (when (and (assq 'line-height range)
                (not (assq 'esh--newline range)))
@@ -1314,7 +1354,7 @@ Return an HTML AST; the root is a TAG node (default: span)."
               (setq children (list val)))
              (_ (error "Unexpected display property %S" val))))
           (`invisible
-           (when val (setq children nil)))
+           (setq children (if (equal val "") nil (list val))))
           (`line-height
            (unless (floatp val)
              (error "Unexpected line-height property %S" val))
