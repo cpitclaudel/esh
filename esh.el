@@ -174,20 +174,74 @@ have interesting text properties (e.g. `line-height')."
   "Joins STRS with SEP."
   (mapconcat #'identity strs sep))
 
-(defun esh--copy-overlays (buf)
-  "Copy overlays of BUF into current buffer."
-  (let ((ovs (with-current-buffer buf (overlays-in (point-min) (point-max)))))
-    (dolist (ov ovs)
-      (let ((copy (make-overlay (overlay-start ov) (overlay-end ov)))
-            (ov-props (overlay-properties ov)))
-        (while ov-props
-          (overlay-put copy (pop ov-props) (pop ov-props)))))))
+(defmacro esh--doplist (bindings &rest body)
+  "Bind PROP and VAR to pairs in PLIST and run BODY.
+BINDINGS should be a list (PROP VAL PLIST).
+
+\(fn (PROP VAL PLIST) BODY...)"
+  (declare (indent 1) (debug ((symbolp symbolp form) body)))
+  (pcase-let ((plist (make-symbol "plist"))
+              (`(,prop ,val ,plist-expr) bindings))
+    `(let ((,plist ,plist-expr))
+       (while ,plist
+         (let ((,prop (pop ,plist))
+               (,val (pop ,plist)))
+           ,@body)))))
+
+(defun esh--plist-delete-all (needle haystack)
+  "Remove key NEEDLE from plist HAYSTACK."
+  (let ((plist nil))
+    (esh--doplist (prop val haystack)
+      (unless (eq prop needle)
+        (push prop plist)
+        (push val plist)))
+    (nreverse plist)))
+
+;;; Copying buffers
+
+(defun esh--number-or-0 (x)
+  "Return X if X is a number, 0 otherwise."
+  (if (numberp x) x 0))
+
+(defun esh--augment-overlay (ov)
+  "Return a list of three values: the priorities of overlay OV, and OV."
+  (let ((pr (overlay-get ov 'priority)))
+    (if (consp pr)
+        (list (esh--number-or-0 (car pr)) (esh--number-or-0 (cdr pr)) ov)
+      (list (esh--number-or-0 pr) 0 ov))))
+
+(defun esh--augmented-overlay-< (ov1 ov2)
+  "Compare two lists OV1 OV2 produced by `esh--augment-overlay'."
+  (or (< (car ov1) (car ov2))
+      (and (= (car ov1) (car ov2))
+           (< (cadr ov1) (cadr ov2)))))
+
+(defun esh--buffer-overlays (buf)
+  "Collects overlays of BUF, in order of increasing priority."
+  (let* ((ovs (with-current-buffer buf (overlays-in (point-min) (point-max))))
+         (augmented (mapcar #'esh--augment-overlay ovs))
+         (sorted (sort augmented #'esh--augmented-overlay-<)))
+    (mapcar #'cl-caddr sorted)))
+
+(defun esh--commit-overlays (buf)
+  "Copy overlays of BUF into current buffer's text properties.
+We need to do this, because get-char-text-property considers at
+most one overlay."
+  (dolist (ov (esh--buffer-overlays buf))
+    (let* ((start (overlay-start ov))
+           (end (overlay-end ov))
+           (props (overlay-properties ov))
+           (face (plist-get props 'face)))
+      (when face
+        (setq props (esh--plist-delete-all 'face props))
+        (font-lock-prepend-text-property start end 'face face))
+      (add-text-properties start end props))))
 
 (defun esh--copy-buffer (buf)
   "Copy contents and overlays of BUF into current buffer."
   (insert-buffer-substring buf)
   (setq-local tab-width (buffer-local-value 'tab-width buf))
-  (esh--copy-overlays buf))
+  (esh--commit-overlays buf))
 
 (defmacro esh--with-copy-of-current-buffer (&rest body)
   "Run BODY in a temporary copy of the current buffer."
@@ -206,14 +260,12 @@ Ranges are pairs of START..END positions in which all characters
 have the same value of PROP or, if PROP is nil, of all
 properties."
   (let ((ranges nil)
-        (making-progress t))
-    (while making-progress
-      (let ((end (if prop (next-single-char-property-change start prop)
-                   (next-char-property-change start))))
-        (if (< start end)
-            (push (cons start end) ranges)
-          (setq making-progress nil))
-        (setq start end)))
+        (end nil))
+    (while (setq end (if prop (next-single-property-change start prop)
+                       (next-property-change start)))
+      (push (cons start end) ranges)
+      (setq start end))
+    (push (cons start (point-max)) ranges)
     (nreverse ranges)))
 
 (defun esh--buffer-ranges (&optional prop)
@@ -270,11 +322,9 @@ Faces is a list of (possibly anonymous) faces."
 
 (defun esh--faces-at-point (pos)
   "Compute list of faces at POS."
-  ;; `get-char-property' returns either overlay properties (if any), or text
-  ;; properties — never both.  Hence the two lists (and the deduplication, since
-  ;; otherwise relative font sizes get squared).
-  (esh--append-dedup (esh--as-list (get-text-property pos 'face))
-                  (esh--as-list (get-char-property pos 'face))))
+  ;; No need to consider overlay properties here, since they've been converted
+  ;; to text properties in previous steps.
+  (esh--as-list (get-text-property pos 'face)))
 
 ;; Caching this function speeds things up by about 5%
 (defun esh--extract-face-attributes (face-attributes faces)
@@ -903,6 +953,7 @@ lines in inline blocks."
   "Export current buffer to LaTeX."
   (let ((inhibit-modification-hooks t))
     (untabify (point-min) (point-max))
+    (esh--commit-overlays (current-buffer))
     (esh--remove-final-newline)
     (esh--commit-compositions)
     (esh--mark-newlines))
@@ -1298,6 +1349,7 @@ Return an HTML AST; the root is a TAG node (default: span)."
 This may modify to the current buffer."
   (let ((inhibit-modification-hooks t))
     (untabify (point-min) (point-max))
+    (esh--commit-overlays (current-buffer))
     (esh--remove-final-newline)
     (esh--commit-compositions)
     (esh--mark-newlines)
