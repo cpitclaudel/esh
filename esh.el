@@ -216,15 +216,16 @@ BINDINGS should be a list (PROP VAL PLIST).
   "Copy overlays of BUF into current buffer's text properties.
 We need to do this, because get-char-text-property considers at
 most one overlay."
-  (dolist (ov (esh--buffer-overlays buf))
-    (let* ((start (overlay-start ov))
-           (end (overlay-end ov))
-           (props (overlay-properties ov))
-           (face (plist-get props 'face)))
-      (when face
-        (setq props (esh--plist-delete-all 'face props))
-        (font-lock-prepend-text-property start end 'face face))
-      (add-text-properties start end props))))
+  (let ((pt-min-diff (- (with-current-buffer buf (point-min)) (point-min))))
+    (dolist (ov (esh--buffer-overlays buf))
+      (let* ((start (max (point-min) (- (overlay-start ov) pt-min-diff)))
+             (end (min (point-max) (- (overlay-end ov) pt-min-diff)))
+             (props (overlay-properties ov))
+             (face (plist-get props 'face)))
+        (when face
+          (setq props (esh--plist-delete-all 'face props))
+          (font-lock-prepend-text-property start end 'face face))
+        (add-text-properties start end props)))))
 
 (defun esh--copy-buffer (buf)
   "Copy contents and overlays of BUF into current buffer."
