@@ -1,4 +1,4 @@
-;;; esh.el --- Use Emacs to highlight code snippets in LaTeX documents  -*- lexical-binding: t; -*-
+;;; esh.el --- Use Emacs to highlight snippets in LaTeX and HTML documents -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2016  Clément Pit-Claudel
 
@@ -23,10 +23,13 @@
 
 ;;; Commentary:
 
-;; ESH is a replacement for lstlistings, minted, etc.\ that uses Emacs'
-;; major-modes to syntax-highlight code blocks in LaTeX documents.
+;; ESH is an extensible framework for exporting Emacs' syntax highlighting to
+;; other languages, and for using Emacs to highlight code snippets embedded in
+;; documents.  Its LaTeX backend is a replacement for lstlistings, minted, etc.\
+;; that uses Emacs' major-modes to syntax-highlight code blocks in your
+;; documents.
 ;;
-;; See URL `https://github.com/cpitclaudel/esh2tex' for usage instructions.
+;; See URL `https://github.com/cpitclaudel/esh' for usage instructions.
 
 ;;; Code:
 
