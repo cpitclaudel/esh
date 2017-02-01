@@ -365,7 +365,7 @@ the original string."
                             (esh--parse-composition components))))
           (esh--commit-compositions-1 from to str))))))
 
-(defun esh--mark-newlines (additional-props)
+(defun esh--mark-newlines (&optional additional-props)
   "Add `esh--newline' and ADDITIONAL-PROPS text properties to each \\n.
 The value of `esh--newline' is either `empty' or `non-empty' (we
 need this to add a dummy element on empty lines to prevent LaTeX
@@ -504,10 +504,10 @@ tree.  Result is influenced by
 `esh-interval-tree-nest-annotations'."
   (let* ((flat-trees nil)
          (ranges (esh--buffer-ranges))
-         (ann-ranges (esh--annotate-ranges ranges text-props face-attrs))
-         (filtered-ranges (funcall range-filter ann-ranges))
-         (grouped-ranges-rev (esh--partition-ranges-rev filtered-ranges 'esh--break)))
-    (pcase-dolist (`(,bol ,eol ,ranges) grouped-ranges-rev)
+         (ann-ranges (esh--annotate-ranges ranges text-props face-attrs)))
+    (mapc range-filter ann-ranges)
+    (pcase-dolist (`(,bol ,eol ,ranges)
+                   (esh--partition-ranges-rev ann-ranges 'esh--break))
       (let* ((events (esh--ranges-to-events ranges priority-ranking))
              (ints (esh--events-to-intervals events priority-ranking))
              (tree (esh--intervals-to-tree ints bol eol)))
@@ -793,24 +793,21 @@ Puts text property `non-ascii' on non-ascii characters."
     ;; Need property values to be distinct, hence (point)
     (put-text-property (match-beginning 0) (match-end 0) 'non-ascii (point))))
 
-(defun esh--latex-filter-properties (ranges)
-  "Filter properties on RANGES.
+(defun esh--latex-range-filter (range)
+  "Filter properties of RANGE.
 Remove most of the properties on ranges marked with
 `esh--newline' (keep only `invisible' and `line-height'
-properties), and remove `line-height' properties on all other
-spans."
-  (dolist (range ranges)
-    (let ((alist (cl-caddr range)))
-      (cond
-       ((assq 'esh--newline alist)
-        (let ((new-alist nil))
-          (dolist (pair alist)
-            (when (memq (car pair) '(invisible line-height esh--newline esh--break))
-              (push pair new-alist)))
-          (setf (cl-caddr range) new-alist)))
-       ((assq 'line-height alist)
-        (setf (cl-caddr range) (assq-delete-all 'line-height alist))))))
-  ranges)
+properties), and remove `line-height' properties on others."
+  (let ((alist (cl-caddr range)))
+    (cond
+     ((assq 'esh--newline alist)
+      (let ((new-alist nil))
+        (dolist (pair alist)
+          (when (memq (car pair) '(invisible line-height esh--newline esh--break))
+            (push pair new-alist)))
+        (setf (cl-caddr range) new-alist)))
+     ((assq 'line-height alist)
+      (setf (cl-caddr range) (assq-delete-all 'line-height alist))))))
 
 (defun esh--escape-for-latex (str)
   "Escape LaTeX special characters in STR."
@@ -958,7 +955,7 @@ lines in inline blocks."
                   esh--latex-props
                   esh--latex-face-attrs
                   esh--latex-priorities
-                  #'esh--latex-filter-properties))))
+                  #'esh--latex-range-filter))))
     (with-temp-buffer
       (esh--latex-export-trees source-buf trees)
       (esh--latexify-protect-eols)
@@ -1230,17 +1227,24 @@ NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
     (_ (error "Unprintable node %S" node))))
 
 (defconst esh--html-props
-  '(display invisible non-ascii line-height esh--newline esh--break))
+  '(display invisible non-ascii line-height esh--newline))
 (defconst esh--html-face-attrs
   '(:underline :background :foreground :weight :slant :box :height))
 
 (defconst esh--html-priorities
   `( ;; Fine to split
-    ,@'(esh--break line-height :underline :foreground :weight :height :background)
+    ,@'(line-height :underline :foreground :weight :height :background)
     ;; Should not split
     ,@'(:slant :box display esh--newline non-ascii invisible))
   "Priority order for text properties in HTML export.
 See `esh--resolve-event-conflicts'.")
+
+(defun esh--html-range-filter (range)
+  "Remove incorrectly placed line-height properties of RANGE."
+  (let ((alist (cl-caddr range)))
+    (when (and (assq 'line-height range)
+               (not (assq 'esh--newline range)))
+      (setf (cl-caddr range) (assq-delete-all 'line-height alist)))))
 
 (defun esh--html-wrap-children (styles non-ascii children &optional tag)
   "Apply STYLES and NON-ASCII markup to CHILDREN.
@@ -1309,9 +1313,7 @@ Return an HTML AST; the root is a TAG node (default: span)."
            (setq line-height (format "%.2g" val)))
           (`non-ascii
            (when val (setq non-ascii t)))
-          (`esh--newline
-           ;; FIXME handle background colors extending past end of line
-           (esh-assert (null styles)))
+          (`esh--newline)
           (_ (error "Unexpected property %S" property)))))
     (cond
      ((null children) nil)
@@ -1322,6 +1324,7 @@ Return an HTML AST; the root is a TAG node (default: span)."
          (span ((class . "esh-raised-placeholder"))
                ,@(esh--html-wrap-children nil non-ascii children)))))
      (line-height
+      ;; CSS line-height property shouldn't cover newlines
       (nconc (esh--html-wrap-children `(("line-height" . ,line-height)) nil nil)
              (esh--html-wrap-children styles non-ascii children tag)))
      (t
@@ -1355,7 +1358,7 @@ This may modify to the current buffer."
                   esh--html-props
                   esh--html-face-attrs
                   esh--html-priorities
-                  #'identity))))
+                  #'esh--html-range-filter))))
     (esh--html-export-trees trees)))
 
 (defvar esh--html-src-class-prefix "src-"
