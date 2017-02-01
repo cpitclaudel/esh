@@ -34,3 +34,7 @@
 .esh-standalone {
     line-height: 1;
 }
+
+.esh-strut {
+    display: inline-block;
+}
