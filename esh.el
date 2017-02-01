@@ -1497,7 +1497,7 @@ list: (XML-HEADER DOCTYPE AST)."
   (pcase-let* ((body (esh--html-export-wrapped-1))
                (title (format "ESH: %s" (buffer-name)))
                (`(,xml ,dt ,template) (esh--html-parse-file esh--html-template-path))
-               (substitutions `((esh-title . ,title) (esh-body . ,body)))
+               (substitutions `((esh-title . ,title) (body . ,body)))
                (document (esh--html-substitute template substitutions)))
     (list xml dt document)))
 
