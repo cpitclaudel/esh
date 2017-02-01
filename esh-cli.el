@@ -27,8 +27,6 @@
 (setq-default load-prefer-newer t)
 (setq-default text-quoting-style 'grave)
 
-(require 'esh-client)
-
 (eval-and-compile
   (defconst esh-cli--script-full-path
     (or (and load-in-progress load-file-name)
@@ -39,6 +37,17 @@
   (defconst esh-cli--esh-directory
     (file-name-directory esh-cli--script-full-path)
     "Full path to directory of this script."))
+
+(defun esh-cli--byte-recompile (dir)
+  "Recompile ELisp files in DIR."
+  (dolist (fname (directory-files dir t "\\.el\\'"))
+    (unless (string-match-p "esh-pkg\\.el\\'" fname)
+      (byte-recompile-file fname nil 0))))
+
+(require 'bytecomp)
+(esh-cli--byte-recompile esh-cli--esh-directory)
+
+(require 'esh-client)
 
 (defvar esh-cli--stdout-p nil
   "See option --stdout.")

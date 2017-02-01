@@ -3,21 +3,17 @@ CASK = env --unset INSIDE_EMACS EMACS=$(EMACS) cask
 
 .PHONY: example
 
-default: elc
+default: elc pkg-file
 
 pkg-file:
 	$(CASK) pkg-file
-
-update:
-	$(CASK) install
-	$(CASK) update
 
 clean: clean-elc
 
 clean-elc:
 	$(CASK) clean-elc
 
-elc: update clean-elc pkg-file
+elc: clean-elc
 	$(CASK) build
 
 test:
