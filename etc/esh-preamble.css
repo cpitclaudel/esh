@@ -30,3 +30,7 @@
     height: 0;
     visibility: hidden;
 }
+
+.esh-standalone {
+    line-height: 1;
+}
