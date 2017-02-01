@@ -1308,6 +1308,8 @@ Return an HTML AST; the root is a TAG node (default: span)."
              (`(raise ,amount)
               (setq raised t)
               (push (cons "bottom" (format "%2gem" amount)) styles))
+             (`(space :relative-height ,amount)
+              (setq children (list (esh--html-make-strut amount) " ")))
              ((pred stringp)
               (setq children (list val)))
              (_ (error "Unexpected display property %S" val))))
