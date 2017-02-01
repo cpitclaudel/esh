@@ -1280,13 +1280,11 @@ Return an HTML AST; the root is a TAG node (default: span)."
           (:slant
            (push (cons "font-style" (symbol-name val)) styles))
           (:underline
-           (pcase-let ((`(,color . ,type) val))
-             (push (cons "text-decoration" "underline") styles)
-             (when (eq type 'wave)
-               (push (cons "text-decoration-style" "wavy") styles))
-             (when color
-               (push (cons "text-decoration-color" (concat "#" color))
-                     styles))))
+           (pcase-let* ((`(,color . ,type) val)
+                        (ul-style `("underline"
+                                    ,@(when (eq type 'wave) `("wavy"))
+                                    ,@(when color `(,(concat "#" color))))))
+             (push (cons "text-decoration" (esh--join ul-style " ")) styles)))
           (:box
            (pcase-let ((`(,line-width ,color ,style) val))
              (unless (eq style nil)
