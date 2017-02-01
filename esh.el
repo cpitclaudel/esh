@@ -946,6 +946,7 @@ lines in inline blocks."
 (defun esh--latex-export-buffer ()
   "Export current buffer to LaTeX."
   (let ((inhibit-modification-hooks t))
+    (setq-local buffer-undo-list t)
     (untabify (point-min) (point-max))
     (esh--commit-overlays (current-buffer))
     (esh--remove-final-newline)
@@ -1342,6 +1343,7 @@ Return an HTML AST; the root is a TAG node (default: span)."
   "Export current buffer to HTML AST.
 This may modify to the current buffer."
   (let ((inhibit-modification-hooks t))
+    (setq-local buffer-undo-list t)
     (untabify (point-min) (point-max))
     (esh--commit-overlays (current-buffer))
     (esh--remove-final-newline)
