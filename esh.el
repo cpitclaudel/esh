@@ -74,17 +74,6 @@ Instead, go through `auto-mode-alist' ourselves."
           (push top kept))))
     (nreverse kept)))
 
-(defun esh--append-dedup (&rest seqs)
-  "Concatenate SEQS, remove duplicates (wrt `eq') on the way."
-  (let ((deduped nil))
-    (while seqs
-      (let ((seq (pop seqs)))
-        (while seq
-          (let ((elem (pop seq)))
-            (unless (memq elem deduped)
-              (push elem deduped))))))
-    (nreverse deduped)))
-
 (defvar esh-name-to-mode-alist nil
   "Alist of block name → mode function.")
 
@@ -279,9 +268,11 @@ properties."
 
 (defun esh--extract-props (props pos)
   "Read PROPS from POS as an ALIST of (PROP . VAL)."
-  (mapcar (lambda (prop)
-            (cons prop (get-char-property pos prop)))
-          props))
+  (let ((alist nil))
+    (esh--doplist (prop val (text-properties-at pos))
+      (when (and (memq prop props) val)
+        (push (cons prop val) alist)))
+    (nreverse alist)))
 
 (defun esh--face-get (face attribute)
   "Read ATTRIBUTE from (potentially anonymous) FACE.
@@ -404,7 +395,7 @@ END is exclusive."
     (pcase-dolist (`(,start . ,end) ranges)
       (let* ((props-alist (esh--extract-props text-props start))
              (attrs-alist (esh--extract-pos-face-attributes face-attrs start))
-             (merged-alist (nconc attrs-alist (esh--filter-cdr nil props-alist))))
+             (merged-alist (nconc attrs-alist props-alist)))
         (push (list start end merged-alist) acc)))
     (nreverse acc)))
 
