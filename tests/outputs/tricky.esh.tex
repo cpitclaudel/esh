@@ -341,11 +341,13 @@
 
 Tricky examples:
 
+\section*{Overlapping properties}
 \begin{ESHBlock}
 \ESHBol{}\ESHSlantItalic{a}\ESHBox{.}{1.00pt}{\ESHSlantItalic{bcd\textcolor[HTML]{FF0000}{ef}}\textcolor[HTML]{FF0000}{gh}\ESHWeightBold{\textcolor[HTML]{FF0000}{ij}kl}}\ESHWeightBold{mn}\ESHEol
 \ESHBol{}123\textscale{2.5}{4}56789
 \end{ESHBlock}
 
+\section*{\texttt{line-height}}
 \begin{ESHBlock}
 \ESHBol{}tall\ESHStrut{2}\ESHEol
 \ESHBol{}tall\ESHStrut{2}\ESHEol
@@ -353,9 +355,18 @@ Tricky examples:
 \ESHBol{}short
 \end{ESHBlock}
 
+\section*{\texttt{raise}}
 \begin{ESHBlock}
 \ESHBol{}x\ESHRaise{1.00}{abc123}\ESHEol
 \ESHBol{}y\ESHRaise{-1.00}{abc123}
+\end{ESHBlock}
+
+\section*{Multi-line properties}
+\begin{ESHBlock}
+\ESHBol{}\ESHSlantItalic{\textcolor[HTML]{5F615C}{;;\ESHSpace{}this\ESHSpace{}comment}}\ESHEol
+\ESHBol{}\ESHSlantItalic{\textcolor[HTML]{5F615C}{;;\ESHSpace{}spans}}\ESHEol
+\ESHBol{}\ESHSlantItalic{\textcolor[HTML]{5F615C}{;;\ESHSpace{}multiple}}\ESHEol
+\ESHBol{}\ESHSlantItalic{\textcolor[HTML]{5F615C}{;;\ESHSpace{}lines}}
 \end{ESHBlock}
 
 \end{document}

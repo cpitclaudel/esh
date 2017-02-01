@@ -10,12 +10,14 @@
 
 Tricky examples:
 
+\section*{Overlapping properties}
 %% ESH: tricky
 \begin{verbatim}
 abcdefghijklmn
 123456789
 \end{verbatim}
 
+\section*{\texttt{line-height}}
 %% ESH: tricky
 \begin{verbatim}
 tall
@@ -24,10 +26,20 @@ short
 short
 \end{verbatim}
 
+\section*{\texttt{raise}}
 %% ESH: subsup
 \begin{verbatim}
 xabc123
 yabc123
+\end{verbatim}
+
+\section*{Multi-line properties}
+%% ESH: emacs-lisp
+\begin{verbatim}
+;; this comment
+;; spans
+;; multiple
+;; lines
 \end{verbatim}
 
 \end{document}
