@@ -1280,7 +1280,9 @@ Return an HTML AST; the root is a TAG node (default: span)."
           (:weight
            (push (cons "font-weight" (format "%d" val)) styles))
           (:height
-           (push (cons "font-size" (format "%d%%" (* val 100))) styles))
+           (let ((height (if (floatp val) (format "%d%%" (* val 100))
+                           (format "%.2gpt" (/ val 10.0)))))
+             (push (cons "font-size" height) styles)))
           (:slant
            (push (cons "font-style" (symbol-name val)) styles))
           (:underline
