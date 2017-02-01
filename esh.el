@@ -338,14 +338,9 @@ large interval tree)."
     ;; (match-beginning 0) is end of previous line
     ;; Inclusion of (point) prevents collapsing of adjacent properties
     (let* ((empty (= (point-at-bol 0) (match-beginning 0)))
-           (newline (cons (point) (if empty 'empty 'non-empty)))
-           (invisible (get-text-property (match-beginning 0) 'invisible))
-           (line-height (get-text-property (match-beginning 0) 'line-height)))
-      (set-text-properties
-       (match-beginning 0) (match-end 0)
-       (append `(newline ,newline)
-               (when line-height `(line-height ,line-height))
-               (when invisible `(invisible ,invisible)))))))
+           (newline (cons (point) (if empty 'empty 'non-empty))))
+      (add-text-properties (match-beginning 0) (match-end 0)
+                           `(esh--break t esh--newline ,newline)))))
 
 ;;; Constructing a stream of events
 
@@ -373,14 +368,15 @@ Each PROPERTY is one of PROPS."
         (prev-alist nil)
         (prev-end nil))
     (pcase-dolist (`(,start ,end ,alist) ranges)
-      (dolist (prop props)
-        (let ((old (assq prop prev-alist))
-              (new (assq prop alist)))
-          (unless (equal (cdr old) (cdr new))
-            (when old
-              (push `(close ,start ,old) events))
-            (when new
-              (push `(open ,start ,new) events)))))
+      (let ((break-here (or (assq 'esh--break prev-alist) (assq 'esh--break alist))))
+        (dolist (prop props)
+          (let ((old (assq prop prev-alist))
+                (new (assq prop alist)))
+            (unless (and (not break-here) (equal (cdr old) (cdr new)))
+              (when old
+                (push `(close ,start ,old) events))
+              (when new
+                (push `(open ,start ,new) events))))))
       (setq prev-end end)
       (setq prev-alist alist))
     (dolist (pair prev-alist)
@@ -391,8 +387,8 @@ Each PROPERTY is one of PROPS."
   "Read property changed by EVENT."
   (car (nth 2 event)))
 
-(defun esh--group-ranges-by-line-rev (ranges)
-  "Group RANGES by line.
+(defun esh--partition-ranges-rev (ranges property)
+  "Partition RANGES into lists separated by intervals marked with PROPERTY.
 Return a list (in reverse order of buffer position); each element
 is a list (BOL EOL RANGES)."
   (let ((lines nil)
@@ -400,8 +396,7 @@ is a list (BOL EOL RANGES)."
         (cur-bol (point-min)))
     (dolist (range ranges)
       (push range cur-line)
-      ;; Newlines are marked with a single property, `newline'
-      (when (eq 'newline (caar (cl-caddr range)))
+      (when (assq property (nth 2 range))
         (let ((end (cadr range)))
           (push `(,cur-bol ,end ,(nreverse cur-line)) lines)
           (setq cur-line nil cur-bol end))))
@@ -451,22 +446,30 @@ the union of all intervals in INT-LISTS."
 
 ;;; High-level interface to tree-related code
 
-(defun esh--buffer-to-property-trees (text-props face-attrs priority-ranking)
-  "Construct a properly nesting list of event from current buffer.
+(defun esh--buffer-to-property-trees
+    (text-props face-attrs priority-ranking range-filter)
+  "Construct a list of property trees from the current buffer.
 TEXT-PROPS and FACE-ATTRS specify which properties to keep track
 of.  PRIORITY-RANKING ranks all these properties in order of
 tolerance to splitting (if a property comes late in this list,
 ESH will try to preserve this property's spans when resolving
-conflicts).  Splitting is needed because in Emacs text properties
-can overlap in ways that are not representable as a tree.
-Result is influenced by `esh-interval-tree-nest-annotations'."
+conflicts).  RANGE-FILTER is applied to the list of (annotated)
+ranges in the buffer before constructing property trees.  If the
+buffer contains spans annotated with `esh--break', this function
+will construct one property tree per buffer region delimited by
+these annotated spans.  Splitting is needed because in Emacs text
+properties can overlap in ways that are not representable as a
+tree.  Result is influenced by
+`esh-interval-tree-nest-annotations'."
   (let* ((flat-trees nil)
          (ranges (esh--buffer-ranges))
-         (ann-ranges (esh--annotate-ranges ranges text-props face-attrs)))
-    (pcase-dolist (`(,bol ,eol ,ranges) (esh--group-ranges-by-line-rev ann-ranges))
+         (ann-ranges (esh--annotate-ranges ranges text-props face-attrs))
+         (filtered-ranges (funcall range-filter ann-ranges))
+         (grouped-ranges-rev (esh--partition-ranges-rev filtered-ranges 'esh--break)))
+    (pcase-dolist (`(,bol ,eol ,ranges) grouped-ranges-rev)
       (let* ((events (esh--ranges-to-events ranges priority-ranking))
-             (intervals (esh--events-to-intervals events priority-ranking))
-             (tree (esh--intervals-to-tree intervals bol eol)))
+             (ints (esh--events-to-intervals events priority-ranking))
+             (tree (esh--intervals-to-tree ints bol eol)))
         (setq flat-trees (esh-interval-tree-flatten-acc tree flat-trees))))
     (mapcar (lambda (tr) (esh--tree-map-attrs #'esh--normalize-suppress-defaults tr))
             flat-trees)))
@@ -649,15 +652,15 @@ e.g. when rendering a buffer as HTML, htmlfontify-style."
 ;;; Producing LaTeX
 
 (defconst esh--latex-props
-  '(display invisible line-height newline))
+  '(display invisible line-height esh--newline esh--break))
 (defconst esh--latex-face-attrs
   '(:underline :background :foreground :weight :slant :box :height))
 
 (defconst esh--latex-priorities
   `(;; Fine to split
-    ,@'(line-height newline :underline :foreground :weight :height :background)
+    ,@'(esh--break line-height :underline :foreground :weight :height :background)
     ;; Should not split
-    ,@'(:slant :box display invisible))
+    ,@'(:slant :box display esh--newline invisible))
   "Priority order for text properties in LaTeX export.
 See `esh--resolve-event-conflicts'.")
 
@@ -745,6 +748,25 @@ Puts text property `non-ascii' on non-ascii characters."
   (while (re-search-forward "[^\000-\177]" nil t)
     ;; Need property values to be distinct, hence (point)
     (put-text-property (match-beginning 0) (match-end 0) 'non-ascii (point))))
+
+(defun esh--latex-filter-properties (ranges)
+  "Filter properties on RANGES.
+Remove most of the properties on ranges marked with
+`esh--newline' (keep only `invisible' and `line-height'
+properties), and remove `line-height' properties on all other
+spans."
+  (dolist (range ranges)
+    (let ((alist (cl-caddr range)))
+      (cond
+       ((assq 'esh--newline alist)
+        (let ((new-alist nil))
+          (dolist (pair alist)
+            (when (memq (car pair) '(invisible line-height esh--newline esh--break))
+              (push pair new-alist)))
+          (setf (cl-caddr range) new-alist)))
+       ((assq 'line-height alist)
+        (setf (cl-caddr range) (assq-delete-all 'line-height alist))))))
+  ranges)
 
 (defun esh--escape-for-latex (str)
   "Escape LaTeX special characters in STR."
@@ -838,10 +860,11 @@ AFTER."
        (error "Unexpected line-height property %S" val))
      (esh--latex-export-wrapped-if val
        "\\ESHStrut{%.2g}" subtrees ""))
-    (`newline
+    (`esh--newline
      ;; Add an mbox to prevent TeX from complaining about underfull boxes.
      (esh--latex-export-wrapped-if (eq (cdr val) 'empty)
        "\\mbox{}" subtrees ""))
+    (`esh--break (mapc #'esh--latex-export-tree subtrees))
     (_ (error "Unexpected property %S" property))))
 
 (defun esh--latex-export-tree (tree)
@@ -888,7 +911,8 @@ lines in inline blocks."
                  (esh--buffer-to-property-trees
                   esh--latex-props
                   esh--latex-face-attrs
-                  esh--latex-priorities))))
+                  esh--latex-priorities
+                  #'esh--latex-filter-properties))))
     (with-temp-buffer
       (esh--latex-export-trees source-buf trees)
       (esh--latexify-protect-eols)
@@ -1110,9 +1134,9 @@ Return result as a LaTeX string."
 ;;; Producing HTML
 
 (defconst esh--html-specials '((?< . "&lt;")
-                               (?> . "&gt;")
-                               (?& . "&amp;")
-                               (?\" . "&quot;")))
+                            (?> . "&gt;")
+                            (?& . "&amp;")
+                            (?\" . "&quot;")))
 
 (defconst esh--html-specials-re
   (regexp-opt-charset (mapcar #'car esh--html-specials)))
@@ -1127,7 +1151,7 @@ Return result as a LaTeX string."
    esh--html-specials-re #'esh--html-substitute-special str t t))
 
 (defconst esh--html-void-tags '(area base br col embed hr img input
-                                     link menuitem meta param source track wbr))
+                                  link menuitem meta param source track wbr))
 
 (defun esh--html-serialize (node escape-specials)
   "Write NODE as HTML string to current buffer.
@@ -1160,15 +1184,15 @@ NODE's body.  If ESCAPE-SPECIALS is nil, NODE must be a string."
     (_ (error "Unprintable node %S" node))))
 
 (defconst esh--html-props
-  '(display invisible non-ascii line-height newline))
+  '(display invisible non-ascii line-height esh--newline esh--break))
 (defconst esh--html-face-attrs
   '(:underline :background :foreground :weight :slant :box :height))
 
 (defconst esh--html-priorities
   `( ;; Fine to split
-    ,@'(line-height newline :underline :foreground :weight :height :background)
+    ,@'(esh--break line-height :underline :foreground :weight :height :background)
     ;; Should not split
-    ,@'(:slant :box display non-ascii invisible))
+    ,@'(:slant :box display esh--newline non-ascii invisible))
   "Priority order for text properties in HTML export.
 See `esh--resolve-event-conflicts'.")
 
@@ -1239,7 +1263,7 @@ Return an HTML AST; the root is a TAG node (default: span)."
            (setq line-height (format "%.2g" val)))
           (`non-ascii
            (when val (setq non-ascii t)))
-          (`newline
+          (`esh--newline
            ;; FIXME handle background colors extending past end of line
            (esh-assert (null styles)))
           (_ (error "Unexpected property %S" property)))))
@@ -1270,7 +1294,8 @@ Return an HTML AST; the root is a TAG node (default: span)."
   (mapcan #'esh--html-export-tree trees))
 
 (defun esh--html-export-buffer ()
-  "Export current buffer to HTML AST."
+  "Export current buffer to HTML AST.
+This may modify to the current buffer."
   (let ((inhibit-modification-hooks t))
     (untabify (point-min) (point-max))
     (esh--remove-final-newline)
@@ -1281,7 +1306,8 @@ Return an HTML AST; the root is a TAG node (default: span)."
                  (esh--buffer-to-property-trees
                   esh--html-props
                   esh--html-face-attrs
-                  esh--html-priorities))))
+                  esh--html-priorities
+                  #'identity))))
     (esh--html-export-trees trees)))
 
 (defvar esh--html-src-class-prefix "src-"
