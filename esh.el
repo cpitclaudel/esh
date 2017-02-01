@@ -1259,6 +1259,10 @@ STYLES are applied using a new TAG node."
            ,@children)))
     children))
 
+(defun esh--html-make-strut (height)
+  "Construct an HTML node implementing a strut of height HEIGHT."
+  `(span ((class . "esh-strut") (style . ,(format "height: %.2gem" height)))))
+
 (defun esh--html-export-tag-node (attributes children &optional tag)
   "Wrap CHILDREN in a HTML implementation of ATTRIBUTES.
 Return an HTML AST; the root is a TAG node (default: span)."
@@ -1309,7 +1313,7 @@ Return an HTML AST; the root is a TAG node (default: span)."
           (`line-height
            (unless (floatp val)
              (error "Unexpected line-height property %S" val))
-           (setq line-height (format "%.2g" val)))
+           (setq line-height val))
           (`non-ascii
            (when val (setq non-ascii t)))
           (`esh--newline)
@@ -1324,8 +1328,8 @@ Return an HTML AST; the root is a TAG node (default: span)."
                ,@(esh--html-wrap-children nil non-ascii children)))))
      (line-height
       ;; CSS line-height property shouldn't cover newlines
-      (nconc (esh--html-wrap-children `(("line-height" . ,line-height)) nil nil)
-             (esh--html-wrap-children styles non-ascii children tag)))
+      (cons (esh--html-make-strut line-height)
+            (esh--html-wrap-children styles non-ascii children tag)))
      (t
       (esh--html-wrap-children styles non-ascii children tag)))))
 
