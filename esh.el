@@ -325,10 +325,10 @@ the original string."
           (esh--commit-compositions-1 from to str))))))
 
 (defun esh--mark-newlines ()
-  "Add a `newline' text property to each \\n character.
+  "Add an `esh--newline' text property to each \\n character.
 The value is either `empty' or `non-empty' (we need this to add a
 dummy element on empty lines to prevent LaTeX from complaining
-about underful hboxes).  Adding these properties also make it
+about underful hboxes).  Adding these properties also makes it
 easy to group ranges by line, which yields a significant speedup
 when processing long files (compared to putting all lines in one
 large interval tree)."
