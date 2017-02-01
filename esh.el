@@ -6,7 +6,7 @@
 ;; Package-Requires: ((emacs "24.3"))
 ;; Package-Version: 0.1
 ;; Keywords: faces
-;; URL: https://github.com/cpitclaudel/esh2tex
+;; URL: https://github.com/cpitclaudel/esh
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
