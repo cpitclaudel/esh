@@ -177,14 +177,14 @@ BINDINGS should be a list (PROP VAL PLIST).
                (,val (pop ,plist)))
            ,@body)))))
 
-(defun esh--plist-delete-all (needle haystack)
-  "Remove key NEEDLE from plist HAYSTACK."
-  (let ((plist nil))
-    (esh--doplist (prop val haystack)
-      (unless (eq prop needle)
-        (push prop plist)
-        (push val plist)))
-    (nreverse plist)))
+(defun esh--filter-plist (plist props)
+  "Remove PROPS from PLIST."
+  (let ((filtered nil))
+    (esh--doplist (prop val plist)
+      (unless (memq prop props)
+        (push prop filtered)
+        (push val filtered)))
+    (nreverse filtered)))
 
 ;;; Copying buffers
 
@@ -212,6 +212,11 @@ BINDINGS should be a list (PROP VAL PLIST).
          (sorted (sort augmented #'esh--augmented-overlay-<)))
     (mapcar #'cl-caddr sorted)))
 
+(defconst esh--overlay-specific-props
+  '(after-string before-string evaporate isearch-open-invisible
+                 isearch-open-invisible-temporary priority window)
+  "Properties that only apply to overlays.")
+
 (defun esh--commit-overlays (buf)
   "Copy overlays of BUF into current buffer's text properties.
 We need to do this, because get-char-text-property considers at
@@ -220,10 +225,14 @@ most one overlay."
     (dolist (ov (esh--buffer-overlays buf))
       (let* ((start (max (point-min) (- (overlay-start ov) pt-min-diff)))
              (end (min (point-max) (- (overlay-end ov) pt-min-diff)))
-             (props (overlay-properties ov))
-             (face (plist-get props 'face)))
+             (ov-props (overlay-properties ov))
+             (cat-props (let ((symbol (plist-get ov-props 'category)))
+                          (and symbol (symbol-plist symbol))))
+             (face (let ((mem (plist-member ov-props 'face)))
+                     (if mem (cadr mem) (plist-get cat-props 'face))))
+             (props (esh--filter-plist (append cat-props ov-props)
+                                    (cons 'face esh--overlay-specific-props))))
         (when face
-          (setq props (esh--plist-delete-all 'face props))
           (font-lock-prepend-text-property start end 'face face))
         (add-text-properties start end props)))))
 
