@@ -223,13 +223,6 @@ called on already-processed annotations."
 ;; A bag of intervals is a vector of hashtables.  The vector is indexed by
 ;; priority.  The hashtables are indexed by left position.
 
-(defun esh-intervals--bag-new (nb-priorities)
-  "Prepare a bag with priorities in the range [0, NB-PRIORITIES)."
-  (let ((bag (make-vector nb-priorities nil)))
-    (dotimes (pos nb-priorities)
-      (aset bag pos (make-hash-table :test #'eq)))
-    bag))
-
 (defsubst esh-intervals--bag-put-bucket (bucket int)
   "Insert INT into BUCKET."
   (puthash (esh-intervals-int-l int) int bucket))
@@ -237,6 +230,20 @@ called on already-processed annotations."
 (defsubst esh-intervals--bag-put (bag int)
   "Insert INT into BAG."
   (esh-intervals--bag-put-bucket (aref bag (esh-intervals-int-priority int)) int))
+
+(defun esh-intervals--bag-from-intervals (intss)
+  "Construct a bag from INTSS, a list of vectors of intervals."
+  (let* ((priority 0)
+         (nb-priorities (length intss))
+         (bag (make-vector nb-priorities nil)))
+    (dolist (ints intss)
+      (let* ((nb-ints (length ints))
+             (hashtbl (make-hash-table :test #'eq :size nb-ints)))
+        (dotimes (int-idx nb-ints)
+          (esh-intervals--bag-put-bucket hashtbl (aref ints int-idx)))
+        (aset bag priority hashtbl))
+      (cl-incf priority))
+    bag))
 
 ;;; Trees of intervals
 
@@ -398,19 +405,17 @@ priority (that is, all intervals in the Nth list of INTSS are
 considered to have priority N).  Each sublist should be in the
 format (FROM TO (K . V))."
   (let ((priority 0)
-        (int-vecs nil)
-        (bag (esh-intervals--bag-new (length intss))))
+        (int-vecs nil))
     (dolist (ints intss)
-      (let ((bucket (aref bag priority))
-            (ints-vec (vconcat ints)))
+      (let ((ints-vec (vconcat ints)))
         (dotimes (int-idx (length ints-vec))
           (pcase-let ((`(,from ,to . ,annot) (aref ints-vec int-idx)))
-            (let ((int (esh-intervals-int from to priority annot)))
-              (aset ints-vec int-idx int)
-              (esh-intervals--bag-put-bucket bucket int))))
+            (aset ints-vec int-idx (esh-intervals-int from to priority annot))))
         (push ints-vec int-vecs))
       (cl-incf priority))
-    (cons bag (esh-intervals--tree-from-intervals (apply #'vconcat int-vecs)))))
+    (setq int-vecs (nreverse int-vecs))
+    (cons (esh-intervals--bag-from-intervals int-vecs)
+          (esh-intervals--tree-from-intervals (apply #'vconcat int-vecs)))))
 
 (defun esh-intervals-make-doctree (intss minl maxr merge-annots)
   "Construct a document (a tree of tags) from INTSS.
