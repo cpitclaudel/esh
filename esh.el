@@ -698,7 +698,7 @@ e.g. when rendering a buffer as HTML, htmlfontify-style.
 See `esh--resolve-event-conflicts'.")
 
 (eval-and-compile
-  (defvar esh--latex-specials
+  (defconst esh--latex-specials
     '(;; Special characters
       (?$ . "\\$") (?% . "\\%") (?& . "\\&")
       (?{ . "\\{") (?} . "\\}") (?_ . "\\_") (?# . "\\#")
@@ -710,14 +710,21 @@ See `esh--resolve-event-conflicts'.")
       ;; Characters that behave differently in inline and block modes
       (?\s . "\\ESHSpace{}") (?- . "\\ESHDash{}"))))
 
-(defvar esh--latex-specials-re
+(defconst esh--latex-specials-re
   (eval-when-compile
     (regexp-opt-charset (mapcar #'car esh--latex-specials))))
 
+(defconst esh--latex-specials-vector
+  (eval-when-compile
+    (let* ((max-idx (apply #'max (mapcar #'car esh--latex-specials)))
+           (vect (make-vector (1+ max-idx) nil)))
+      (pcase-dolist (`(,from . ,to) esh--latex-specials)
+        (aset vect from to))
+      vect)))
+
 (defun esh--latex-substitute-special (m)
   "Get replacement for LaTeX special M."
-  ;; If this become slows, use a vector and index by (aref m 0)
-  (cdr (assq (aref m 0) esh--latex-specials)))
+  (aref esh--latex-specials-vector (aref m 0)))
 
 (defun esh--latex-substitute-specials (str)
   "Escape LaTeX specials in STR."
