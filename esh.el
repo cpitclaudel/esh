@@ -138,16 +138,6 @@ have interesting text properties (e.g. `line-height')."
     (when str
       (insert str))))
 
-(defun esh--shuffle (v)
-  "Shuffle vector V (in place)."
-  (let ((pos (1- (length v))))
-    (while (> pos 0)
-      (let ((target (random pos)))
-        (cl-psetf (aref v pos) (aref v target)
-                  (aref v target) (aref v pos)))
-      (setq pos (1- pos))))
-  v)
-
 (defmacro esh--pp (x)
   "Pretty-print X and its value, then return the value."
   (declare (debug t))

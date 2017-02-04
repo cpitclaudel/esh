@@ -310,14 +310,32 @@ it.  Thus, the newly cut intervals can't conflict with INT."
 
 ;; Putting it all together
 
+(defun esh-intervals--hash-table-values (table)
+  "Accumulate all values of TABLE in a vector."
+  (let ((offset -1)
+        (vec (make-vector (hash-table-count table) nil)))
+    (maphash (lambda (_ v) (aset vec (cl-incf offset) v)) table)))
+
+(defun esh-intervals--shuffle (v)
+  "Shuffle vector V (in place)."
+  (let ((pos (1- (length v))))
+    (while (> pos 0)
+      (let ((target (random pos)))
+        (cl-psetf (aref v pos) (aref v target)
+                  (aref v target) (aref v pos)))
+      (setq pos (1- pos))))
+  v)
+
 (defun esh-intervals--resolve-conflicts (tree bag)
   "Split intervals in TREE and BAG to resolve conflicts.
 Conflicts happen when two intervals overlap and neither is
 included in the other."
   (dotimes (n (length bag))
     ;; Iteration happens in reverse order of priority
-    (let ((ints (aref bag (- (length bag) n 1))))
-      (maphash (lambda (_ int) (esh-intervals--tree-split tree bag int)) ints))))
+    (let* ((ints-table (aref bag (- (length bag) n 1)))
+           (ints (esh-intervals--shuffle (esh-intervals--hash-table-values ints-table))))
+      (dotimes (pos (length ints))
+        (esh-intervals--tree-split tree bag (aref ints pos))))))
 
 (defun esh-intervals--reconstruct-doctree (intervals minl maxr merge-annots)
   "Reconstruct a tree from INTERVALS.
@@ -365,11 +383,13 @@ format (FROM TO (K . V))."
         (priority 0)
         (bag (esh-intervals--bag-new (length intss))))
     (dolist (ints intss)
-      (let ((bucket (aref bag priority)))
-        (pcase-dolist (`(,from ,to . ,annot) ints)
-          (let ((int (esh-intervals-int from to priority annot)))
-            (esh-intervals--bag-put-bucket bucket int)
-            (esh-intervals-tree-insert tree int))))
+      (let ((bucket (aref bag priority))
+            (ints-vec (esh-intervals--shuffle (vconcat ints))))
+        (dotimes (int-idx (length ints-vec))
+          (pcase-let ((`(,from ,to . ,annot) (aref ints-vec int-idx)))
+            (let ((int (esh-intervals-int from to priority annot)))
+              (esh-intervals--bag-put-bucket bucket int)
+              (esh-intervals-tree-insert tree int)))))
       (cl-incf priority))
     (cons bag tree)))
 
@@ -387,8 +407,6 @@ annotation"
   (pcase-let ((`(,bag . ,tree) (esh-intervals--make-bag-and-tree intss)))
     (esh-intervals--resolve-conflicts tree bag)
     (esh-intervals--reconstruct-doctree (esh-intervals--tree-flatten tree) minl maxr merge-annots)))
-
-;; FIXME check if shuffling really isn't needed anymore
 
 (provide 'esh-intervals)
 ;;; esh-intervals.el ends here
