@@ -722,14 +722,12 @@ See `esh--resolve-event-conflicts'.")
         (aset vect from to))
       vect)))
 
-(defun esh--latex-substitute-special (m)
-  "Get replacement for LaTeX special M."
-  (aref esh--latex-specials-vector (aref m 0)))
-
-(defun esh--latex-substitute-specials (str)
-  "Escape LaTeX specials in STR."
-  (replace-regexp-in-string
-   esh--latex-specials-re #'esh--latex-substitute-special str t t))
+(defun esh--latex-substitute-specials (beg)
+  "Escape LaTeX specials in BEG .. `point-max'."
+  (goto-char beg)
+  (while (re-search-forward esh--latex-specials-re nil t)
+    (let ((special (char-after (match-beginning 0))))
+      (replace-match (aref esh--latex-specials-vector special) t t))))
 
 (defvar esh--latex-escape-alist nil
   "Alist of additional ‘char → LaTeX string’ mappings.")
@@ -750,18 +748,17 @@ CHAR-STR is a one-character string; LATEX-CMD is a latex command."
       (let ((repl (gethash char (with-no-warnings esh-latex-escape-table))))
         (and repl (format "\\ESHMathSymbol{%s}" repl)))))
 
-(defun esh--latex-escape-unicode-char (char)
-  "Replace currently matched CHAR with an equivalent LaTeX command."
-  (let* ((translation (esh--latex-escape-1 (aref char 0))))
+(defun esh--latex-escape-unicode-char (c)
+  "Replace character C with an equivalent LaTeX command."
+  (let* ((translation (esh--latex-escape-1 c)))
     (unless translation
       (error "No LaTeX equivalent found for %S.
-Use (esh-latex-add-unicode-substitution %S %S) to add one"
-             char char "\\someCommand"))
+Use (esh-latex-add-unicode-substitution %S \"\\someCommand\") to add one" c c))
     (format "\\ESHUnicodeSubstitution{%s}" translation)))
 
 (defun esh--latex-wrap-special-char (char)
   "Wrap CHAR in \\ESHSpecialChar{…}."
-  (format "\\ESHSpecialChar{%s}" char))
+  (format "\\ESHSpecialChar{%c}" char))
 
 (defvar esh-substitute-unicode-symbols nil
   "If non-nil, attempt to substitute Unicode symbols in code blocks.
@@ -770,16 +767,19 @@ option is most useful with pdfLaTeX; with XeLaTeX or LuaLaTeX, it
 should probably be turned off (customize \\ESHFallbackFont
 instead).")
 
-(defun esh--latex-wrap-non-ascii (str)
-  "Wrap non-ASCII characters of STR.
+(defun esh--latex-wrap-non-ascii (beg)
+  "Wrap non-ASCII characters in BEG .. `point-max'.
 If `esh-substitute-unicode-symbols' is nil, wrap non-ASCII characters into
 \\ESHSpecialChar{}.  Otherwise, replace them by their LaTeX equivalents
 and wrap them in \\ESHUnicodeSubstitution{}."
   ;; TODO benchmark against trivial loop
-  (let* ((range "[^\000-\177]"))
-    (if esh-substitute-unicode-symbols
-        (replace-regexp-in-string range #'esh--latex-escape-unicode-char str t t)
-      (replace-regexp-in-string range #'esh--latex-wrap-special-char str t t))))
+  (let* ((range "[^\000-\177]")
+         (fun (if esh-substitute-unicode-symbols
+                  #'esh--latex-escape-unicode-char
+                #'esh--latex-wrap-special-char)))
+    (goto-char beg)
+    (while (re-search-forward range nil t)
+      (replace-match (funcall fun (char-after (match-beginning 0))) t t))))
 
 (defun esh--mark-non-ascii ()
   "Tag non-ASCII characters of current buffer.
@@ -806,20 +806,25 @@ properties), and remove `line-height' properties on others."
      ((assq 'line-height alist)
       (setf (cl-caddr range) (assq-delete-all 'line-height alist))))))
 
-(defun esh--escape-for-latex (str)
-  "Escape LaTeX special characters in STR."
-  (esh--latex-wrap-non-ascii (esh--latex-substitute-specials str)))
-
 (defvar esh--latex-source-buffer-for-export nil
   "Buffer that text nodes point to.")
 
+(defun esh--latex-insert-substituted (str)
+  "Insert STR, escaped for LaTeX.
+Point must be at end of buffer."
+  (let ((pt (point)))
+    (insert str)
+    (esh--latex-substitute-specials pt)
+    (esh--latex-wrap-non-ascii pt)
+    (goto-char (point-max))))
+
 (defun esh--latex-export-plain-text (start end)
   "Insert escaped text from range START..END.
-Text is read from `esh--latex-source-buffer-for-export'."
-  (insert
-   (esh--escape-for-latex
-    (with-current-buffer esh--latex-source-buffer-for-export
-      (buffer-substring-no-properties start end)))))
+Text is read from `esh--latex-source-buffer-for-export'.  Point
+must be at end of buffer."
+  (esh--latex-insert-substituted
+   (with-current-buffer esh--latex-source-buffer-for-export
+     (buffer-substring-no-properties start end))))
 
 (defun esh--latex-export-subtrees (l r trees)
   "Export TREES to LaTeX.
@@ -900,7 +905,7 @@ PROPERTY and VAL apply directly to a text range)."
         (esh--latex-export-wrapped-if amount
           "\\ESHRaise{%.2f}{" l r subtrees "}"))
        ((pred stringp)
-        (insert (esh--escape-for-latex val)))
+        (esh--latex-insert-substituted val))
        (_ (error "Unexpected display property %S" val))))
     (`invisible
      (when val (insert val)))
@@ -1552,9 +1557,9 @@ Returns HTML source code as a string."
 Return result as a LaTeX string."
   (esh--export-file source-path #'esh--htmlfontify-to-string))
 
-(provide 'esh)
-;;; esh.el ends here
-
 ;; Local Variables:
 ;; checkdoc-arguments-in-order-flag: nil
 ;; End:
+
+(provide 'esh)
+;;; esh.el ends here

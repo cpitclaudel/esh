@@ -398,12 +398,9 @@ interval contains a single annotation."
     (esh-intervals--doctree-nreverse-children root)
     root))
 
-(defun esh-intervals--make-bag-and-tree (intss)
-  "Construct a tree and a bag from INTSS.
-INTSS is a list of lists of lists, with one list per
-priority (that is, all intervals in the Nth list of INTSS are
-considered to have priority N).  Each sublist should be in the
-format (FROM TO (K . V))."
+(defun esh-intervals--make-int-vecs (intss)
+  "Translate lists of intervals in INTSS to vectors if intervals.
+Each source interval should be in the format (FROM TO (K . V))."
   (let ((priority 0)
         (int-vecs nil))
     (dolist (ints intss)
@@ -413,7 +410,15 @@ format (FROM TO (K . V))."
             (aset ints-vec int-idx (esh-intervals-int from to priority annot))))
         (push ints-vec int-vecs))
       (cl-incf priority))
-    (setq int-vecs (nreverse int-vecs))
+    (nreverse int-vecs)))
+
+(defun esh-intervals--make-bag-and-tree (intss)
+  "Construct a tree and a bag from INTSS.
+INTSS is a list of lists of lists, with one list per
+priority (that is, all intervals in the Nth list of INTSS are
+considered to have priority N).  Each sublist should be in the
+format (FROM TO (K . V))."
+  (let ((int-vecs (esh-intervals--make-int-vecs intss)))
     (cons (esh-intervals--bag-from-intervals int-vecs)
           (esh-intervals--tree-from-intervals (apply #'vconcat int-vecs)))))
 
