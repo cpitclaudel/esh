@@ -103,7 +103,6 @@
 
 (require 'esh-assert)
 
-;; FIXME Compiling without this yields an extra warning
 (cl-declaim (optimize (speed 3) (safety 0)))
 
 ;;; Intervals
