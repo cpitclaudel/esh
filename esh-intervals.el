@@ -114,11 +114,11 @@
      (:constructor esh-intervals-int (l r priority annot &aux (children nil))))
   l r priority annot children)
 
-(defun esh-intervals--int-length-rev (int)
+(defsubst esh-intervals--int-length-rev (int)
   "Compute the opposite of INT's length."
   (- (esh-intervals-int-l int) (esh-intervals-int-r int)))
 
-(defun esh-intervals--int-priority-rev (int)
+(defsubst esh-intervals--int-priority-rev (int)
   "Compute the opposite of INT's priority."
   (- (esh-intervals-int-priority int)))
 
@@ -230,11 +230,11 @@ called on already-processed annotations."
       (aset bag pos (make-hash-table :test #'eq)))
     bag))
 
-(defun esh-intervals--bag-put-bucket (bucket int)
+(defsubst esh-intervals--bag-put-bucket (bucket int)
   "Insert INT into BUCKET."
   (puthash (esh-intervals-int-l int) int bucket))
 
-(defun esh-intervals--bag-put (bag int)
+(defsubst esh-intervals--bag-put (bag int)
   "Insert INT into BAG."
   (esh-intervals--bag-put-bucket (aref bag (esh-intervals-int-priority int)) int))
 
@@ -262,13 +262,13 @@ called on already-processed annotations."
       (esh-intervals-tree-insert (esh-intervals-tree-r tree) int))
     tree))
 
-(defun esh-intervals--tree-compute-maxr (int l r)
+(defsubst esh-intervals--tree-compute-maxr (int l r)
   "Compute value of maxr field from INT, L, and R."
   (max (esh-intervals-int-r int)
        (if l (esh-intervals-tree-maxr l) most-negative-fixnum)
        (if r (esh-intervals-tree-maxr r) most-negative-fixnum)))
 
-(defun esh-intervals--tree-update-maxr (tree) ;; FIXME defsubst?
+(defsubst esh-intervals--tree-update-maxr (tree)
   "Recompute TREE's `maxr' field."
   (setf (esh-intervals-tree-maxr tree)
         (esh-intervals--tree-compute-maxr (esh-intervals-tree-int tree) (esh-intervals-tree-l tree) (esh-intervals-tree-r tree))))
