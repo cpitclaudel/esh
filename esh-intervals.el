@@ -262,14 +262,31 @@ called on already-processed annotations."
       (esh-intervals-tree-insert (esh-intervals-tree-r tree) int))
     tree))
 
-(defun esh-intervals--tree-update-maxr (tree)
+(defun esh-intervals--tree-compute-maxr (int l r)
+  "Compute value of maxr field from INT, L, and R."
+  (max (esh-intervals-int-r int)
+       (if l (esh-intervals-tree-maxr l) most-negative-fixnum)
+       (if r (esh-intervals-tree-maxr r) most-negative-fixnum)))
+
+(defun esh-intervals--tree-update-maxr (tree) ;; FIXME defsubst?
   "Recompute TREE's `maxr' field."
-  (let ((l (esh-intervals-tree-l tree))
-        (r (esh-intervals-tree-r tree)))
-    (setf (esh-intervals-tree-maxr tree)
-          (max (esh-intervals-int-r (esh-intervals-tree-int tree))
-               (if l (esh-intervals-tree-maxr l) most-negative-fixnum)
-               (if r (esh-intervals-tree-maxr r) most-negative-fixnum)))))
+  (setf (esh-intervals-tree-maxr tree)
+        (esh-intervals--tree-compute-maxr (esh-intervals-tree-int tree) (esh-intervals-tree-l tree) (esh-intervals-tree-r tree))))
+
+(defun esh-intervals--tree-from-sorted-intervals (ints beg end)
+  "Make an interval tree from slice BEG .. END of sorted vector INTS."
+  (when (< beg end)
+    (let* ((mid (+ beg (/ (- end beg) 2)))
+           (int (aref ints mid))
+           (l (esh-intervals--tree-from-sorted-intervals ints beg mid))
+           (r (esh-intervals--tree-from-sorted-intervals ints (1+ mid) end))
+           (maxr (esh-intervals--tree-compute-maxr int l r)))
+      (esh-intervals-tree int maxr l r))))
+
+(defun esh-intervals--tree-from-intervals (ints)
+  "Make an interval tree from INTS, a vector of intervals."
+  (sort ints #'esh-intervals--int-<)
+  (esh-intervals--tree-from-sorted-intervals ints 0 (length ints)))
 
 (defun esh-intervals--tree-split-1 (tree bag int acc)
   "Cut intervals in TREE and BAG that conflict with INT.
@@ -380,19 +397,20 @@ INTSS is a list of lists of lists, with one list per
 priority (that is, all intervals in the Nth list of INTSS are
 considered to have priority N).  Each sublist should be in the
 format (FROM TO (K . V))."
-  (let ((tree nil)
-        (priority 0)
+  (let ((priority 0)
+        (int-vecs nil)
         (bag (esh-intervals--bag-new (length intss))))
     (dolist (ints intss)
       (let ((bucket (aref bag priority))
-            (ints-vec (esh-intervals--shuffle (vconcat ints))))
+            (ints-vec (vconcat ints)))
         (dotimes (int-idx (length ints-vec))
           (pcase-let ((`(,from ,to . ,annot) (aref ints-vec int-idx)))
             (let ((int (esh-intervals-int from to priority annot)))
-              (esh-intervals--bag-put-bucket bucket int)
-              (esh-intervals-tree-insert tree int)))))
+              (aset ints-vec int-idx int)
+              (esh-intervals--bag-put-bucket bucket int))))
+        (push ints-vec int-vecs))
       (cl-incf priority))
-    (cons bag tree)))
+    (cons bag (esh-intervals--tree-from-intervals (apply #'vconcat int-vecs)))))
 
 (defun esh-intervals-make-doctree (intss minl maxr merge-annots)
   "Construct a document (a tree of tags) from INTSS.
