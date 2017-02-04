@@ -314,7 +314,8 @@ it.  Thus, the newly cut intervals can't conflict with INT."
   "Accumulate all values of TABLE in a vector."
   (let ((offset -1)
         (vec (make-vector (hash-table-count table) nil)))
-    (maphash (lambda (_ v) (aset vec (cl-incf offset) v)) table)))
+    (maphash (lambda (_ v) (aset vec (cl-incf offset) v)) table)
+    vec))
 
 (defun esh-intervals--shuffle (v)
   "Shuffle vector V (in place)."
