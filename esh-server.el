@@ -36,8 +36,8 @@
 (defvar esh-server-init-info 'none
   "Init info (INIT-FPATH . _) that was used to initialize the server.")
 
-(defvar esh-server--profile nil
-  "Whether to record a profile.")
+(defvar esh-server--profilers nil
+  "Which profilers to use (`elp' or `cpu').")
 
 (defvar esh-server--capture-backtraces nil
   "Whether to capture backtraces.
@@ -113,11 +113,18 @@ will be non-nil only if CAPTURE-BACKTRACES was non-nil."
         (esh-server--writeout file `(success ,result)))
     (error (esh-server--writeout file `(error ,err ,esh-server--backtrace)))))
 
-(defun esh-server-start-profiling ()
-  "Start CPU profiling (results are saved upon exit)."
-  (setq esh-server--profile t)
-  (require 'profiler)
-  (with-no-warnings (profiler-start 'cpu))
+(defun esh-server-start-profiling (type)
+  "Start CPU profiling (results are saved upon exit).
+TYPE should be either `cpu' or `elp'."
+  (push type esh-server--profilers)
+  (pcase type
+    (`elp (require 'elp)
+          (elp-instrument-package "esh-"))
+    (`cpu (require 'profiler)
+          (setq-default profiler-max-stack-depth 96)
+          (setq-default profiler-log-size (* 100 1000))
+          (setq-default profiler-sampling-interval (* 1000 1000))
+          (with-no-warnings (profiler-start 'cpu))))
   (add-hook 'kill-emacs-hook #'esh-server--kill-emacs-hook))
 
 (defun esh-server--window-system-frame-parameter ()
@@ -208,11 +215,15 @@ No error checking here; we expect this to be invoked through
 
 (defun esh-server--kill-emacs-hook ()
   "Save profiler report if `esh-server--profile' is on."
-  (when esh-server--profile
-    (ignore-errors
-      (let ((prof-name (format-time-string "esh--%Y-%m-%d--%H-%M-%S.prof")))
-        (with-no-warnings
-          (profiler-write-profile (profiler-cpu-profile) prof-name))))))
+  (let ((profile-name (format-time-string "esh--%Y-%m-%d--%H-%M-%S")))
+    (with-no-warnings
+      (dolist (profiler esh-server--profilers)
+        (pcase profiler
+          (`cpu (profiler-write-profile (profiler-cpu-profile)
+                                        (concat profile-name ".prof")))
+          (`elp (elp-results)
+                (with-current-buffer elp-results-buffer
+                  (write-file (concat profile-name ".elp.prof")))))))))
 
 (provide 'esh-server)
 ;;; esh-server.el ends here

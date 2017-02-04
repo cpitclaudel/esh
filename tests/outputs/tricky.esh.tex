@@ -371,7 +371,7 @@ Tricky examples:
 
 \section*{Overlays}
 \begin{ESHBlock}
-\ESHBol{}\textcolor[HTML]{FF0000}{ab}\colorbox[HTML]{00FF00}{\textcolor[HTML]{FF0000}{cd}}\ESHSlantItalic{\colorbox[HTML]{00FF00}{\ESHWeightBold{\textcolor[HTML]{FF0000}{ef}}}}\ESHBox{#000000}{1.00pt}{\ESHSlantItalic{\colorbox[HTML]{00FF00}{\ESHWeightBold{\textcolor[HTML]{FF0000}{gh}ij}}\ESHWeightBold{klm}}no}
+\ESHBol{}\textcolor[HTML]{FF0000}{ab\colorbox[HTML]{00FF00}{cd\ESHSlantItalic{\ESHWeightBold{ef}}}}\ESHBox{#000000}{1.00pt}{\ESHSlantItalic{\ESHWeightBold{\colorbox[HTML]{00FF00}{\textcolor[HTML]{FF0000}{gh}ij}klm}}no}
 \end{ESHBlock}
 
 \end{document}

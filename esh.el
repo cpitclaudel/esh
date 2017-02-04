@@ -37,7 +37,7 @@
 (require 'color)
 (require 'tabify)
 (require 'cl-lib)
-(require 'esh-interval-tree)
+(require 'esh-intervals)
 
 (defconst esh--script-full-path
   (or (and load-in-progress load-file-name)
@@ -137,16 +137,6 @@ have interesting text properties (e.g. `line-height')."
   (dolist (str strs)
     (when str
       (insert str))))
-
-(defun esh--shuffle (v)
-  "Shuffle vector V (in place)."
-  (let ((pos (1- (length v))))
-    (while (> pos 0)
-      (let ((target (random pos)))
-        (cl-psetf (aref v pos) (aref v target)
-                  (aref v target) (aref v pos)))
-      (setq pos (1- pos))))
-  v)
 
 (defmacro esh--pp (x)
   "Pretty-print X and its value, then return the value."
@@ -475,32 +465,15 @@ Each PROPERTY is one of PROPS."
   "Read property changed by EVENT."
   (car (nth 2 event)))
 
-(defun esh--partition-ranges-rev (ranges property)
-  "Partition RANGES into lists separated by intervals marked with PROPERTY.
-Return a list (in reverse order of buffer position); each element
-is a list (BOL EOL RANGES)."
-  (let ((lines nil)
-        (cur-line nil)
-        (cur-bol (point-min)))
-    (dolist (range ranges)
-      (push range cur-line)
-      (when (assq property (nth 2 range))
-        (let ((end (cadr range)))
-          (push `(,cur-bol ,end ,(nreverse cur-line)) lines)
-          (setq cur-line nil cur-bol end))))
-    (when cur-line ;; empty if buffer has final newline
-      (push `(,cur-bol ,(point-max) ,(nreverse cur-line)) lines))
-    lines))
-
 ;;; Building property trees
 
-(defun esh--events-to-intervals (events priority-ranking)
+(defun esh--events-to-intervals (events ranking)
   "Parse sequence of EVENTS into lists of intervals.
 Returns a list of lists suitable for consumption by
-`esh--intervals-to-tree' and containing one entry per property in
-PRIORITY-RANKING."
+`esh-intervals-make-doctree' and containing one entry per
+property in RANKING."
   (let ((ints-tbl (make-hash-table :test #'eq)))
-    (dolist (property priority-ranking)
+    (dolist (property ranking)
       (puthash property nil ints-tbl))
     (dolist (event events)
       (pcase event
@@ -512,55 +485,33 @@ PRIORITY-RANKING."
          (esh-assert (equal annot (cddr (car (gethash (car annot) ints-tbl)))))
          (setf (cadr (car (gethash (car annot) ints-tbl))) pos))))
     (let ((int-lists nil))
-      (dolist (property priority-ranking)
+      (dolist (property ranking)
         (push (nreverse (gethash property ints-tbl)) int-lists))
       (nreverse int-lists))))
 
-(defun esh--intervals-to-tree (int-lists low high)
-  "Construct an interval tree from text ranges in INT-LISTS.
-INT-LISTS should be a list; each of its elements should be of the
-form (FROM TO . ANNOTATION).  The FROM bound is inclusive; the TO
-bound is exclusive.  Arguments LOW and HIGH are the boundaries of
-the union of all intervals in INT-LISTS."
-  (random "esh") ;; Seed the RNG to get deterministic results
-  (let ((tree (esh-interval-tree-new low high)))
-    (dolist (ints int-lists)
-      (setq ints (esh--shuffle (vconcat ints)))
-      (dotimes (n (length ints))
-        (pcase (aref ints n)
-          (`(,from ,to . ,annot)
-           (setq tree (esh-interval-tree-add annot from to tree))))))
-    tree))
-
 ;;; High-level interface to tree-related code
 
-(defun esh--buffer-to-property-trees
-    (text-props face-attrs priority-ranking range-filter)
-  "Construct a list of property trees from the current buffer.
+(defun esh--buffer-to-document-tree
+    (text-props face-attrs ranking range-filter merge-annots)
+  "Construct a property trees from the current buffer.
 TEXT-PROPS and FACE-ATTRS specify which properties to keep track
-of.  PRIORITY-RANKING ranks all these properties in order of
-tolerance to splitting (if a property comes late in this list,
-ESH will try to preserve this property's spans when resolving
-conflicts).  RANGE-FILTER is applied to the list of (annotated)
-ranges in the buffer before constructing property trees.  If the
-buffer contains spans annotated with `esh--break', this function
-will construct one property tree per buffer region delimited by
-these annotated spans.  Splitting is needed because in Emacs text
-properties can overlap in ways that are not representable as a
-tree.  Result is influenced by
-`esh-interval-tree-nest-annotations'."
-  (let* ((flat-trees nil)
-         (ranges (esh--buffer-ranges))
+of.  RANKING ranks all these properties in order of tolerance to
+splitting (if a property comes late in this list, ESH will try to
+preserve this property's spans when resolving conflicts).
+RANGE-FILTER is applied to the list of (annotated) ranges in the
+buffer before constructing property trees.  Splitting is needed
+because in Emacs text properties can overlap in ways that are not
+representable as a tree.  MERGE-ANNOTS: see
+`esh-intervals-ints-to-document'."
+  (let* ((ranges (esh--buffer-ranges))
          (ann-ranges (esh--annotate-ranges ranges text-props face-attrs)))
     (mapc range-filter ann-ranges)
-    (pcase-dolist (`(,bol ,eol ,ranges)
-                   (esh--partition-ranges-rev ann-ranges 'esh--break))
-      (let* ((events (esh--ranges-to-events ranges priority-ranking))
-             (ints (esh--events-to-intervals events priority-ranking))
-             (tree (esh--intervals-to-tree ints bol eol)))
-        (setq flat-trees (esh-interval-tree-flatten-acc tree flat-trees))))
-    (mapcar (lambda (tr) (esh--tree-map-attrs #'esh--normalize-suppress-defaults tr))
-            flat-trees)))
+    (let* ((events (esh--ranges-to-events ann-ranges ranking))
+           (ints (esh--events-to-intervals events ranking))
+           (doctree (esh-intervals-make-doctree
+                     ints (point-min) (point-max) merge-annots)))
+      (esh-intervals-doctree-map-annots #'esh--normalize-suppress-defaults doctree)
+      doctree)))
 
 ;;; Fontifying
 
@@ -704,42 +655,32 @@ returns 1 instead of t."
     (:box (esh--normalize-box value))
     (_ value)))
 
-(defun esh--normalize-suppress-defaults (property value)
-  "Normalize VALUE of PROPERTY.
+(defun esh--normalize-suppress-defaults (annotation)
+  "Normalize VALUE of PROPERTY (both in ANNOTATION).
 `:foreground' and `:background' values that match the `default'
-face are suppressed."
-  (setq value (esh--normalize-attribute property value))
-  (unless (and (memq property '(:foreground :background))
-               (let ((default (face-attribute 'default property)))
-                 (equal value (esh--normalize-attribute property default))))
-    value))
+face are suppressed.
 
-(defun esh--normalize-defaults (property value)
-  "Normalize the pair PROPERTY: VALUE of the `default' face.
+\(fn (PROPERTY . VALUE))"
+  (pcase-let ((`(,property . ,value) annotation))
+    (setq value (esh--normalize-attribute property value))
+    (unless (and (memq property '(:foreground :background))
+                 (let* ((default (face-attribute 'default property)))
+                   (equal value (esh--normalize-attribute property default))))
+      (cons property value))))
+
+(defun esh--normalize-defaults (annotation)
+  "Normalize the pair ANNOTATION of the `default' face.
 Useful when exporting the properties of the default face,
-e.g. when rendering a buffer as HTML, htmlfontify-style."
-  (unless (eq property :height)
-    (setq value (esh--normalize-attribute property value)))
-  (unless (equal value (pcase property
-                         (:weight 500)
-                         (:slant 'normal)))
-    value))
+e.g. when rendering a buffer as HTML, htmlfontify-style.
 
-(defun esh--tree-map-attrs-1 (filter attrs)
-  "Apply FILTER to each attribute pair in ATTRS."
-  (if (consp (car attrs))
-      (mapcar (pcase-lambda (`(,k . ,v)) (cons k (funcall filter k v))) attrs)
-    (pcase-let ((`(,k . ,v) attrs))
-      (cons k (funcall filter k v)))))
-
-(defun esh--tree-map-attrs (filter tree)
-  "Apply FILTER to attributes of each tag node in TREE."
-  (pcase tree
-    (`(text . ,_) tree)
-    (`(tag ,attrs . ,trees)
-     `(tag ,(esh--tree-map-attrs-1 filter attrs) .
-           ,(mapcar (lambda (tr) (esh--tree-map-attrs filter tr)) trees)))
-    (_ (error "Unexpected tree %S" tree))))
+\(fn (PROPERTY . VALUE))"
+  (pcase-let ((`(,property . ,value) annotation))
+    (unless (eq property :height)
+      (setq value (esh--normalize-attribute property value)))
+    (unless (equal value (pcase property
+                           (:weight 500)
+                           (:slant 'normal)))
+      (cons property value))))
 
 ;;; Producing LaTeX
 
@@ -865,7 +806,7 @@ properties), and remove `line-height' properties on others."
 (defvar esh--latex-source-buffer-for-export nil
   "Buffer that text nodes point to.")
 
-(defun esh--latex-export-text-node (start end)
+(defun esh--latex-export-plain-text (start end)
   "Insert escaped text from range START..END.
 Text is read from `esh--latex-source-buffer-for-export'."
   (insert
@@ -873,49 +814,59 @@ Text is read from `esh--latex-source-buffer-for-export'."
     (with-current-buffer esh--latex-source-buffer-for-export
       (buffer-substring-no-properties start end)))))
 
-(defun esh--latex-export-wrapped (before trees after)
-  "Export TREES, wrapped in BEFORE and AFTER."
+(defun esh--latex-export-subtrees (l r trees)
+  "Export TREES to LaTeX.
+L .. R is the range covered by TREES; if TREES is nil, this
+function exports a plain text range."
+  (or (mapc #'esh--latex-export-doctree trees)
+      (esh--latex-export-plain-text l r)))
+
+(defun esh--latex-export-wrapped (before l r trees after)
+  "Export TREES, wrapped in BEFORE and AFTER.
+L .. R is the range covered by TREES."
   (insert before)
-  (mapc #'esh--latex-export-tree trees)
+  (esh--latex-export-subtrees l r trees)
   (insert after))
 
-(defun esh--latex-export-wrapped-if (val before-fmt trees after)
+(defun esh--latex-export-wrapped-if (val before-fmt l r trees after)
   "Export TREES, possibly wrapped.
 If VAL is non-nil, wrap SUBTREES in (format BEFORE-FMT VAL) and
-AFTER."
+AFTER.  L .. R is the range covered by TREES."
   (declare (indent 1))
   (if (null val)
-      (mapc #'esh--latex-export-tree trees)
-    (esh--latex-export-wrapped (format before-fmt val) trees after)))
+      (esh--latex-export-subtrees l r trees)
+    (esh--latex-export-wrapped (format before-fmt val) l r trees after)))
 
-(defun esh--latex-export-tag-node (property val subtrees)
-  "Export SUBTREES wrapped in a LaTeX implementation of PROPERTY: VAL."
+(defun esh--latex-export-doctree-1 (property val l r subtrees)
+  "Export SUBTREES wrapped in a LaTeX implementation of PROPERTY: VAL.
+L .. R is the range covered by SUBTREES (if SUBTREES is nil, then
+PROPERTY and VAL apply directly to a text range)."
   (pcase property
     (:foreground
      (esh--latex-export-wrapped-if val
-       "\\textcolor[HTML]{%s}{" subtrees "}"))
+       "\\textcolor[HTML]{%s}{" l r subtrees "}"))
     (:background
      ;; FIXME: Force all lines to have the the same height?
      ;; Could use \\vphantom{'g}\\smash{…}
      (esh--latex-export-wrapped-if val
-       "\\colorbox[HTML]{%s}{" subtrees "}"))
+       "\\colorbox[HTML]{%s}{" l r subtrees "}"))
     (:weight
      (esh--latex-export-wrapped
       (cond
        ((< val 500) "\\ESHWeightLight{")
        ((> val 500) "\\ESHWeightBold{")
        (t "\\ESHWeightRegular{"))
-      subtrees "}"))
+      l r subtrees "}"))
     (:height
      (esh--latex-export-wrapped-if val
-       "\\textscale{%0.2g}{" subtrees "}"))
+       "\\textscale{%0.2g}{" l r subtrees "}"))
     (:slant
      (esh--latex-export-wrapped
       (pcase val
         (`italic "\\ESHSlantItalic{")
         (`oblique "\\ESHSlantOblique{")
         (`normal "\\ESHSlantNormal{"))
-      subtrees "}"))
+      l r subtrees "}"))
     (:underline
      (esh--latex-export-wrapped
       (pcase val
@@ -926,7 +877,7 @@ AFTER."
                 (command (format "%s%S" prefix type))
                 (arg (if color (format "{\\color[HTML]{%s}}" color) "")))
            (format "%s%s{" command arg))))
-      subtrees "}"))
+      l r subtrees "}"))
     (:box
      (esh--latex-export-wrapped
       (pcase val
@@ -935,12 +886,12 @@ AFTER."
            (error "Unsupported box style %S" style))
          (format "\\ESHBox{%s}{%.2fpt}{" (or color ".") (abs line-width)))
         (_ (error "Unexpected box %S" val)))
-      subtrees "}"))
+      l r subtrees "}"))
     (`display
      (pcase val
        (`(raise ,amount)
         (esh--latex-export-wrapped-if amount
-          "\\ESHRaise{%.2f}{" subtrees "}"))
+          "\\ESHRaise{%.2f}{" l r subtrees "}"))
        ((pred stringp)
         (insert (esh--escape-for-latex val)))
        (_ (error "Unexpected display property %S" val))))
@@ -950,27 +901,26 @@ AFTER."
      (unless (floatp val)
        (error "Unexpected line-height property %S" val))
      (esh--latex-export-wrapped-if val
-       "\\ESHStrut{%.2g}" subtrees ""))
+       "\\ESHStrut{%.2g}" l r subtrees ""))
     (`esh--newline
      ;; Add an mbox to prevent TeX from complaining about underfull boxes.
      (esh--latex-export-wrapped-if (eq (cdr val) 'empty)
-       "\\mbox{}" subtrees ""))
-    (`esh--break (mapc #'esh--latex-export-tree subtrees))
+       "\\mbox{}" l r subtrees ""))
+    (`esh--break (esh--latex-export-subtrees l r subtrees))
     (_ (error "Unexpected property %S" property))))
 
-(defun esh--latex-export-tree (tree)
-  "Export a single TREE to LaTeX."
-  (pcase tree
-    (`(text ,start ,end)
-     (esh--latex-export-text-node start end))
-    (`(tag (,property . ,val) . ,trees)
-     (esh--latex-export-tag-node property val trees))))
-
-(defun esh--latex-export-trees (source-buf trees)
-  "Export TREES to LaTeX.
-SOURCE-BUF is the buffer that TEXT nodes point to."
-  (let ((esh--latex-source-buffer-for-export source-buf))
-    (mapc #'esh--latex-export-tree trees)))
+(defun esh--latex-export-doctree (doctree)
+  "Export DOCTREE to LaTeX."
+  (pcase (esh-intervals-int-annot doctree)
+    (`(,prop . ,val) ;; FIXME what happens if val is nil?
+     ;; FIXME merge these two cases
+     (esh--latex-export-doctree-1 prop val
+                               (esh-intervals-int-l doctree)
+                               (esh-intervals-int-r doctree)
+                               (esh-intervals-int-children doctree)))
+    (`nil (esh--latex-export-subtrees (esh-intervals-int-l doctree)
+                                   (esh-intervals-int-r doctree)
+                                   (esh-intervals-int-children doctree)))))
 
 (defun esh--latexify-protect-bols ()
   "Prefix each line of current buffer with a call to \\ESHBol{}.
@@ -999,15 +949,14 @@ lines in inline blocks."
     (esh--remove-final-newline)
     (esh--commit-compositions)
     (esh--mark-newlines '(esh--break t)))
-  (let ((source-buf (current-buffer))
-        (trees (let ((esh-interval-tree-nest-annotations t))
-                 (esh--buffer-to-property-trees
-                  esh--latex-props
-                  esh--latex-face-attrs
-                  esh--latex-priorities
-                  #'esh--latex-range-filter))))
+  (let ((tree (esh--buffer-to-document-tree
+               esh--latex-props
+               esh--latex-face-attrs
+               esh--latex-priorities
+               #'esh--latex-range-filter nil))
+        (esh--latex-source-buffer-for-export (current-buffer)))
     (with-temp-buffer
-      (esh--latex-export-trees source-buf trees)
+      (esh--latex-export-doctree tree)
       (esh--latexify-protect-eols)
       (esh--latexify-protect-bols)
       (buffer-string))))
@@ -1313,7 +1262,7 @@ STYLES are applied using a new TAG node."
   "Construct an HTML node implementing a strut of height HEIGHT."
   `(span ((class . "esh-strut") (style . ,(format "height: %.2gem" height)))))
 
-(defun esh--html-export-tag-node (attributes children &optional tag)
+(defun esh--html-export-doctree-1 (attributes children &optional tag)
   "Wrap CHILDREN in a HTML implementation of ATTRIBUTES.
 Return an HTML AST; the root is a TAG node (default: span)."
   (let ((styles nil)
@@ -1387,17 +1336,24 @@ Return an HTML AST; the root is a TAG node (default: span)."
      (t
       (esh--html-wrap-children styles non-ascii children tag)))))
 
-(defun esh--html-export-tree (tree)
-  "Export a single TREE to HTML."
-  (pcase tree
-    (`(text ,start ,end)
-     (list (buffer-substring-no-properties start end)))
-    (`(tag ,attributes . ,trees)
-     (esh--html-export-tag-node attributes (esh--html-export-trees trees)))))
+(defun esh--html-export-subtrees (l r trees)
+  "Export TREES to HTML.
+L .. R is the range covered by TREES; if TREES is nil, this
+function exports a plain text range."
+  (if trees (esh--html-export-trees trees)
+    (list (buffer-substring-no-properties l r))))
+
+(defun esh--html-export-doctree (doctree)
+  "Export DOCTREE to HTML."
+  (esh--html-export-doctree-1
+   (esh-intervals-int-annot doctree)
+   (esh--html-export-subtrees (esh-intervals-int-l doctree)
+                           (esh-intervals-int-r doctree)
+                           (esh-intervals-int-children doctree))))
 
 (defun esh--html-export-trees (trees)
   "Export TREES to HTML."
-  (mapcan #'esh--html-export-tree trees))
+  (mapcan #'esh--html-export-doctree trees))
 
 (defun esh--html-export-buffer ()
   "Export current buffer to HTML AST.
@@ -1410,13 +1366,12 @@ This may modify to the current buffer."
     (esh--commit-compositions)
     (esh--mark-newlines)
     (esh--mark-non-ascii))
-  (let ((trees (let ((esh-interval-tree-nest-annotations nil))
-                 (esh--buffer-to-property-trees
-                  esh--html-props
-                  esh--html-face-attrs
-                  esh--html-priorities
-                  #'esh--html-range-filter))))
-    (esh--html-export-trees trees)))
+  (let ((tree (esh--buffer-to-document-tree
+               esh--html-props
+               esh--html-face-attrs
+               esh--html-priorities
+               #'esh--html-range-filter t)))
+    (esh--html-export-doctree tree)))
 
 (defvar esh--html-src-class-prefix "src-"
   "HTML class prefix indicating a fontifiable tag.")
@@ -1531,8 +1486,8 @@ Highlight sources in any environments containing a class matching
 (defun esh--html-wrap-in-body-tag (children)
   "Wrap CHILDREN in <body> and <pre> tags."
   (let* ((attrs (esh--extract-face-attributes esh--html-face-attrs '(default)))
-         (normalized (esh--tree-map-attrs-1 #'esh--normalize-defaults attrs)))
-    (esh--html-export-tag-node normalized (esh--html-pre children) 'body)))
+         (normalized (esh-intervals-int-map-annots #'esh--normalize-defaults attrs)))
+    (esh--html-export-doctree-1 normalized (esh--html-pre children) 'body)))
 
 (defun esh--html-export-wrapped-1 ()
   "Render the current buffer as an HTML AST wrapped in a body tag."
