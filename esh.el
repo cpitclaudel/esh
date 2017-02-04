@@ -465,23 +465,6 @@ Each PROPERTY is one of PROPS."
   "Read property changed by EVENT."
   (car (nth 2 event)))
 
-(defun esh--partition-ranges-rev (ranges property)
-  "Partition RANGES into lists separated by intervals marked with PROPERTY.
-Return a list (in reverse order of buffer position); each element
-is a list (BOL EOL RANGES)."
-  (let ((lines nil)
-        (cur-line nil)
-        (cur-bol (point-min)))
-    (dolist (range ranges)
-      (push range cur-line)
-      (when (assq property (nth 2 range))
-        (let ((end (cadr range)))
-          (push `(,cur-bol ,end ,(nreverse cur-line)) lines)
-          (setq cur-line nil cur-bol end))))
-    (when cur-line ;; empty if buffer has final newline
-      (push `(,cur-bol ,(point-max) ,(nreverse cur-line)) lines))
-    lines))
-
 ;;; Building property trees
 
 (defun esh--events-to-intervals (events ranking)
@@ -508,32 +491,27 @@ property in RANKING."
 
 ;;; High-level interface to tree-related code
 
-(defun esh--buffer-to-document-trees
+(defun esh--buffer-to-document-tree
     (text-props face-attrs ranking range-filter merge-annots)
-  "Construct a list of property trees from the current buffer.
+  "Construct a property trees from the current buffer.
 TEXT-PROPS and FACE-ATTRS specify which properties to keep track
-of.  RANKING ranks all these properties in order of
-tolerance to splitting (if a property comes late in this list,
-ESH will try to preserve this property's spans when resolving
-conflicts).  RANGE-FILTER is applied to the list of (annotated)
-ranges in the buffer before constructing property trees.  If the
-buffer contains spans annotated with `esh--break', this function
-will construct one property tree per buffer region delimited by
-these annotated spans.  Splitting is needed because in Emacs text
-properties can overlap in ways that are not representable as a
-tree.  MERGE-ANNOTS: see `esh-intervals-ints-to-document'."
-  (let* ((doctrees nil)
-         (ranges (esh--buffer-ranges))
+of.  RANKING ranks all these properties in order of tolerance to
+splitting (if a property comes late in this list, ESH will try to
+preserve this property's spans when resolving conflicts).
+RANGE-FILTER is applied to the list of (annotated) ranges in the
+buffer before constructing property trees.  Splitting is needed
+because in Emacs text properties can overlap in ways that are not
+representable as a tree.  MERGE-ANNOTS: see
+`esh-intervals-ints-to-document'."
+  (let* ((ranges (esh--buffer-ranges))
          (ann-ranges (esh--annotate-ranges ranges text-props face-attrs)))
     (mapc range-filter ann-ranges)
-    (pcase-dolist (`(,bol ,eol ,ranges)
-                   (esh--partition-ranges-rev ann-ranges 'esh--break))
-      (let* ((events (esh--ranges-to-events ranges ranking))
-             (ints (esh--events-to-intervals events ranking))
-             (doc (esh-intervals-make-doctree ints bol eol merge-annots)))
-        (esh-intervals-doctree-map-annots #'esh--normalize-suppress-defaults doc)
-        (push doc doctrees)))
-    doctrees))
+    (let* ((events (esh--ranges-to-events ann-ranges ranking))
+           (ints (esh--events-to-intervals events ranking))
+           (doctree (esh-intervals-make-doctree
+                     ints (point-min) (point-max) merge-annots)))
+      (esh-intervals-doctree-map-annots #'esh--normalize-suppress-defaults doctree)
+      doctree)))
 
 ;;; Fontifying
 
@@ -971,14 +949,14 @@ lines in inline blocks."
     (esh--remove-final-newline)
     (esh--commit-compositions)
     (esh--mark-newlines '(esh--break t)))
-  (let ((trees (esh--buffer-to-document-trees
-                esh--latex-props
-                esh--latex-face-attrs
-                esh--latex-priorities
-                #'esh--latex-range-filter nil))
+  (let ((tree (esh--buffer-to-document-tree
+               esh--latex-props
+               esh--latex-face-attrs
+               esh--latex-priorities
+               #'esh--latex-range-filter nil))
         (esh--latex-source-buffer-for-export (current-buffer)))
     (with-temp-buffer
-      (mapc #'esh--latex-export-doctree trees)
+      (esh--latex-export-doctree tree)
       (esh--latexify-protect-eols)
       (esh--latexify-protect-bols)
       (buffer-string))))
@@ -1388,12 +1366,12 @@ This may modify to the current buffer."
     (esh--commit-compositions)
     (esh--mark-newlines)
     (esh--mark-non-ascii))
-  (let ((trees (esh--buffer-to-document-trees
-                esh--html-props
-                esh--html-face-attrs
-                esh--html-priorities
-                #'esh--html-range-filter t)))
-    (esh--html-export-trees trees)))
+  (let ((tree (esh--buffer-to-document-tree
+               esh--html-props
+               esh--html-face-attrs
+               esh--html-priorities
+               #'esh--html-range-filter t)))
+    (esh--html-export-doctree tree)))
 
 (defvar esh--html-src-class-prefix "src-"
   "HTML class prefix indicating a fontifiable tag.")
