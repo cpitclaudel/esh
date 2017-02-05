@@ -199,13 +199,14 @@ position."
 
 (defun esh-intervals--doctree-nreverse-children (doctree)
   "Apply `nreverse' to all lists of children in DOCTREE."
-  (mapc #'esh-intervals--doctree-nreverse-children
-        (cl-callf nreverse (esh-intervals-int-children doctree))))
+  (dolist (child (cl-callf nreverse (esh-intervals-int-children doctree)))
+    (esh-intervals--doctree-nreverse-children child)))
 
 (defun esh-intervals--doctree-nreverse-annots (doctree)
   "Apply `nreverse' to all annotations in DOCTREE."
   (cl-callf nreverse (esh-intervals-int-annot doctree))
-  (mapc #'esh-intervals--doctree-nreverse-annots (esh-intervals-int-children doctree)))
+  (dolist (child (esh-intervals-int-children doctree))
+    (esh-intervals--doctree-nreverse-annots child)))
 
 (defun esh-intervals-doctree-map-annots (filter doctree)
   "Apply FILTER to attributes of each tag node in DOCTREE.
@@ -213,7 +214,8 @@ FILTER should not mutate annotations: they can be physically
 shared between subtrees, and thus FILTER could end up being
 called on already-processed annotations."
   (when doctree
-    (mapc (lambda (tr) (esh-intervals-doctree-map-annots filter tr)) (esh-intervals-int-children doctree))
+    (dolist (tr (esh-intervals-int-children doctree))
+      (esh-intervals-doctree-map-annots filter tr))
     (setf (esh-intervals-int-annot doctree)
           (esh-intervals-int-map-annots filter (esh-intervals-int-annot doctree)))))
 

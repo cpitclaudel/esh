@@ -512,7 +512,8 @@ representable as a tree.  MERGE-ANNOTS: see
 `esh-intervals-ints-to-document'."
   (let* ((ranges (esh--buffer-ranges))
          (ann-ranges (esh--annotate-ranges ranges text-props face-attrs)))
-    (mapc range-filter ann-ranges)
+    (dolist (range ann-ranges)
+      (funcall range-filter range))
     (let* ((events (esh--ranges-to-events ann-ranges ranking))
            (ints (esh--events-to-intervals events ranking))
            (doctree (esh-intervals-make-doctree
@@ -837,8 +838,9 @@ must be at end of buffer."
   "Export TREES to LaTeX.
 L .. R is the range covered by TREES; if TREES is nil, this
 function exports a plain text range."
-  (or (mapc #'esh--latex-export-doctree trees)
-      (esh--latex-export-plain-text l r)))
+  (if (null trees) (esh--latex-export-plain-text l r)
+    (dolist (tree trees)
+      (esh--latex-export-doctree tree))))
 
 (defun esh--latex-export-wrapped (before l r trees after)
   "Export TREES, wrapped in BEFORE and AFTER.
