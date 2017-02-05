@@ -109,8 +109,9 @@ enough (``esh2tex`` will replace it by appropriate set-up code)::
 ``esh2tex`` does not load your personal Emacs configuration (though see
 ``--no-Q``); instead, it looks for a file named ``esh-init.el`` in the current
 directory, one of its parents, or ``~/.emacs.d/``.  You can use that file to
-chose a different color theme, load extra packages, and teach ESH about inline
-macros (see `Inline syntax highlighting`_).
+chose a different color theme, load extra packages (see `Installing extra
+packages`_), and teach ESH about inline macros (see `Inline syntax
+highlighting`_).
 
 
 Options
@@ -429,6 +430,8 @@ If you want to add your own mappings, use the following examples::
 
     (esh-latex-add-unicode-substitution "∷" "\\ensuremath{::}")
     (esh-latex-add-unicode-substitution "‽" "!\!?")
+
+Some symbols require extra packages, like ``MnSymbol``.
 
 Fixing font issues
 ------------------
