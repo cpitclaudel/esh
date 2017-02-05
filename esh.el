@@ -278,13 +278,11 @@ properties."
 (defun esh--face-get (face attribute)
   "Read ATTRIBUTE from (potentially anonymous) FACE.
 Does not take inheritance into account."
-  (cond ((facep face)
-         (face-attribute face attribute))
-        ((listp face)
+  (cond ((listp face)
          (if (plist-member face attribute)
              (plist-get face attribute)
            'unspecified))
-        (t (error "Invalid face %S" face))))
+        (t (face-attribute face attribute))))
 
 (defun esh--single-face-attribute (face attribute)
   "Read ATTRIBUTE from (potentially anonymous) FACE.
