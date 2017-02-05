@@ -51,6 +51,15 @@
 
 ;;; Misc utils
 
+(defmacro esh--interactive-export (&rest body)
+  "Temporarily bump GC limits to let ESH do its thing in BODY.
+Also kill temp buffers after completing BODY."
+  (declare (indent 0) (debug t))
+  `(let ((gc-cons-threshold (expt 2 26)))
+     (unwind-protect
+         (progn ,@body)
+       (esh--kill-temp-buffers))))
+
 (defun esh--find-auto-mode (fpath)
   "Find mode for FPATH.
 There's no way to use the standard machinery (`set-auto-mode')
@@ -1153,13 +1162,12 @@ Records must match the format of `esh--latex-pv-highlighting-map'."
 Replace the ESH-Latexify sources in environments delimited by
 `esh-latexify-block-envs' and user-defined inline groups."
   (interactive)
-  (save-excursion
-    (unwind-protect
-        (progn
-          (esh--latexify-add-preamble)
-          (esh--latexify-do-inline-macros)
-          (esh--latexify-do-block-envs))
-      (esh--kill-temp-buffers))))
+  (esh--interactive-export
+    (save-excursion
+      (progn
+        (esh--latexify-add-preamble)
+        (esh--latexify-do-inline-macros)
+        (esh--latexify-do-block-envs)))))
 
 (defun esh2tex-tex-file (path)
   "Fontify contents of all ESH environments in PATH."
@@ -1455,13 +1463,12 @@ Hook may e.g. make modifications to the buffer.")
 Highlight sources in any environments containing a class matching
 `esh--html-src-class-prefix', such as `src-c', `src-ocaml', etc."
   (interactive)
-  (unwind-protect
-      (pcase-let* ((`(,xml-decl ,doctype ,tree) (esh--html-parse-buffer))
-                   (esh--html-src-class-re (format "\\_<%s\\([^ ]+\\)\\_>"
-                                                esh--html-src-class-prefix)))
-        (esh--html-prepare-html-output xml-decl doctype)
-        (esh--html-serialize (esh--htmlify-do-tree tree) t))
-    (esh--kill-temp-buffers)))
+  (esh--interactive-export
+    (pcase-let* ((`(,xml-decl ,doctype ,tree) (esh--html-parse-buffer))
+                 (esh--html-src-class-re (format "\\_<%s\\([^ ]+\\)\\_>"
+                                              esh--html-src-class-prefix)))
+      (esh--html-prepare-html-output xml-decl doctype)
+      (esh--html-serialize (esh--htmlify-do-tree tree) t))))
 
 (defun esh2html-html-file (path)
   "Fontify contents of all ESH environments in PATH."
@@ -1520,26 +1527,28 @@ list: (XML-HEADER DOCTYPE AST)."
 (defun esh-htmlfontify-buffer ()
   "Render the current buffer as a webpage."
   (interactive)
-  (pcase-let* ((`(,xml ,dt ,document) (esh--html-export-wrapped))
-               (out-buf-name (format "*esh-htmlfontify: %s*" (buffer-name))))
-    (with-current-buffer (generate-new-buffer out-buf-name)
-      (esh--html-prepare-html-output xml dt)
-      (esh--html-serialize document t)
-      (html-mode)
-      (pop-to-buffer (current-buffer)))))
+  (esh--interactive-export
+    (pcase-let* ((`(,xml ,dt ,document) (esh--html-export-wrapped))
+                 (out-buf-name (format "*esh-htmlfontify: %s*" (buffer-name))))
+      (with-current-buffer (generate-new-buffer out-buf-name)
+        (esh--html-prepare-html-output xml dt)
+        (esh--html-serialize document t)
+        (html-mode)
+        (pop-to-buffer (current-buffer))))))
 
 (defun esh-htmlfontify-display ()
   "Open rendering of current buffer in browser."
   (interactive)
-  (pcase-let* ((`(,xml ,dt ,document) (esh--html-export-wrapped))
-               (fname (make-temp-file "esh" nil ".html"))
-               (fdir (file-name-directory fname)))
-    (with-temp-file fname
-      (copy-file (expand-file-name "etc/esh-preamble.css" esh--directory)
-                 (expand-file-name "esh-preamble.css" fdir) t)
-      (esh--html-prepare-html-output xml dt)
-      (esh--html-serialize document t)
-      (browse-url fname))))
+  (esh--interactive-export
+    (pcase-let* ((`(,xml ,dt ,document) (esh--html-export-wrapped))
+                 (fname (make-temp-file "esh" nil ".html"))
+                 (fdir (file-name-directory fname)))
+      (with-temp-file fname
+        (copy-file (expand-file-name "etc/esh-preamble.css" esh--directory)
+                   (expand-file-name "esh-preamble.css" fdir) t)
+        (esh--html-prepare-html-output xml dt)
+        (esh--html-serialize document t)
+        (browse-url fname)))))
 
 (defun esh--htmlfontify-to-string ()
   "Render the current buffer as a webpage.
