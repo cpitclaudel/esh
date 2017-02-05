@@ -636,7 +636,7 @@ returns 1 instead of t."
   (pcase box
     (`nil nil)
     (`t `(1 nil nil))
-    ((pred stringp) `(1 ,box nil))
+    ((pred stringp) `(1 ,(esh--normalize-color box) nil))
     ((pred numberp) `(,box nil nil))
     ((pred listp) `(,(or (plist-get box :line-width) 1)
                     ,(esh--normalize-color (plist-get box :color))
@@ -861,7 +861,7 @@ PROPERTY and VAL apply directly to a text range)."
      ;; FIXME: Force all lines to have the the same height?
      ;; Could use \\vphantom{'g}\\smash{…}
      (esh--latex-export-wrapped-if val
-       "\\colorbox[HTML]{%s}{" l r subtrees "}"))
+       "\\ESHColorBox{%s}{" l r subtrees "}"))
     (:weight
      (esh--latex-export-wrapped
       (cond
@@ -1311,7 +1311,7 @@ Return an HTML AST; the root is a TAG node (default: span)."
                                    (`released-button "outset")
                                    (`pressed-button "inset")
                                    (_ "solid"))
-                                ,@(when color `(,color)))))
+                                ,@(when color `(,(concat "#" color))))))
                (push (cons "border" (esh--join box-style " ")) styles))))
           (`display
            (pcase val

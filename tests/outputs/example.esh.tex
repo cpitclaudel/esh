@@ -153,12 +153,16 @@
 \DeclareRobustCommand*{\ESHUnderwave}[1]
   {\bgroup\UL@setULdepth\markoverwith{#1\raisebox{-\ULdepth}{\raisebox{-.5\height}{\ESHSmallWaveFont\char58}}}\ULon}
 \font\ESHSmallWaveFont=lasyb10 scaled 400
+\makeatother
 
-% \ESHBoxSep is the vertical padding of \ESHFBox
+% \ESHBoxSep is the vertical padding of \ESHBox
 \newlength{\ESHBoxSep}
 \setlength{\ESHBoxSep}{1pt}
 
-% \ESHFBox{#color}{#lineWidth}{#contents} wraps #contents in an border of width
+% \ESHPhantomStrut{} adds a zero-width strut whose depth and height are that of "Ag"
+\newcommand*{\ESHPhantomStrut}{\vphantom{Ag}}
+
+% \ESHBox{#color}{#lineWidth}{#contents} wraps #contents in an border of width
 % #lineWidth and of color #color.  The box has no horizontal padding, its
 % vertical padding is determined by \ESHBoxSep, and it doesn't affect the height
 % of the current line.
@@ -167,8 +171,18 @@
   {\setlength{\fboxsep}{\ESHBoxSep}%
    \setlength{\fboxrule}{#2}%
    \setlength{\ESHBoxTempDim}{\dimexpr-\fboxsep-\fboxrule\relax}%
-   \vphantom{#3}\smash{\fbox{\hspace*{\ESHBoxTempDim}#3\hspace*{\ESHBoxTempDim}}}}
-\makeatother
+   \ESHPhantomStrut{}\vphantom{#3}%
+   \smash{\fbox{\hspace*{\ESHBoxTempDim}\ESHPhantomStrut{}#3\hspace*{\ESHBoxTempDim}}}}
+
+% \ESHColorBox{#color}{#contents} adds a background of color #color to
+% #contents.  The box has no horizontal padding, its vertical padding is
+% determined by \ESHBoxSep, and it doesn't affect the height of the current
+% line.
+\newcommand*{\ESHColorBox}[2]
+  {\setlength{\fboxsep}{\ESHBoxSep}%
+   \setlength{\ESHBoxTempDim}{\dimexpr-\fboxsep-\fboxrule\relax}%
+   \ESHPhantomStrut{}\vphantom{#2}%
+   \smash{\colorbox[HTML]{#1}{\hspace*{\ESHBoxTempDim}\ESHPhantomStrut{}#2\hspace*{\ESHBoxTempDim}}}}
 
 % \ESHWeight* and \ESHSlant* adjust weight and slant
 \newcommand*{\ESHWeightLight}[1]{\textlf{#1}}
@@ -176,7 +190,8 @@
 \newcommand*{\ESHWeightBold}[1]{\textbf{#1}}
 \newcommand*{\ESHInlineSlantItalic}[1]{\textit{#1}}
 \newcommand*{\ESHBlockSlantItalic}[1]{{\itshape{#1}}} % No italic correction
-\newcommand*{\ESHSlantOblique}[1]{\textsl{#1}}
+\newcommand*{\ESHInlineSlantOblique}[1]{\textsl{#1}}
+\newcommand*{\ESHBlockSlantOblique}[1]{{\slshape{#1}}}
 \newcommand*{\ESHSlantNormal}[1]{\textup{#1}}
 
 % Environments and macros
