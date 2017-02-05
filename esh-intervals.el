@@ -411,15 +411,13 @@ Each source interval should be in the format (FROM TO (K . V))."
       (cl-incf priority))
     (nreverse int-vecs)))
 
-(defun esh-intervals--make-bag-and-tree (intss)
-  "Construct a tree and a bag from INTSS.
-INTSS is a list of lists of lists, with one list per
-priority (that is, all intervals in the Nth list of INTSS are
-considered to have priority N).  Each sublist should be in the
-format (FROM TO (K . V))."
-  (let ((int-vecs (esh-intervals--make-int-vecs intss)))
-    (cons (esh-intervals--bag-from-intervals int-vecs)
-          (esh-intervals--tree-from-intervals (apply #'vconcat int-vecs)))))
+(defun esh-intervals--make-bag-and-tree (int-vecs)
+  "Construct a tree and a bag from INT-VECS.
+INT-VECT is a list of vectors of intervals, with one vector per
+priority (that is, all intervals in the Nth vector of INT-VECS
+are considered to have priority N)."
+  (cons (esh-intervals--bag-from-intervals int-vecs)
+        (esh-intervals--tree-from-intervals (apply #'vconcat int-vecs))))
 
 (defun esh-intervals-make-doctree (intss minl maxr merge-annots)
   "Construct a document (a tree of tags) from INTSS.
@@ -432,7 +430,7 @@ later lists.  MERGE-ANNOTS determines how annotations are
 rendered in the final document tree.  When non-nil, nodes contain
 lists of annotations.  Otherwise, each node contains a single
 annotation"
-  (pcase-let ((`(,bag . ,tree) (esh-intervals--make-bag-and-tree intss)))
+  (pcase-let ((`(,bag . ,tree) (esh-intervals--make-bag-and-tree (esh-intervals--make-int-vecs intss))))
     (esh-intervals--resolve-conflicts tree bag)
     (esh-intervals--reconstruct-doctree (esh-intervals--tree-flatten tree) minl maxr merge-annots)))
 
