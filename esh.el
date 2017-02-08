@@ -415,6 +415,13 @@ the original string."
                             (esh--parse-composition components))))
           (esh--replace-region from to str '(composition)))))))
 
+(defun esh--commit-replacing-display-specs ()
+  "Apply replacing display specs in current buffer."
+  (pcase-dolist (`(,from . ,to) (nreverse (esh--buffer-ranges 'display)))
+    (let ((display (get-text-property from 'display)))
+      (when (stringp display)
+        (esh--replace-region from to display 'display)))))
+
 (defun esh--commit-before-strings ()
   "Apply before-string specs in current buffer."
   (pcase-dolist (`(,from . ,_) (nreverse (esh--buffer-ranges 'esh--before)))
@@ -433,6 +440,7 @@ the original string."
   "Commit various text properties as concrete text in the buffer."
   (esh--commit-before-strings)
   (esh--commit-after-strings)
+  (esh--commit-replacing-display-specs)
   (esh--commit-compositions))
 
 (defun esh--mark-newlines (&optional additional-props)
@@ -950,8 +958,6 @@ PROPERTY and VAL apply directly to a text range)."
        (`(raise ,amount)
         (esh--latex-export-wrapped-if amount
           "\\ESHRaise{%.2f}{" l r subtrees "}"))
-       ((pred stringp)
-        (esh--latex-insert-substituted val))
        (_ (error "Unexpected display property %S" val))))
     (`invisible
      (when val (insert val)))
@@ -1365,8 +1371,6 @@ Return an HTML AST; the root is a TAG node (default: span)."
               (push (cons "bottom" (format "%2gem" amount)) styles))
              (`(space :relative-height ,amount)
               (setq children (list (esh--html-make-strut amount) " ")))
-             ((pred stringp)
-              (setq children (list val)))
              (_ (error "Unexpected display property %S" val))))
           (`invisible
            (setq children (if (equal val "") nil (list val))))
