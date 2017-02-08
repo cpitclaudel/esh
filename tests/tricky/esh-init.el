@@ -25,7 +25,7 @@
 (defun ~/setup-overlays ()
   "Add a collection of conflicting overlays to the current buffer."
   (erase-buffer)
-  (insert "abcdefghijklmno")
+  (insert "abcdefghijklmnopqrstuv")
   (put 'esh-test 'face '((:box "#000000")))
   (mapc #'delete-overlay (overlays-in (point-min) (point-max)))
   (let ((ov (make-overlay 1 9)))
@@ -35,7 +35,11 @@
   (let ((ov (make-overlay 5 14)))
     (overlay-put ov 'face '((:weight bold :slant italic))))
   (let ((ov (make-overlay 7 16)))
-    (overlay-put ov 'category 'esh-test)))
+    (overlay-put ov 'category 'esh-test))
+  (let ((ov (make-overlay 16 23)))
+    (overlay-put ov 'display (propertize "display" 'face '((:background "blue"))))
+    (overlay-put ov 'before-string (propertize "before" 'face '((:underline t))))
+    (overlay-put ov 'after-string (propertize "after" 'face '((:underline t))))))
 
 (define-minor-mode overlays-mode
   "Minor mode demonstrating overlays over text."

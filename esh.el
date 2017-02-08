@@ -185,6 +185,13 @@ BINDINGS should be a list (PROP VAL PLIST).
         (push val filtered)))
     (nreverse filtered)))
 
+(defun esh--plist-keys (plist)
+  "Get the keys of PLIST."
+  (let ((keys nil))
+    (esh--doplist (k _ plist)
+      (push k keys))
+    (nreverse keys)))
+
 ;;; Copying buffers
 
 (defun esh--number-or-0 (x)
@@ -216,6 +223,11 @@ BINDINGS should be a list (PROP VAL PLIST).
                  isearch-open-invisible-temporary priority window)
   "Properties that only apply to overlays.")
 
+(defun esh--plists-get (prop plist1 plist2)
+  "Read property PROP from PLIST1, falling back to PLIST2."
+  (let ((mem (plist-member plist1 prop)))
+    (if mem (cadr mem) (plist-get plist2 prop))))
+
 (defun esh--commit-overlays (buf)
   "Copy overlays of BUF into current buffer's text properties.
 We need to do this, because get-char-text-property considers at
@@ -227,12 +239,17 @@ most one overlay."
              (ov-props (overlay-properties ov))
              (cat-props (let ((symbol (plist-get ov-props 'category)))
                           (and symbol (symbol-plist symbol))))
-             (face (let ((mem (plist-member ov-props 'face)))
-                     (if mem (cadr mem) (plist-get cat-props 'face))))
+             (before-str (esh--plists-get 'before-string ov-props cat-props))
+             (after-str (esh--plists-get 'after-string ov-props cat-props))
+             (face (esh--plists-get 'face ov-props cat-props))
              (props (esh--filter-plist (append cat-props ov-props)
                                     (cons 'face esh--overlay-specific-props))))
         (when face
           (font-lock-prepend-text-property start end 'face face))
+        (when before-str
+          (font-lock-prepend-text-property start end 'esh--before before-str))
+        (when after-str
+          (font-lock-append-text-property start end 'esh--after after-str))
         (add-text-properties start end props)))))
 
 (defun esh--copy-buffer (buf)
@@ -365,14 +382,14 @@ the invisible range is replaced with)."
 
 ;;; Massaging properties
 
-(defun esh--commit-compositions-1 (from to str)
-  "Commit composition STR to FROM .. TO."
-  (let ((props (text-properties-at from)))
+(defun esh--replace-region (from to str prop)
+  "Replace FROM .. TO with STR, keeping all props but PROP."
+  (let* ((str-keys (esh--plist-keys (text-properties-at 0 str)))
+         (plist (esh--filter-plist (text-properties-at from) `(,prop ,@str-keys))))
     (goto-char from)
     (delete-region from to)
     (insert str)
-    (set-text-properties from (+ from (length str)) props)
-    (remove-text-properties from (+ from (length str)) '(composition))))
+    (add-text-properties from (+ from (length str)) plist)))
 
 (defun esh--parse-composition (components)
   "Translate composition COMPONENTS into a string."
@@ -388,15 +405,35 @@ the invisible range is replaced with)."
 
 (defun esh--commit-compositions ()
   "Apply compositions in current buffer.
-This replaced each composed string by its composition, forgetting
+This replaces each composed string by its composition, forgetting
 the original string."
-  (pcase-dolist (`(,from . ,to) (reverse (esh--buffer-ranges 'composition)))
+  (pcase-dolist (`(,from . ,to) (nreverse (esh--buffer-ranges 'composition)))
     (let ((comp-data (find-composition from nil nil t)))
       (when comp-data
         (pcase-let* ((`(,_ ,_ ,components ,relative-p ,_ ,_) comp-data)
                      (str (if relative-p (concat components)
                             (esh--parse-composition components))))
-          (esh--commit-compositions-1 from to str))))))
+          (esh--replace-region from to str '(composition)))))))
+
+(defun esh--commit-before-strings ()
+  "Apply before-string specs in current buffer."
+  (pcase-dolist (`(,from . ,_) (nreverse (esh--buffer-ranges 'esh--before)))
+    (let ((strs (get-text-property from 'esh--before)))
+      (goto-char from)
+      (insert (mapconcat #'identity strs "")))))
+
+(defun esh--commit-after-strings ()
+  "Apply after-string specs in current buffer."
+  (pcase-dolist (`(,from . ,to) (nreverse (esh--buffer-ranges 'esh--after)))
+    (let ((strs (get-text-property from 'esh--after)))
+      (goto-char to)
+      (insert (mapconcat #'identity strs "")))))
+
+(defun esh--commit-specs ()
+  "Commit various text properties as concrete text in the buffer."
+  (esh--commit-before-strings)
+  (esh--commit-after-strings)
+  (esh--commit-compositions))
 
 (defun esh--mark-newlines (&optional additional-props)
   "Add `esh--newline' and ADDITIONAL-PROPS text properties to each \\n.
@@ -968,7 +1005,7 @@ lines in inline blocks."
     (untabify (point-min) (point-max))
     (esh--commit-overlays (current-buffer))
     (esh--remove-final-newline)
-    (esh--commit-compositions)
+    (esh--commit-specs)
     (esh--mark-newlines '(esh--break t)))
   (let ((tree (esh--buffer-to-document-tree
                esh--latex-props
@@ -1383,7 +1420,7 @@ This may modify to the current buffer."
     (untabify (point-min) (point-max))
     (esh--commit-overlays (current-buffer))
     (esh--remove-final-newline)
-    (esh--commit-compositions)
+    (esh--commit-specs)
     (esh--mark-newlines)
     (esh--mark-non-ascii))
   (let ((tree (esh--buffer-to-document-tree
