@@ -1414,7 +1414,7 @@ function exports a plain text range."
 
 (defun esh--html-export-trees (trees)
   "Export TREES to HTML."
-  (mapcan #'esh--html-export-doctree trees))
+  (cl-mapcan #'esh--html-export-doctree trees))
 
 (defun esh--html-export-buffer ()
   "Export current buffer to HTML AST.
