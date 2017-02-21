@@ -137,14 +137,10 @@ Are you missing --standalone?\n" in-path))
 
 ;; FIXME test this
 
-(defun esh-cli--unexpected-arg-msg (arg)
-  "Construct an unexpected ARG error message."
-  (concat (format "ESH: Unexpected argument %S." arg)
-          (unless (string-match-p "^-" arg)
-            "  Are you using --stdout with multiple input files?")))
-
 (defun esh-cli--main (format)
   "Main entry point for esh2 FORMAT."
+  (when (equal (car argv) "--")
+    (pop argv))
   (unless argv
     (setq argv '("-h")))
   (let ((persist nil)
@@ -157,7 +153,7 @@ Are you missing --standalone?\n" in-path))
               ("-h"
                (princ esh-cli--quick-help)
                (setq complain-about-missing-input nil))
-              ("--usage"
+              ((or "--usage" "--help")
                (princ (esh-cli--help))
                (setq complain-about-missing-input nil))
               ("--debug-on-error"
@@ -177,8 +173,8 @@ Are you missing --standalone?\n" in-path))
               ("--standalone"
                (setq esh-cli--standalone-p t))
               ("--precompute-verbs-map"
-               (unless (eq format 'latex)
-                 (error "%s" (esh-cli--unexpected-arg-msg "--precompute-verbs-map")))
+               (unless (memq format '(latex latex-pv))
+                 (error "ESH: --precompute-verbs-map only works with esh2tex"))
                (setq format 'latex-pv))
               ("--write-preamble"
                (setq write-preamble t)
@@ -187,12 +183,14 @@ Are you missing --standalone?\n" in-path))
                (esh-cli--init)
                (setq complain-about-missing-input nil))
               (arg
-               (when (or (and argv esh-cli--stdout-p) (string-match-p "\\`--" arg))
-                 (error "%s" (esh-cli--unexpected-arg-msg arg)))
+               (when (and argv esh-cli--stdout-p)
+                 (error "ESH: --stdout accepts only one input file"))
+               (when (string-match-p "\\`--" arg)
+                 (error "ESH: Unexpected argument %s" arg))
                (setq has-inputs t)
                (esh-cli--process-one arg format))))
           (when (and (not has-inputs) complain-about-missing-input)
-            (error "No input files given"))
+            (error "ESH: No input files given"))
           (when write-preamble
             (esh-cli--write-preamble format)))
       (when (and has-inputs (not persist))

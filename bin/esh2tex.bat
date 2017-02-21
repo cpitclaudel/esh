@@ -1,1 +1,1 @@
-@emacs -Q --script "%~dp0esh2tex" %*
+@emacs -Q --script "%~dp0esh2tex" -- %*

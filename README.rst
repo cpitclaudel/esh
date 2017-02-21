@@ -117,7 +117,7 @@ highlighting`_).
 Options
 =======
 
-* ``--usage``
+* ``--usage``, ``--help``
 
   Show this help.
 
