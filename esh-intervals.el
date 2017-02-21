@@ -293,7 +293,9 @@ called on already-processed annotations."
 
 (defun esh-intervals--tree-from-intervals (ints)
   "Make an interval tree from INTS, a vector of intervals."
-  (sort ints #'esh-intervals--int-<)
+  (if (< emacs-major-version 25)
+      (setq ints (vconcat (sort (append ints nil) #'esh-intervals--int-<)))
+    (sort ints #'esh-intervals--int-<))
   (esh-intervals--tree-from-sorted-intervals ints 0 (length ints)))
 
 (defun esh-intervals--tree-split-1 (tree bag int acc)
@@ -400,7 +402,7 @@ interval contains a single annotation."
     root))
 
 (defun esh-intervals--make-int-vecs (intss)
-  "Translate lists of intervals in INTSS to vectors if intervals.
+  "Translate lists of intervals in INTSS to vectors of intervals.
 Each source interval should be in the format (FROM TO (K . V))."
   (let ((priority 0)
         (int-vecs nil))
