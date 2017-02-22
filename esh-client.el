@@ -192,7 +192,7 @@ This is a cons of (INIT-FILE . MTIME)."
   "Kill server if init file is stale.
 That is, if SERVER-INIT-INFO does not match EXPECTED-INIT-INFO."
   (unless (member server-init-info `(none ,expected-init-info))
-    (esh-client-stderr "Stale init file on server (%s); resetting.\n"
+    (esh-client-stderr "Stale init file on server (%s); restarting.\n"
              (car server-init-info))
     (esh-client-kill-server)
     (esh-client--ensure-server)))

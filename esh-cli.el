@@ -24,6 +24,8 @@
 
 ;;; Code:
 
+(require 'bytecomp)
+
 (setq-default load-prefer-newer t)
 (setq-default text-quoting-style 'grave)
 
@@ -38,16 +40,23 @@
     (file-name-directory esh-cli--script-full-path)
     "Full path to directory of this script."))
 
+(defun esh-cli--byte-recompile-1 (file)
+  "(Re)compile ELisp FILE if needed.
+Returns a boolean indicating whether compilation was needed."
+  (unless (string-match-p "esh-pkg\\.el\\'" file)
+    (not (eq (byte-recompile-file file nil 0) 'no-byte-compile))))
+
 (defun esh-cli--byte-recompile (dir)
-  "Recompile ELisp files in DIR."
-  (dolist (fname (directory-files dir t "\\.el\\'"))
-    (unless (string-match-p "esh-pkg\\.el\\'" fname)
-      (byte-recompile-file fname nil 0))))
+  "(Re)compile ELisp files in DIR."
+  (let ((recompiled-any nil))
+    (dolist (fname (directory-files dir t "\\.el\\'"))
+      (when (esh-cli--byte-recompile-1 fname)
+        (setq recompiled-any t)))
+    recompiled-any))
 
-(require 'bytecomp)
-(esh-cli--byte-recompile esh-cli--esh-directory)
+(defvar esh-cli--needed-recompilation (esh-cli--byte-recompile esh-cli--esh-directory))
 
-(require 'esh-client)
+(require 'esh-client) ;; `require' comes after recompilation
 
 (defvar esh-cli--stdout-p nil
   "See option --stdout.")
@@ -135,14 +144,16 @@ non-nil."
 Are you missing --standalone?\n" in-path))
      (t (esh-client-process-one in-path out-path in-type out-type)))))
 
-;; FIXME test this
-
 (defun esh-cli--main (format)
   "Main entry point for esh2 FORMAT."
   (when (equal (car argv) "--")
     (pop argv))
   (unless argv
     (setq argv '("-h")))
+  ;; Ensure that the server isn't running a stale version of ESH
+  (when esh-cli--needed-recompilation
+    (esh-client-stderr "Stale version of ESH running on server; restarting.\n")
+    (esh-client-kill-server))
   (let ((persist nil)
         (has-inputs nil))
     (unwind-protect
