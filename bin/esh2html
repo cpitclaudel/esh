@@ -1,5 +1,5 @@
-#!/bin/sh
-":"; exec emacs -Q --script "$0" -- "$@" # -*- mode: emacs-lisp; lexical-binding: t; -*-
+#!/usr/bin/env sh
+":"; exec ${EMACS:=emacs} -Q --script "$0" -- "$@" # -*- mode: emacs-lisp; lexical-binding: t; -*-
 ;; Copyright (C) 2016  Clément Pit-Claudel
 
 ;; Author: Clément Pit-Claudel <clement.pitclaudel@live.com>
