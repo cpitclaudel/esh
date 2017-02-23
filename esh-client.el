@@ -208,13 +208,6 @@ That is, if SERVER-INIT-INFO does not match EXPECTED-INIT-INFO."
        (format "Loading %S" (esh-client--truncate-right (car init-info) 40))
        (esh-client--run (esh-client--rpc-server-init-form (getenv "DISPLAY") init-info))))))
 
-(defun esh-client--use-cask ()
-  "Check whether cask should be used."
-  (if (eq system-type 'windows-nt)
-      ;; `cask exec' doesn't seem to work on Windows
-      (ignore (esh-client--debug "::use-cask: Not using Cask (running on Windows)."))
-    ))
-
 (defun esh-client--find-emacs ()
   "Find Emacs binary."
   (or (getenv "EMACS") "emacs"))
