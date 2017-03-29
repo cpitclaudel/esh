@@ -142,7 +142,7 @@ If FILTER returns NIL, the annotation is dropped from ANNOTS."
    ((consp (car annots)) (delq nil (mapcar filter annots)))
    (annots (funcall filter annots))))
 
-(eval-when-compile
+(eval-and-compile
   (defun esh-intervals--lexicographic-<-1 (x1 x2 getters)
     "Like `esh-intervals--lexicographic-<', but assume X1 and X2 are symbols.
 GETTERS: See `esh-intervals--lexicographic-<'."
