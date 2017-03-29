@@ -129,12 +129,12 @@ TYPE should be either `cpu' or `elp'."
 
 (defun esh-server--window-system-frame-parameter ()
   "Choose an appropriate window system.
-This seems to be only needed on Windows; on GNU/Linux and macOS,
-the defaults seems to work fine."
-  ;; (`darwin 'ns)
-  ;; ((or `gnu `gnu/linux `gnu/kfreebsd) 'x)
-  (when (memq system-type '(windows-nt cygwin))
-    '((window-system . w32))))
+This is needed on Windows, and at least on certain macOS builds."
+  (let ((ws (pcase system-type
+              (`darwin 'ns)
+              ((or `windows-nt `cygwin) 'w32)
+              ((or `gnu `gnu/linux `gnu/kfreebsd) 'x))))
+    (and ws `((window-system . ,ws)))))
 
 (defun esh-server--set-coding-systems ()
   "Set proper coding system defaults (useful for Windows)."
