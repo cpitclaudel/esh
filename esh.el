@@ -639,11 +639,14 @@ EXPORT-FN should do the actual exporting."
 ;;; Cleaning up face attributes and text properties
 
 (defun esh--normalize-color (color)
-  "Return COLOR as a hex string."
+  "Return COLOR as a hex string.
+`color-rgb-to-hex', used to work fine, until it got broken in
+7b00e956b485d8ade03c870cbdd0ae086348737b."
   (unless (member color '("unspecified-fg" "unspecified-bg" "" nil))
-    (let ((color (if (= (aref color 0) ?#) color
-                   (apply #'color-rgb-to-hex (color-name-to-rgb color)))))
-      (substring (upcase color) 1))))
+    (upcase (if (= (aref color 0) ?#)
+                (substring color 1)
+              (pcase-let ((`(,r ,g ,b) (color-name-to-rgb color)))
+                (format "%02x%02x%02x" (* 255 r) (* 255 g) (* 255 b)))))))
 
 (defun esh--normalize-underline (underline)
   "Normalize UNDERLINE."
