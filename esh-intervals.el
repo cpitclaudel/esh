@@ -105,6 +105,20 @@
 
 (cl-declaim (optimize (speed 3) (safety 0)))
 
+;;; Compatibility
+
+(defun esh-intervals--< (&rest args) ;; FIXME remove this when 24.3 goes out of fashion
+  "Emulation of (< ARGS...) for Emacs 24.3."
+  (while (and (cdr args) (< (car args) (cadr args)))
+    (pop args))
+  (null (cdr args)))
+
+(defun esh-intervals--<= (&rest args)
+  "Emulation of (<= ARGS...) for Emacs 24.3."
+  (while (and (cdr args) (<= (car args) (cadr args)))
+    (pop args))
+  (null (cdr args)))
+
 ;;; Intervals
 
 (cl-defstruct
@@ -129,9 +143,9 @@
 (defun esh-intervals--int-cut (to-cut ref)
   "Cut interval TO-CUT around interval REF."
   (cond
-   ((< (esh-intervals-int-l to-cut) (esh-intervals-int-l ref) (esh-intervals-int-r to-cut) (esh-intervals-int-r ref))
+   ((esh-intervals--< (esh-intervals-int-l to-cut) (esh-intervals-int-l ref) (esh-intervals-int-r to-cut) (esh-intervals-int-r ref))
     (esh-intervals--int-split to-cut (esh-intervals-int-l ref)))
-   ((< (esh-intervals-int-l ref) (esh-intervals-int-l to-cut) (esh-intervals-int-r ref) (esh-intervals-int-r to-cut))
+   ((esh-intervals--< (esh-intervals-int-l ref) (esh-intervals-int-l to-cut) (esh-intervals-int-r ref) (esh-intervals-int-r to-cut))
     (esh-intervals--int-split to-cut (esh-intervals-int-r ref)))
    (t nil)))
 
@@ -389,7 +403,7 @@ interval contains a single annotation."
               ;; Same area covered: merge with parent (will be nreversed later)
               (push (esh-intervals-int-annot int) (esh-intervals-int-annot top))
             ;; Strict inclusion (and no conflicts)
-            (esh-assert (<= top-l int-l int-r top-r))
+            (esh-assert (esh-intervals--<= top-l int-l int-r top-r))
             (when merge-annots
               (cl-callf list (esh-intervals-int-annot int)))
             (esh-intervals--doctree-add-child top int)
