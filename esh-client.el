@@ -138,6 +138,13 @@ properly returned by the server."
 (defconst esh-client--backtrace-msg
   ">> Run esh2tex again with --debug-on-error to see the full stack trace. <<")
 
+(defun esh-client--extract-error-message (err)
+  "Extract an error message from ERR.
+The format of ERR should be as documented in `condition-case'."
+  (pcase err
+    (`(error ,msg) msg)
+    (_ (format "%S" err))))
+
 (defun esh-client--read-server-response (fpath)
   "Read server response from FPATH."
   (with-temp-buffer
@@ -146,7 +153,7 @@ properly returned by the server."
       (`(success ,retv) retv)
       (`(error ,err ,backtrace)
        (setq debug-on-error nil)
-       (error "ESH error: %S\n%s" err
+       (error "ESH error: %s\n%s" (esh-client--extract-error-message err)
               (if esh-client-debug-server backtrace esh-client--backtrace-msg))))))
 
 (defun esh-client--run (form)
