@@ -173,7 +173,7 @@ let make_lexer keywords =
     <h2>F* (source: <code>Handshake.fst</code> in miTLS)</h2>
     <pre class="src-fstar">val processServerFinished: KeySchedule.ks -&gt; HandshakeLog.log -&gt; (hs_msg * bytes) -&gt; ST (result bytes)
   (requires (fun h -&gt; True))
-  (ensures (fun h_0 i h_1 -&gt; True))
+  (ensures (fun h0 i h1 -&gt; True))
 
 let processServerFinished ks log (m, l) =
    match m with

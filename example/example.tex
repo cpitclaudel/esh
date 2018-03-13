@@ -340,7 +340,7 @@ method DutchFlag(a: array<Color>)
 \begin{verbatim}
 val processServerFinished: KeySchedule.ks -> HandshakeLog.log -> (hs_msg * bytes) -> ST (result bytes)
   (requires (fun h -> True))
-  (ensures (fun h_0 i h_1 -> True))
+  (ensures (fun h0 i h1 -> True))
 
 let processServerFinished ks log (m, l) =
    match m with

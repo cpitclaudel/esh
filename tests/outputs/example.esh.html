@@ -112,16 +112,16 @@
         <span style="color:#204A87">Endo</span> f <span style="color:#B35000">`mappend`</span> <span style="color:#204A87">Endo</span> g <span style="color:#B35000">=</span> <span style="color:#204A87">Endo</span> (f <span style="color:#B35000" class="esh-non-ascii"><span><span>∘</span></span></span> g)</pre>
 
     <h2>Racket (source: <code>misc.rkt</code> in Racket’s standard library)</h2>
-    <pre class="src-racket">(<span style="color:#346604">define-syntax</span> <span style="color:#B35000">define-syntax-rule
-</span>  (<span style="color:#346604" class="esh-non-ascii"><span><span>λ</span></span></span> (stx)
+    <pre class="src-racket">(<span style="color:#346604">define-syntax</span> <span style="color:#B35000">define-syntax-rule</span>
+  (<span style="color:#346604" class="esh-non-ascii"><span><span>λ</span></span></span> (stx)
     (<span style="color:#346604">let-values</span> ([(err) (<span style="color:#346604" class="esh-non-ascii"><span><span>λ</span></span></span> (what . xs) (<span style="color:#346604">apply</span> <span style="color:#75507B">raise-syntax-error</span>
                                               <span style="color:#2E8B57">'define-syntax-rule</span> what stx xs))])
       (<span style="color:#346604">syntax-case</span> stx ()
         [(dr (name . pattern) template)
          (<span style="color:#75507B">identifier?</span> #<span style="color:#2E8B57">'name</span>)
          (<span style="color:#346604">syntax/loc</span> stx
-           (<span style="color:#346604">define-syntax</span> <span style="color:#B35000">name
-</span>             (<span style="color:#346604" class="esh-non-ascii"><span><span>λ</span></span></span> (user-stx)
+           (<span style="color:#346604">define-syntax</span> <span style="color:#B35000">name</span>
+             (<span style="color:#346604" class="esh-non-ascii"><span><span>λ</span></span></span> (user-stx)
                (syntax-case** dr <span style="color:#2E8B57">#t</span> user-stx () <span style="color:#75507B">free-identifier=?</span> <span style="color:#2E8B57">#f</span>
                  [(<span style="color:#346604">_</span> . pattern) (<span style="color:#75507B">syntax-protect</span> (<span style="color:#346604">syntax/loc</span> user-stx template))]
                  [<span style="color:#346604">_</span> (pattern-failure user-stx <span style="color:#2E8B57">'pattern</span>)]))))]</pre>
@@ -156,11 +156,11 @@
           <span style="color:#B35000">r</span>, <span style="color:#B35000">w</span> <span class="esh-non-ascii"><span><span>≔</span></span></span> r + 1, w + 1;</pre>
 
     <h2>F* (source: <code>Handshake.fst</code> in miTLS)</h2>
-    <pre class="src-fstar"><span style="font-weight:700">val</span> <span style="color:#A40000">processServerFinished</span>: <span style="color:#204A87">KeySchedule</span>.ks <span class="esh-non-ascii"><span><span>→</span></span></span> <span style="color:#204A87">HandshakeLog</span>.log <span class="esh-non-ascii"><span><span>→</span></span></span> (hs_msg <span class="esh-non-ascii"><span><span>×</span></span></span> bytes) <span class="esh-non-ascii"><span><span>→</span></span></span> <span style="color:#346604">ST</span> (result bytes)
+    <pre class="src-fstar"><span style="font-weight:700">val </span><span style="color:#A40000">processServerFinished</span>: <span style="color:#204A87">KeySchedule</span>.ks <span class="esh-non-ascii"><span><span>→</span></span></span> <span style="color:#204A87">HandshakeLog</span>.log <span class="esh-non-ascii"><span><span>→</span></span></span> (hs_msg <span class="esh-non-ascii"><span><span>×</span></span></span> bytes) <span class="esh-non-ascii"><span><span>→</span></span></span> <span style="color:#346604">ST</span> (result bytes)
   (<span style="color:#75507B">requires</span> (<span style="color:#346604" class="esh-non-ascii"><span><span>λ</span></span></span> <span style="color:#B35000">h</span> <span class="esh-non-ascii"><span><span>→</span></span></span> <span style="color:#204A87;font-weight:700" class="esh-non-ascii"><span><span>⊤</span></span></span>))
-  (<span style="color:#75507B">ensures</span> (<span style="color:#346604" class="esh-non-ascii"><span><span>λ</span></span></span> <span style="color:#B35000">h<span class="esh-raised"><span class="esh-raised-contents"><span style="font-size:80%;bottom:-0.3em">0</span></span><span class="esh-raised-placeholder">0</span></span> i h<span class="esh-raised"><span class="esh-raised-contents"><span style="font-size:80%;bottom:-0.3em">1</span></span><span class="esh-raised-placeholder">1</span></span></span> <span class="esh-non-ascii"><span><span>→</span></span></span> <span style="color:#204A87;font-weight:700" class="esh-non-ascii"><span><span>⊤</span></span></span>))
+  (<span style="color:#75507B">ensures</span> (<span style="color:#346604" class="esh-non-ascii"><span><span>λ</span></span></span> <span style="color:#B35000">h<span class="esh-raised"><span class="esh-raised-contents"><span style="bottom:-0.3em">0</span></span><span class="esh-raised-placeholder">0</span></span> i h<span class="esh-raised"><span class="esh-raised-contents"><span style="bottom:-0.3em">1</span></span><span class="esh-raised-placeholder">1</span></span></span> <span class="esh-non-ascii"><span><span>→</span></span></span> <span style="color:#204A87;font-weight:700" class="esh-non-ascii"><span><span>⊤</span></span></span>))
 
-<span style="font-weight:700">let</span><span style="color:#A40000"> processServerFinished</span> ks log (m, l) =
+<span style="font-weight:700">let<span style="color:#A40000"> </span></span><span style="color:#A40000">processServerFinished</span> ks log (m, l) =
    <span style="color:#346604">match</span> m <span style="color:#346604">with</span>
    | <span style="color:#204A87">Finished</span> (f) <span class="esh-non-ascii"><span><span>→</span></span></span>
      <span style="font-weight:700">let</span><span style="color:#A40000"> svd</span> = <span style="color:#204A87">KeySchedule</span>.ks_client_12_server_finished ks <span style="font-weight:700">in</span>

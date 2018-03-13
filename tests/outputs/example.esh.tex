@@ -670,11 +670,11 @@ is the Emacs Lisp equivalent of Python's virtualenvs).
 \subsection*{F* (source: \texttt{Handshake.fst} in miTLS)}
 
 \begin{ESHBlock}
-\ESHBol{}\ESHWeightBold{val}\ESHSpace{}\textcolor[HTML]{A40000}{processServerFinished}:\ESHSpace{}\textcolor[HTML]{204A87}{KeySchedule}.ks\ESHSpace{}\ESHSpecialChar{→}\ESHSpace{}\textcolor[HTML]{204A87}{HandshakeLog}.log\ESHSpace{}\ESHSpecialChar{→}\ESHSpace{}(hs\_msg\ESHSpace{}\ESHSpecialChar{×}\ESHSpace{}bytes)\ESHSpace{}\ESHSpecialChar{→}\ESHSpace{}\textcolor[HTML]{346604}{ST}\ESHSpace{}(result\ESHSpace{}bytes)\ESHEol
+\ESHBol{}\ESHWeightBold{val\ESHSpace{}}\textcolor[HTML]{A40000}{processServerFinished}:\ESHSpace{}\textcolor[HTML]{204A87}{KeySchedule}.ks\ESHSpace{}\ESHSpecialChar{→}\ESHSpace{}\textcolor[HTML]{204A87}{HandshakeLog}.log\ESHSpace{}\ESHSpecialChar{→}\ESHSpace{}(hs\_msg\ESHSpace{}\ESHSpecialChar{×}\ESHSpace{}bytes)\ESHSpace{}\ESHSpecialChar{→}\ESHSpace{}\textcolor[HTML]{346604}{ST}\ESHSpace{}(result\ESHSpace{}bytes)\ESHEol
 \ESHBol{}\ESHSpace{}\ESHSpace{}(\textcolor[HTML]{75507B}{requires}\ESHSpace{}(\textcolor[HTML]{346604}{\ESHSpecialChar{λ}}\ESHSpace{}\textcolor[HTML]{B35000}{h}\ESHSpace{}\ESHSpecialChar{→}\ESHSpace{}\ESHWeightBold{\textcolor[HTML]{204A87}{\ESHSpecialChar{⊤}}}))\ESHEol
-\ESHBol{}\ESHSpace{}\ESHSpace{}(\textcolor[HTML]{75507B}{ensures}\ESHSpace{}(\textcolor[HTML]{346604}{\ESHSpecialChar{λ}}\ESHSpace{}\textcolor[HTML]{B35000}{h\ESHRaise{-0.30}{\textscale{0.8}{0}}\ESHSpace{}i\ESHSpace{}h\ESHRaise{-0.30}{\textscale{0.8}{1}}}\ESHSpace{}\ESHSpecialChar{→}\ESHSpace{}\ESHWeightBold{\textcolor[HTML]{204A87}{\ESHSpecialChar{⊤}}}))\ESHEol
+\ESHBol{}\ESHSpace{}\ESHSpace{}(\textcolor[HTML]{75507B}{ensures}\ESHSpace{}(\textcolor[HTML]{346604}{\ESHSpecialChar{λ}}\ESHSpace{}\textcolor[HTML]{B35000}{h\ESHRaise{-0.30}{0}\ESHSpace{}i\ESHSpace{}h\ESHRaise{-0.30}{1}}\ESHSpace{}\ESHSpecialChar{→}\ESHSpace{}\ESHWeightBold{\textcolor[HTML]{204A87}{\ESHSpecialChar{⊤}}}))\ESHEol
 \ESHBol{}\mbox{}\ESHEol
-\ESHBol{}\ESHWeightBold{let}\textcolor[HTML]{A40000}{\ESHSpace{}processServerFinished}\ESHSpace{}ks\ESHSpace{}log\ESHSpace{}(m,\ESHSpace{}l)\ESHSpace{}=\ESHEol
+\ESHBol{}\ESHWeightBold{let\textcolor[HTML]{A40000}{\ESHSpace{}}}\textcolor[HTML]{A40000}{processServerFinished}\ESHSpace{}ks\ESHSpace{}log\ESHSpace{}(m,\ESHSpace{}l)\ESHSpace{}=\ESHEol
 \ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\textcolor[HTML]{346604}{match}\ESHSpace{}m\ESHSpace{}\textcolor[HTML]{346604}{with}\ESHEol
 \ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}|\ESHSpace{}\textcolor[HTML]{204A87}{Finished}\ESHSpace{}(f)\ESHSpace{}\ESHSpecialChar{→}\ESHEol
 \ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHWeightBold{let}\textcolor[HTML]{A40000}{\ESHSpace{}svd}\ESHSpace{}=\ESHSpace{}\textcolor[HTML]{204A87}{KeySchedule}.ks\_client\_12\_server\_finished\ESHSpace{}ks\ESHSpace{}\ESHWeightBold{in}\ESHEol
