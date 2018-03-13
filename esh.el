@@ -1574,6 +1574,7 @@ list: (XML-HEADER DOCTYPE AST)."
   "Render the current buffer as a webpage."
   (interactive)
   (esh--interactive-export
+    (font-lock-ensure)
     (pcase-let* ((`(,xml ,dt ,document) (esh--html-export-wrapped))
                  (out-buf-name (format "*esh-htmlfontify: %s*" (buffer-name))))
       (with-current-buffer (generate-new-buffer out-buf-name)
@@ -1586,6 +1587,7 @@ list: (XML-HEADER DOCTYPE AST)."
   "Open rendering of current buffer in browser."
   (interactive)
   (esh--interactive-export
+    (font-lock-ensure)
     (pcase-let* ((`(,xml ,dt ,document) (esh--html-export-wrapped))
                  (fname (make-temp-file "esh" nil ".html"))
                  (fdir (file-name-directory fname)))
