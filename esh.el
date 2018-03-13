@@ -808,8 +808,8 @@ CHAR-STR is a one-character string; LATEX-CMD is a latex command."
   "Replace character C with an equivalent LaTeX command."
   (let* ((translation (esh--latex-escape-1 c)))
     (unless translation
-      (error "No LaTeX equivalent found for %S.
-Use (esh-latex-add-unicode-substitution %S \"\\someCommand\") to add one" c c))
+      (error "No LaTeX equivalent found for character `%c'.
+Use (esh-latex-add-unicode-substitution \"%c\" \"\\\\someCommand\") to add one" c c))
     (format "\\ESHUnicodeSubstitution{%s}" translation)))
 
 (defun esh--latex-wrap-special-char (char)
