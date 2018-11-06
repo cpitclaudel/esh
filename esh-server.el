@@ -56,7 +56,7 @@ be huge — so only do it if requested.")
       (goto-char (point-min))
       (when (re-search-forward "^  esh-server--handle-error" nil t)
         (delete-region (point-min) (point-at-bol)))
-      (buffer-string))))
+      (buffer-substring-no-properties (point-min) (point-max)))))
 
 (defun esh-server--handle-error (&rest args)
   "Handle an error in code run on the server.
