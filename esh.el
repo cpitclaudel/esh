@@ -502,7 +502,7 @@ Each PROPERTY is one of PROPS."
         (dolist (prop props)
           (let ((old (assq prop prev-alist))
                 (new (assq prop alist)))
-            (unless (and (not break-here) (equal (cdr old) (cdr new)))
+            (when (or break-here (not (equal old new)))
               (when old
                 (push `(close ,start ,old) events))
               (when new
@@ -711,17 +711,29 @@ returns 1 instead of t."
     (:box (esh--normalize-box value))
     (_ value)))
 
+(defun esh--attribute-redundant-p (property value)
+  "Check whether PROPERTY and VALUE can be safely dropped."
+  (equal value
+	 (pcase property
+	   ((or :foreground :background)
+	    (let* ((default (face-attribute 'default property)))
+	      (esh--normalize-attribute property default)))
+	   (:underline nil)
+	   (:weight 500)
+	   (:slant 'normal)
+	   (:box nil)
+	   (_ (not value)))))
+
 (defun esh--normalize-suppress-defaults (annotation)
   "Normalize VALUE of PROPERTY (both in ANNOTATION).
 `:foreground' and `:background' values that match the `default'
-face are suppressed.
+face are suppressed.  Redundant property-value pairs (nil boxes
+or underlines, for example) are also suppressed.
 
 \(fn (PROPERTY . VALUE))"
   (pcase-let ((`(,property . ,value) annotation))
     (setq value (esh--normalize-attribute property value))
-    (unless (and (memq property '(:foreground :background))
-                 (let* ((default (face-attribute 'default property)))
-                   (equal value (esh--normalize-attribute property default))))
+    (unless (esh--attribute-redundant-p property value)
       (cons property value))))
 
 (defun esh--normalize-defaults (annotation)
@@ -733,9 +745,8 @@ e.g. when rendering a buffer as HTML, htmlfontify-style.
   (pcase-let ((`(,property . ,value) annotation))
     (unless (eq property :height)
       (setq value (esh--normalize-attribute property value)))
-    (unless (equal value (pcase property
-                           (:weight 500)
-                           (:slant 'normal)))
+    (when (or (member property '(:foreground :background))
+              (not (esh--attribute-redundant-p property value)))
       (cons property value))))
 
 ;;; Producing LaTeX
