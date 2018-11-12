@@ -545,7 +545,7 @@ property in RANKING."
 
 (defun esh--buffer-to-document-tree
     (text-props face-attrs ranking range-filter merge-annots)
-  "Construct a property trees from the current buffer.
+  "Construct a property tree from the current buffer.
 TEXT-PROPS and FACE-ATTRS specify which properties to keep track
 of.  RANKING ranks all these properties in order of tolerance to
 splitting (if a property comes late in this list, ESH will try to
