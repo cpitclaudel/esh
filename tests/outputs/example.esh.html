@@ -52,11 +52,11 @@
     <pre class="src-perl"><span style="color:#5F615C;font-style:italic">#&amp;getopt(&quot;f:bar&quot;) ||
 #   die &amp;usage(&quot;script&quot;,&quot;f:bar&quot;,&quot;oo&quot;,&quot;[files ...]&quot;);
 </span><span style="color:#346604">sub</span> <span style="color:#A40000">getopt</span> {
-    <span style="color:#204A87">local</span>($<span style="color:#B35000">_</span>,$<span style="color:#B35000">flag</span>,$<span style="color:#B35000">opt</span>,$<span style="color:#B35000">f</span>,$<span style="color:#B35000">r</span>,@<span style="text-decoration:underline;color:#B35000">temp</span>) = @<span style="text-decoration:underline;color:#B35000">_</span>;
-    @<span style="text-decoration:underline;color:#B35000">temp</span> = split(<span style="color:#5C3566">/(.):/</span>);
-    <span style="color:#346604">while</span> ($#<span style="text-decoration:underline;color:#B35000">temp</span> &gt;= $[) {
-        $<span style="color:#B35000">flag</span> .= shift(@<span style="text-decoration:underline;color:#B35000">temp</span>);
-        $<span style="color:#B35000">opt</span> .= shift(@<span style="text-decoration:underline;color:#B35000">temp</span>);
+    <span style="color:#204A87">local</span>($<span style="color:#B35000">_</span>,$<span style="color:#B35000">flag</span>,$<span style="color:#B35000">opt</span>,$<span style="color:#B35000">f</span>,$<span style="color:#B35000">r</span>,@<span style="color:#204A87">temp</span>) = @<span style="text-decoration:underline;color:#B35000">_</span>;
+    @<span style="color:#204A87">temp</span> = split(<span style="color:#5C3566">/(.):/</span>);
+    <span style="color:#346604">while</span> ($#<span style="color:#204A87">temp</span> &gt;= $[) {
+        $<span style="color:#B35000">flag</span> .= shift(@<span style="color:#204A87">temp</span>);
+        $<span style="color:#B35000">opt</span> .= shift(@<span style="color:#204A87">temp</span>);
     }
     <span style="color:#346604">while</span> ($<span style="color:#B35000">_</span> = $<span style="color:#B35000">ARGV</span>[0], <span style="color:#5C3566">/^-(.)(.*)/</span> &amp;&amp; shift(@<span style="text-decoration:underline;color:#B35000">ARGV</span>)) {
         ($<span style="color:#B35000">f</span>,$<span style="color:#B35000">r</span>) = ($<span style="color:#B35000">1</span>,$<span style="color:#B35000">2</span>);

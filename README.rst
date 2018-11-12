@@ -249,8 +249,8 @@ With ``XeLaTeX`` and ``LuaLaTeX``, you'll probably want to redefine the
 .. code:: latex
 
    \usepackage{fontspec}
-   \newfontfamily{\Symbola}{Symbola}
-   \renewcommand{\ESHFallbackFontFamily}{\Symbola}
+   \newfontfamily{\XITSMath}{XITS Math}
+   \renewcommand{\ESHFallbackFontFamily}{\XITSMath}
 
 Inline blocks
 -------------
@@ -299,9 +299,9 @@ Changing fonts:
    \newfontfamily{\UbuntuMono}[Mapping=tex-ansi]{Ubuntu Mono}
    \renewcommand{\ESHInlineFontFamily}{\UbuntuMono}
 
-   ;; Use Symbola for special characters
-   \newfontfamily{\Symbola}{Symbola}
-   \renewcommand{\ESHFallbackFontFamily}{\Symbola}
+   ;; Use XITS Math for special characters
+   \newfontfamily{\XITSMath}{XITS Math}
+   \renewcommand{\ESHFallbackFontFamily}{\XITSMath}
 
 Customizing spacing:
 

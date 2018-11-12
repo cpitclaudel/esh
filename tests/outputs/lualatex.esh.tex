@@ -172,7 +172,7 @@
    \ESHPhantomStrut{}\vphantom{#2}%
    \smash{\colorbox[HTML]{#1}{\hspace*{\ESHBoxTempDim}\ESHPhantomStrut{}#2\hspace*{\ESHBoxTempDim}}}}
 
-% \ESHWeight* and \ESHSlant* adjust weight and slant
+% \ESHWeight* and \ESH*Slant* adjust weight and slant
 \newcommand*{\ESHWeightLight}[1]{\textlf{#1}}
 \newcommand*{\ESHWeightRegular}[1]{\textmd{#1}}
 \newcommand*{\ESHWeightBold}[1]{\textbf{#1}}
@@ -194,6 +194,9 @@
 \let\ESHUnicodeSubstitution\ignorespaces%
 \let\ESHRaise\ignorespaces%
 \let\ESHBol\ignorespaces%
+% ESH*EmptyLine is inserted on every empty line of code to prevent LaTeX from
+% complaining about underfull boxes
+\let\ESHEmptyLine\ignorespaces%
 \let\ESHEol\ignorespaces%
 \let\ESHSpace\ignorespaces%
 \let\ESHDash\ignorespaces%
@@ -201,19 +204,22 @@
 \DeclareRobustCommand*{\ESHInlineInternalSetup}
   {\def\ESHSpecialChar{\ESHInlineSpecialChar}\def\ESHUnicodeSubstitution{\ESHInlineUnicodeSubstitution}%
    \def\ESHRaise{\ESHInlineRaise}\def\ESHSlantItalic{\ESHInlineSlantItalic}%
-   \def\ESHStrut{\relax}\def\ESHBol{\relax}\def\ESHEol{\newline}\def\ESHSpace{\ESHBreakingSpace}%
+   \def\ESHStrut{\relax}\def\ESHBol{\relax}\def\ESHEmptyLine{\mbox{}}\def\ESHEol{\newline}%
+   \def\ESHSpace{\ESHBreakingSpace}%
    \def\ESHDash{-}}
 \DeclareRobustCommand*{\ESHInlineBlockInternalSetup}
   {\def\arraystretch{1}%
    \def\ESHSpecialChar{\ESHBlockSpecialChar}\def\ESHUnicodeSubstitution{\ESHBlockUnicodeSubstitution}%
    \def\ESHRaise{\ESHBlockRaise}\def\ESHSlantItalic{\ESHBlockSlantItalic}%
    \setlength{\ESHBaselineskip}{\baselineskip}\def\ESHStrut{\ESHBlockStrut}%
-   \def\ESHBol{\-}\def\ESHEol{\cr}\def\ESHSpace{\ESHNonbreakingSpace}\def\ESHDash{\hbox{-}\nobreak}}
+   \def\ESHBol{\-}\def\ESHEmptyLine{\mbox{}}\def\ESHEol{\cr}%
+   \def\ESHSpace{\ESHNonbreakingSpace}\def\ESHDash{\hbox{-}\nobreak}}
 \DeclareRobustCommand*{\ESHBlockInternalSetup}
   {\def\ESHSpecialChar{\ESHBlockSpecialChar}\def\ESHUnicodeSubstitution{\ESHBlockUnicodeSubstitution}%
    \def\ESHRaise{\ESHBlockRaise}\def\ESHSlantItalic{\ESHBlockSlantItalic}%
    \setlength{\ESHBaselineskip}{\baselineskip}\def\ESHStrut{\ESHBlockStrut}%
-   \def\ESHBol{\-}\def\ESHEol{\newline}\def\ESHSpace{\ESHNonbreakingSpace}\def\ESHDash{\hbox{-}\nobreak}}
+   \def\ESHBol{\-}\def\ESHEmptyLine{\mbox{}}\def\ESHEol{\newline}%
+   \def\ESHSpace{\ESHNonbreakingSpace}\def\ESHDash{\hbox{-}\nobreak}}
 
 % Basic setup used when entering each type of environment or macro
 % See http://tex.stackexchange.com/questions/22852 for \leavevmode
@@ -353,8 +359,8 @@
 \newcommand{\ESHUseVerb}[1]{\expandafter\usebox\csname\ESHSaveBoxName{#1}\endcsname}
 
 
-\newfontfamily{\Symbola}{Symbola}
-\renewcommand*{\ESHFallbackFontFamily}{\Symbola}
+\newfontfamily{\XITSMath}{XITS Math}
+\renewcommand{\ESHFallbackFontFamily}{\XITSMath}
 
 \begin{document}
 
