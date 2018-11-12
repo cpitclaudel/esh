@@ -981,9 +981,8 @@ PROPERTY and VAL apply directly to a text range)."
      (esh--latex-export-wrapped-if val
        "\\ESHStrut{%.2g}" l r subtrees ""))
     (`esh--newline
-     ;; Add an mbox to prevent TeX from complaining about underfull boxes.
      (esh--latex-export-wrapped-if (eq (cdr val) 'empty)
-       "\\mbox{}" l r subtrees ""))
+       "\\ESHEmptyLine{}" l r subtrees ""))
     (`esh--break (esh--latex-export-subtrees l r subtrees))
     (_ (error "Unexpected property %S" property))))
 
