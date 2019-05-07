@@ -38,6 +38,7 @@
 (require 'tabify)
 (require 'cl-lib)
 (require 'esh-intervals)
+(require 'regexp-opt)
 
 (defconst esh--script-full-path
   (or (and load-in-progress load-file-name)
