@@ -333,15 +333,16 @@ Faces is a list of (possibly anonymous) faces."
         (setq attr (merge-face-attribute attribute attr merge-with))))
     attr))
 
-(defun esh--as-list (x)
-  "Wrap X in a list, if needed."
-  (if (listp x) x (list x)))
-
 (defun esh--faces-at-point (pos)
   "Compute list of faces at POS."
   ;; No need to consider overlay properties here, since they've been converted
   ;; to text properties in previous steps.
-  (esh--as-list (get-text-property pos 'face)))
+  (let ((face (get-text-property pos 'face)))
+    ;; `face' is either a face, like `font-lock-keyword-face' or (:weight bold), or a
+    ;; list of those, so the following is an attempt at distinguishing those.
+    (if (and (listp face) (not (keywordp (car face))))
+        face
+      (list face))))
 
 ;; Caching this function speeds things up by about 5%
 (defun esh--extract-face-attributes (face-attributes faces)
