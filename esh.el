@@ -700,6 +700,13 @@ returns 1 instead of t."
                     ,(plist-get box :style)))
     (_ (error "Unexpected box %S" box))))
 
+(defun esh--normalize-display (display)
+  "Normalize attribute DISPLAY."
+  (pcase display
+    (`nil `(raise nil))
+    (`(raise ,amount) `(raise ,(unless (= amount 0) amount)))
+    (_ (error "Unexpected display property %S" display))))
+
 (defun esh--normalize-attribute (property value)
   "Normalize VALUE of PROPERTY."
   (pcase property
@@ -710,6 +717,7 @@ returns 1 instead of t."
     (:height (esh--normalize-height value))
     (:slant (esh--normalize-slant value))
     (:box (esh--normalize-box value))
+    (`display (esh--normalize-display value))
     (_ value)))
 
 (defun esh--attribute-redundant-p (property value)
