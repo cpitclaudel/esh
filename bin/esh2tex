@@ -28,9 +28,10 @@
 
 (eval-and-compile
   (defconst esh2tex--script-full-path
-    (or (and load-in-progress load-file-name)
-        (bound-and-true-p byte-compile-current-file)
-        (buffer-file-name))
+    (file-truename
+     (or (and load-in-progress load-file-name)
+         (bound-and-true-p byte-compile-current-file)
+         (buffer-file-name)))
     "Full path of this script.")
 
   (defconst esh2tex--parent-directory
