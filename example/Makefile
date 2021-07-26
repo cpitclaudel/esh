@@ -1,6 +1,6 @@
-ESH2TEX := $(realpath ../bin/esh2tex)
-ESH2HTML := $(realpath ../bin/esh2html)
 ARGS ?=
+ESH2TEX="$(realpath ../bin/esh2tex)" $(ARGS)
+ESH2HTML="$(realpath ../bin/esh2html)" $(ARGS)
 
 ifeq ($(OS),Windows_NT)
 CASK := $(shell cask --version 2> NUL)
@@ -16,15 +16,15 @@ export SOURCE_DATE_EPOCH=1483228800
 all: xelatex
 
 html: dep example.html
-	${ESH2HTML} --debug-on-error ${ARGS} example.html
+	${ESH2HTML} example.html
 
 xelatex: dep example.tex
-	${ESH2TEX} --debug-on-error ${ARGS} example.tex
+	${ESH2TEX} example.tex
 	xelatex -jobname=example example.esh.tex
 
 pdflatex: dep example.tex
 	$(eval export ESH_PDFLATEX=true)
-	${ESH2TEX} --debug-on-error ${ARGS} example.tex
+	${ESH2TEX} example.tex
 	pdflatex -jobname=example example.esh.tex
 
 dep:

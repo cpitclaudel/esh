@@ -1,5 +1,6 @@
-ESH2TEX="$(realpath ../bin/esh2tex)" --debug-on-error
-ESH2HTML="$(realpath ../bin/esh2html)" --debug-on-error
+ARGS ?=
+ESH2TEX="$(realpath ../bin/esh2tex)" $(ARGS)
+ESH2HTML="$(realpath ../bin/esh2html)" $(ARGS)
 XELATEX=rubber -m xelatex
 LUALATEX=lualatex
 
