@@ -78,8 +78,22 @@
 % \ESHNoHyphens disables hyphenation
 \newcommand*{\ESHNoHyphens}{\hyphenpenalty=10000}
 
+% \ESHSaveNormalFont makes sure that changes in font dimensions do not propagate
+% to headers and footers (https://tex.stackexchange.com/questions/606291/)
+\makeatletter
+\newlength{\ESH@spaceskip}
+\newlength{\ESH@xspaceskip}
+\newcommand*{\ESHSaveNormalFont}
+  {\setlength{\ESH@spaceskip}{\spaceskip}%
+   \setlength{\ESH@xspaceskip}{\xspaceskip}%
+   \renewcommand{\reset@font}
+     {\normalfont%
+      \setlength{\spaceskip}{\ESH@spaceskip}%
+      \setlength{\xspaceskip}{\ESH@xspaceskip}}}
+\makeatother
+
 % \ESHConstantSpace ensures that spaces can't stretch
-\newcommand*{\ESHConstantSpace}{\spaceskip=\fontdimen2\font\xspaceskip=0pt}
+\newcommand*{\ESHConstantSpace}{\ESHSaveNormalFont\spaceskip=\fontdimen2\font\xspaceskip=0pt}
 
 % \ESHCenterInWidthOf{#A}{#B} prints #B centered in a box as large as #A.
 \newdimen\ESHtempdim%
@@ -502,7 +516,7 @@
 \ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\textcolor[HTML]{346604}{def}\ESHSpace{}\textcolor[HTML]{A40000}{\_\_init\_\_}(\textcolor[HTML]{346604}{self},\ESHSpace{}cell\_width,\ESHSpace{}avg\_width):\ESHEol
 \ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\textcolor[HTML]{5C3566}{"""Construct\ESHSpace{}instance\ESHSpace{}based\ESHSpace{}on\ESHSpace{}target\ESHSpace{}CELL\_WIDTH\ESHSpace{}and\ESHSpace{}source\ESHSpace{}AVG\_WIDTH."""}\ESHEol
 \ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}GlyphScaler.\_\_init\_\_(\textcolor[HTML]{346604}{self},\ESHSpace{}cell\_width)\ESHEol
-\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\textcolor[HTML]{346604}{self}.avg\_width\ESHSpace{}=\ESHSpace{}avg\_width\ESHEol
+\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\textcolor[HTML]{346604}{self}.\textcolor[HTML]{B35000}{avg\_width}\ESHSpace{}=\ESHSpace{}avg\_width\ESHEol
 \ESHBol{}\ESHEmptyLine{}\ESHEol
 \ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\textcolor[HTML]{346604}{def}\ESHSpace{}\textcolor[HTML]{A40000}{scale}(\textcolor[HTML]{346604}{self},\ESHSpace{}glyph):\ESHEol
 \ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\textcolor[HTML]{346604}{if}\ESHSpace{}glyph.width\ESHSpace{}{>}\ESHSpace{}0:\ESHEol
@@ -520,11 +534,11 @@
 \ESHBol{}\ESHSlantItalic{\textcolor[HTML]{5F615C}{\#\&getopt("f:bar")\ESHSpace{}||}}\ESHEol
 \ESHBol{}\ESHSlantItalic{\textcolor[HTML]{5F615C}{\#\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}die\ESHSpace{}\&usage("script","f:bar","oo","[files\ESHSpace{}...]");}}\ESHEol
 \ESHBol{}\textcolor[HTML]{346604}{sub}\ESHSpace{}\textcolor[HTML]{A40000}{getopt}\ESHSpace{}\{\ESHEol
-\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\textcolor[HTML]{204A87}{local}(\$\textcolor[HTML]{B35000}{\_},\$\textcolor[HTML]{B35000}{flag},\$\textcolor[HTML]{B35000}{opt},\$\textcolor[HTML]{B35000}{f},\$\textcolor[HTML]{B35000}{r},@\textcolor[HTML]{204A87}{temp})\ESHSpace{}=\ESHSpace{}@\textcolor[HTML]{B35000}{\uline{\_}};\ESHEol
-\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}@\textcolor[HTML]{204A87}{temp}\ESHSpace{}=\ESHSpace{}split(\textcolor[HTML]{5C3566}{/(.):/});\ESHEol
-\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\textcolor[HTML]{346604}{while}\ESHSpace{}(\$\#\textcolor[HTML]{204A87}{temp}\ESHSpace{}{>}=\ESHSpace{}\$[)\ESHSpace{}\{\ESHEol
-\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\$\textcolor[HTML]{B35000}{flag}\ESHSpace{}.=\ESHSpace{}shift(@\textcolor[HTML]{204A87}{temp});\ESHEol
-\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\$\textcolor[HTML]{B35000}{opt}\ESHSpace{}.=\ESHSpace{}shift(@\textcolor[HTML]{204A87}{temp});\ESHEol
+\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\textcolor[HTML]{204A87}{local}(\$\textcolor[HTML]{B35000}{\_},\$\textcolor[HTML]{B35000}{flag},\$\textcolor[HTML]{B35000}{opt},\$\textcolor[HTML]{B35000}{f},\$\textcolor[HTML]{B35000}{r},@\textcolor[HTML]{B35000}{\uline{temp}})\ESHSpace{}=\ESHSpace{}@\textcolor[HTML]{B35000}{\uline{\_}};\ESHEol
+\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}@\textcolor[HTML]{B35000}{\uline{temp}}\ESHSpace{}=\ESHSpace{}split(\textcolor[HTML]{5C3566}{/(.):/});\ESHEol
+\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\textcolor[HTML]{346604}{while}\ESHSpace{}(\$\#\textcolor[HTML]{B35000}{\uline{temp}}\ESHSpace{}{>}=\ESHSpace{}\$[)\ESHSpace{}\{\ESHEol
+\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\$\textcolor[HTML]{B35000}{flag}\ESHSpace{}.=\ESHSpace{}shift(@\textcolor[HTML]{B35000}{\uline{temp}});\ESHEol
+\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\$\textcolor[HTML]{B35000}{opt}\ESHSpace{}.=\ESHSpace{}shift(@\textcolor[HTML]{B35000}{\uline{temp}});\ESHEol
 \ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\}\ESHEol
 \ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\textcolor[HTML]{346604}{while}\ESHSpace{}(\$\textcolor[HTML]{B35000}{\_}\ESHSpace{}=\ESHSpace{}\$\textcolor[HTML]{B35000}{ARGV}[0],\ESHSpace{}\textcolor[HTML]{5C3566}{/\textasciicircum{}\ESHDash{}(.)(.*)/}\ESHSpace{}\&\&\ESHSpace{}shift(@\textcolor[HTML]{B35000}{\uline{ARGV}}))\ESHSpace{}\{\ESHEol
 \ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}(\$\textcolor[HTML]{B35000}{f},\$\textcolor[HTML]{B35000}{r})\ESHSpace{}=\ESHSpace{}(\$\textcolor[HTML]{B35000}{1},\$\textcolor[HTML]{B35000}{2});\ESHEol
@@ -642,16 +656,16 @@ is the Emacs Lisp equivalent of Python's virtualenvs).
 
 \begin{ESHBlock}
 \ESHBol{}\textcolor[HTML]{5C3566}{(**\ESHSpace{}The\ESHSpace{}lexer\ESHSpace{}**)}\ESHEol
-\ESHBol{}\ESHWeightBold{\textcolor[HTML]{000000}{let}}\ESHSpace{}\textcolor[HTML]{A40000}{make\_lexer}\textcolor[HTML]{B35000}{\ESHSpace{}keywords}\ESHSpace{}\textcolor[HTML]{A52A2A}{=}\ESHEol
-\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHWeightBold{\textcolor[HTML]{000000}{let}}\ESHSpace{}\textcolor[HTML]{B35000}{kwd\_table}\ESHSpace{}\textcolor[HTML]{A52A2A}{=}\ESHSpace{}\textcolor[HTML]{204A87}{Hashtbl.}create\ESHSpace{}17\ESHSpace{}\ESHWeightBold{\textcolor[HTML]{000000}{in}}\ESHEol
-\ESHBol{}\ESHSpace{}\ESHSpace{}\textcolor[HTML]{204A87}{List.}iter\ESHSpace{}\textcolor[HTML]{A52A2A}{(}\textcolor[HTML]{346604}{\ESHSpecialChar{λ}}\ESHSpace{}\textcolor[HTML]{B35000}{s}\ESHSpace{}\textcolor[HTML]{A52A2A}{\ESHSpecialChar{→}}\ESHSpace{}\textcolor[HTML]{204A87}{Hashtbl.}add\ESHSpace{}kwd\_table\ESHSpace{}s\ESHSpace{}\textcolor[HTML]{A52A2A}{(}Kwd\ESHSpace{}s\textcolor[HTML]{A52A2A}{))}\ESHSpace{}keywords\textcolor[HTML]{A52A2A}{;}\ESHEol
-\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHWeightBold{\textcolor[HTML]{000000}{let}}\ESHSpace{}\textcolor[HTML]{A40000}{ident\_or\_keyword}\textcolor[HTML]{B35000}{\ESHSpace{}id}\ESHSpace{}\textcolor[HTML]{A52A2A}{=}\ESHEol
+\ESHBol{}\ESHWeightBold{\textcolor[HTML]{000000}{let}}\ESHSpace{}\textcolor[HTML]{A40000}{make\_lexer}\ESHSpace{}\textcolor[HTML]{B35000}{keywords}\ESHSpace{}=\ESHEol
+\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHWeightBold{\textcolor[HTML]{000000}{let}}\ESHSpace{}\textcolor[HTML]{B35000}{kwd\_table}\ESHSpace{}=\ESHSpace{}\textcolor[HTML]{204A87}{Hashtbl.}create\ESHSpace{}17\ESHSpace{}\ESHWeightBold{\textcolor[HTML]{000000}{in}}\ESHEol
+\ESHBol{}\ESHSpace{}\ESHSpace{}\textcolor[HTML]{204A87}{List.}iter\ESHSpace{}(\textcolor[HTML]{346604}{\ESHSpecialChar{λ}}\ESHSpace{}\textcolor[HTML]{B35000}{s}\ESHSpace{}\ESHSpecialChar{→}\ESHSpace{}\textcolor[HTML]{204A87}{Hashtbl.}add\ESHSpace{}kwd\_table\ESHSpace{}s\ESHSpace{}(Kwd\ESHSpace{}s))\ESHSpace{}keywords;\ESHEol
+\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHWeightBold{\textcolor[HTML]{000000}{let}}\ESHSpace{}\textcolor[HTML]{A40000}{ident\_or\_keyword}\ESHSpace{}\textcolor[HTML]{B35000}{id}\ESHSpace{}=\ESHEol
 \ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\textcolor[HTML]{346604}{try}\ESHSpace{}\textcolor[HTML]{204A87}{Hashtbl.}find\ESHSpace{}kwd\_table\ESHSpace{}id\ESHSpace{}\textcolor[HTML]{346604}{with}\ESHEol
-\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\textcolor[HTML]{75507B}{Not\_found}\ESHSpace{}\textcolor[HTML]{A52A2A}{\ESHSpecialChar{→}}\ESHSpace{}Ident\ESHSpace{}id\ESHEol
-\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHWeightBold{\textcolor[HTML]{000000}{and}}\ESHSpace{}\textcolor[HTML]{A40000}{keyword\_or\_error}\textcolor[HTML]{B35000}{\ESHSpace{}c}\ESHSpace{}\textcolor[HTML]{A52A2A}{=}\ESHEol
-\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHWeightBold{\textcolor[HTML]{000000}{let}}\ESHSpace{}\textcolor[HTML]{B35000}{s}\ESHSpace{}\textcolor[HTML]{A52A2A}{=}\ESHSpace{}\textcolor[HTML]{204A87}{String.}make\ESHSpace{}1\ESHSpace{}c\ESHSpace{}\ESHWeightBold{\textcolor[HTML]{000000}{in}}\ESHEol
+\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\textcolor[HTML]{75507B}{Not\_found}\ESHSpace{}\ESHSpecialChar{→}\ESHSpace{}Ident\ESHSpace{}id\ESHEol
+\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHWeightBold{\textcolor[HTML]{000000}{and}}\ESHSpace{}\textcolor[HTML]{A40000}{keyword\_or\_error}\ESHSpace{}\textcolor[HTML]{B35000}{c}\ESHSpace{}=\ESHEol
+\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHWeightBold{\textcolor[HTML]{000000}{let}}\ESHSpace{}\textcolor[HTML]{B35000}{s}\ESHSpace{}=\ESHSpace{}\textcolor[HTML]{204A87}{String.}make\ESHSpace{}1\ESHSpace{}c\ESHSpace{}\ESHWeightBold{\textcolor[HTML]{000000}{in}}\ESHEol
 \ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\textcolor[HTML]{346604}{try}\ESHSpace{}\textcolor[HTML]{204A87}{Hashtbl.}find\ESHSpace{}kwd\_table\ESHSpace{}s\ESHSpace{}\textcolor[HTML]{346604}{with}\ESHEol
-\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\textcolor[HTML]{75507B}{Not\_found}\ESHSpace{}\textcolor[HTML]{A52A2A}{\ESHSpecialChar{→}}\ESHSpace{}\textcolor[HTML]{75507B}{raise}\ESHSpace{}\textcolor[HTML]{A52A2A}{(}\textcolor[HTML]{204A87}{Stream.}Error\ESHSpace{}\textcolor[HTML]{A52A2A}{(}\textcolor[HTML]{5C3566}{"Illegal\ESHSpace{}character\ESHSpace{}"}\ESHSpace{}\textcolor[HTML]{A52A2A}{\textasciicircum{}}\ESHSpace{}s\textcolor[HTML]{A52A2A}{))}
+\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\textcolor[HTML]{75507B}{Not\_found}\ESHSpace{}\ESHSpecialChar{→}\ESHSpace{}\textcolor[HTML]{75507B}{raise}\ESHSpace{}(\textcolor[HTML]{204A87}{Stream.}Error\ESHSpace{}(\textcolor[HTML]{5C3566}{"Illegal\ESHSpace{}character\ESHSpace{}"}\ESHSpace{}\textcolor[HTML]{A52A2A}{\textasciicircum{}}\ESHSpace{}s))
 \end{ESHBlock}
 
 \subsection*{Dafny (source: \texttt{DutchFlag.dfy} in Dafny's repo)}
@@ -698,8 +712,8 @@ is the Emacs Lisp equivalent of Python's virtualenvs).
 \ESHBol{}\ESHSpace{}\ESHSpace{}\textcolor[HTML]{204A87}{\ESHSpecialChar{∀}}\ESHSpace{}{`}\{FacadeWrapper\ESHSpace{}(Value\ESHSpace{}av)\ESHSpace{}A\}\ESHSpace{}(\textcolor[HTML]{B35000}{ev}:\ESHSpace{}Env\ESHSpace{}av)\ESHSpace{}(\textcolor[HTML]{B35000}{key}:\ESHSpace{}StringMap.key)\ESHEol
 \ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}(\textcolor[HTML]{B35000}{prog}:\ESHSpace{}Stmt)\ESHSpace{}(\textcolor[HTML]{B35000}{tail\ESHRaise{-0.25}{1}\ESHSpace{}tail\ESHRaise{-0.25}{2}}:\ESHSpace{}A\ESHSpace{}\ESHSpecialChar{→}\ESHSpace{}Telescope\ESHSpace{}av)\ESHSpace{}ex\ESHSpace{}(\textcolor[HTML]{B35000}{v}:\ESHSpace{}A),\ESHEol
 \ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}key\ESHSpace{}\ESHSpecialChar{∉}\ESHSpace{}ex\ESHSpace{}\ESHSpecialChar{→}\ESHEol
-\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}(\{\{\ESHSpace{}tail\ESHRaise{-0.25}{1}\ESHSpace{}v\ESHSpace{}\}\}\ESHSpace{}prog\ESHSpace{}\{\{\ESHSpace{}tail\ESHRaise{-0.25}{2}\ESHSpace{}v\ESHSpace{}\}\}\ESHSpace{}\ESHSpecialChar{∪}\ESHSpace{}\{\{\ESHSpace{}[key\ESHSpace{}\ESHSpecialChar{▹}\ESHSpace{}wrap\ESHSpace{}v]\ESHSpace{}::\ESHSpace{}ex\ESHSpace{}\}\}\ESHSpace{}//\ESHSpace{}ev\ESHSpace{}\ESHSpecialChar{↔}\ESHEol
-\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\{\{\ESHSpace{}[[{`}key\ESHSpace{}\ESHSpecialChar{↦}\ESHSpace{}v\ESHSpace{}\textcolor[HTML]{204A87}{as}\ESHSpace{}vv]]::tail\ESHRaise{-0.25}{1}\ESHSpace{}vv\ESHSpace{}\}\}\ESHSpace{}prog\ESHSpace{}\{\{\ESHSpace{}[[{`}key\ESHSpace{}\ESHSpecialChar{↦}\ESHSpace{}v\ESHSpace{}\textcolor[HTML]{204A87}{as}\ESHSpace{}vv]]::tail\ESHRaise{-0.25}{2}\ESHSpace{}vv\ESHSpace{}\}\}\ESHSpace{}\ESHSpecialChar{∪}\ESHSpace{}\{\{\ESHSpace{}ex\ESHSpace{}\}\}\ESHSpace{}//\ESHSpace{}ev).\ESHEol
+\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}(\{\{\ESHSpace{}tail\ESHRaise{-0.25}{1}\ESHSpace{}v\ESHSpace{}\}\}\ESHSpace{}prog\ESHSpace{}\{\{\ESHSpace{}tail\ESHRaise{-0.25}{2}\ESHSpace{}v\ESHSpace{}\}\}\ESHSpace{}\ESHSpecialChar{∪}\ESHSpace{}\{\{\ESHSpace{}[key\ESHSpace{}\ESHSpecialChar{▹}\ESHSpace{}wrap\ESHSpace{}v]\ESHSpace{}\ESHSpecialChar{∷}\ESHSpace{}ex\ESHSpace{}\}\}\ESHSpace{}//\ESHSpace{}ev\ESHSpace{}\ESHSpecialChar{↔}\ESHEol
+\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\{\{\ESHSpace{}[[{`}key\ESHSpace{}\ESHSpecialChar{↦}\ESHSpace{}v\ESHSpace{}\textcolor[HTML]{204A87}{as}\ESHSpace{}vv]]\ESHSpecialChar{∷}tail\ESHRaise{-0.25}{1}\ESHSpace{}vv\ESHSpace{}\}\}\ESHSpace{}prog\ESHSpace{}\{\{\ESHSpace{}[[{`}key\ESHSpace{}\ESHSpecialChar{↦}\ESHSpace{}v\ESHSpace{}\textcolor[HTML]{204A87}{as}\ESHSpace{}vv]]\ESHSpecialChar{∷}tail\ESHRaise{-0.25}{2}\ESHSpace{}vv\ESHSpace{}\}\}\ESHSpace{}\ESHSpecialChar{∪}\ESHSpace{}\{\{\ESHSpace{}ex\ESHSpace{}\}\}\ESHSpace{}//\ESHSpace{}ev).\ESHEol
 \ESHBol{}\textcolor[HTML]{346604}{Proof}.\ESHEol
 \ESHBol{}\ESHSpace{}\ESHSpace{}\textcolor[HTML]{B452CD}{repeat}\ESHSpace{}\textcolor[HTML]{204A87}{match}\ESHSpace{}goal\ESHSpace{}\textcolor[HTML]{204A87}{with}\ESHEol
 \ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}|\ESHSpace{}\_\ESHSpace{}\ESHSpecialChar{⇒}\ESHSpace{}\textcolor[HTML]{FF0000}{tauto}\ESHEol
@@ -708,7 +722,7 @@ is the Emacs Lisp equivalent of Python's virtualenvs).
 \ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}|\ESHSpace{}[\ESHSpace{}H:\ESHSpace{}\textcolor[HTML]{B35000}{?a}\ESHSpace{}\ESHSpecialChar{≲}\ESHSpace{}Cons\ESHSpace{}\_\ESHSpace{}\_\ESHSpace{}\_\ESHSpace{}\ESHSpecialChar{∪}\ESHSpace{}\_\ESHSpace{}\ESHSpecialChar{⊢}\ESHSpace{}\_\ESHSpace{}]\ESHSpace{}\ESHSpecialChar{⇒}\ESHSpace{}learn\ESHSpace{}(Cons\_PushExt\ESHSpace{}\_\ESHSpace{}\_\ESHSpace{}\_\ESHSpace{}\_\ESHSpace{}\_\ESHSpace{}H)\ESHEol
 \ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}|\ESHSpace{}[\ESHSpace{}H:\ESHSpace{}ProgOk\ESHSpace{}\textcolor[HTML]{B35000}{?fmap}\ESHSpace{}\_\ESHSpace{}\_\ESHSpace{}\textcolor[HTML]{B35000}{?t\ESHRaise{-0.25}{1}}\ESHSpace{}\textcolor[HTML]{B35000}{?t\ESHRaise{-0.25}{2}},\ESHSpace{}H{'}:\ESHSpace{}\_\ESHSpace{}\ESHSpecialChar{≲}\ESHSpace{}\textcolor[HTML]{B35000}{?t\ESHRaise{-0.25}{1}}\ESHSpace{}\ESHSpecialChar{∪}\ESHSpace{}\textcolor[HTML]{B35000}{?fmap}\ESHSpace{}\ESHSpecialChar{⊢}\ESHSpace{}\_\ESHSpace{}]\ESHSpace{}\ESHSpecialChar{⇒}\ESHSpace{}\textcolor[HTML]{00008B}{destruct}\ESHSpace{}(H\ESHSpace{}\_\ESHSpace{}H{'});\ESHSpace{}no\_dup\ESHEol
 \ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}|\ESHSpace{}[\ESHSpace{}H:\ESHSpace{}RunsTo\ESHSpace{}\_\ESHSpace{}\_\ESHSpace{}\textcolor[HTML]{B35000}{?from}\ESHSpace{}\textcolor[HTML]{B35000}{?to},\ESHSpace{}H{'}:\ESHSpace{}\textcolor[HTML]{204A87}{\ESHSpecialChar{∀}}\ESHSpace{}\textcolor[HTML]{B35000}{st},\ESHSpace{}RunsTo\ESHSpace{}\_\ESHSpace{}\_\ESHSpace{}\textcolor[HTML]{B35000}{?from}\ESHSpace{}st\ESHSpace{}\ESHSpecialChar{→}\ESHSpace{}\_\ESHSpace{}\ESHSpecialChar{⊢}\ESHSpace{}\_\ESHSpace{}]\ESHSpace{}\ESHSpecialChar{⇒}\ESHSpace{}\textcolor[HTML]{00008B}{specialize}\ESHSpace{}(H{'}\ESHSpace{}\_\ESHSpace{}H)\ESHEol
-\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}|\ESHSpace{}[\ESHSpace{}H:\ESHSpace{}\_\ESHSpace{}\ESHSpecialChar{≲}\ESHSpace{}\_\ESHSpace{}\ESHSpecialChar{∪}\ESHSpace{}[\_\ESHSpace{}\ESHSpecialChar{▹}\ESHSpace{}\_]\ESHSpace{}::\ESHSpace{}\_\ESHSpace{}\ESHSpecialChar{⊢}\ESHSpace{}\_\ESHSpace{}]\ESHSpace{}\ESHSpecialChar{⇒}\ESHSpace{}\textcolor[HTML]{00008B}{apply}\ESHSpace{}Cons\_PopExt\ESHSpace{}\textcolor[HTML]{204A87}{in}\ESHSpace{}H\ESHEol
+\ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}|\ESHSpace{}[\ESHSpace{}H:\ESHSpace{}\_\ESHSpace{}\ESHSpecialChar{≲}\ESHSpace{}\_\ESHSpace{}\ESHSpecialChar{∪}\ESHSpace{}[\_\ESHSpace{}\ESHSpecialChar{▹}\ESHSpace{}\_]\ESHSpace{}\ESHSpecialChar{∷}\ESHSpace{}\_\ESHSpace{}\ESHSpecialChar{⊢}\ESHSpace{}\_\ESHSpace{}]\ESHSpace{}\ESHSpecialChar{⇒}\ESHSpace{}\textcolor[HTML]{00008B}{apply}\ESHSpace{}Cons\_PopExt\ESHSpace{}\textcolor[HTML]{204A87}{in}\ESHSpace{}H\ESHEol
 \ESHBol{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\ESHSpace{}\textcolor[HTML]{204A87}{end}.\ESHEol
 \ESHBol{}\textcolor[HTML]{346604}{Qed}.
 \end{ESHBlock}

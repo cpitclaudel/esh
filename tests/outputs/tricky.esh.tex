@@ -65,8 +65,22 @@
 % \ESHNoHyphens disables hyphenation
 \newcommand*{\ESHNoHyphens}{\hyphenpenalty=10000}
 
+% \ESHSaveNormalFont makes sure that changes in font dimensions do not propagate
+% to headers and footers (https://tex.stackexchange.com/questions/606291/)
+\makeatletter
+\newlength{\ESH@spaceskip}
+\newlength{\ESH@xspaceskip}
+\newcommand*{\ESHSaveNormalFont}
+  {\setlength{\ESH@spaceskip}{\spaceskip}%
+   \setlength{\ESH@xspaceskip}{\xspaceskip}%
+   \renewcommand{\reset@font}
+     {\normalfont%
+      \setlength{\spaceskip}{\ESH@spaceskip}%
+      \setlength{\xspaceskip}{\ESH@xspaceskip}}}
+\makeatother
+
 % \ESHConstantSpace ensures that spaces can't stretch
-\newcommand*{\ESHConstantSpace}{\spaceskip=\fontdimen2\font\xspaceskip=0pt}
+\newcommand*{\ESHConstantSpace}{\ESHSaveNormalFont\spaceskip=\fontdimen2\font\xspaceskip=0pt}
 
 % \ESHCenterInWidthOf{#A}{#B} prints #B centered in a box as large as #A.
 \newdimen\ESHtempdim%

@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8" /><title>esh2html example</title></head><body>
     <h1>C (source: <code>xfaces.c</code> in Emacs)</h1>
     <pre class="src-c"><span style="color:#75507B">#if</span> <span style="color:#75507B">defined</span> HAVE_X_WINDOWS &amp;&amp; <span style="color:#75507B">defined</span> USE_X_TOOLKIT
@@ -39,7 +38,7 @@
     <span style="color:#346604">def</span> <span style="color:#A40000">__init__</span>(<span style="color:#346604">self</span>, cell_width, avg_width):
         <span style="color:#5C3566">&quot;&quot;&quot;Construct instance based on target CELL_WIDTH and source AVG_WIDTH.&quot;&quot;&quot;</span>
         GlyphScaler.__init__(<span style="color:#346604">self</span>, cell_width)
-        <span style="color:#346604">self</span>.avg_width = avg_width
+        <span style="color:#346604">self</span>.<span style="color:#B35000">avg_width</span> = avg_width
 
     <span style="color:#346604">def</span> <span style="color:#A40000">scale</span>(<span style="color:#346604">self</span>, glyph):
         <span style="color:#346604">if</span> glyph.width &gt; 0:
@@ -52,11 +51,11 @@
     <pre class="src-perl"><span style="color:#5F615C;font-style:italic">#&amp;getopt(&quot;f:bar&quot;) ||
 #   die &amp;usage(&quot;script&quot;,&quot;f:bar&quot;,&quot;oo&quot;,&quot;[files ...]&quot;);
 </span><span style="color:#346604">sub</span> <span style="color:#A40000">getopt</span> {
-    <span style="color:#204A87">local</span>($<span style="color:#B35000">_</span>,$<span style="color:#B35000">flag</span>,$<span style="color:#B35000">opt</span>,$<span style="color:#B35000">f</span>,$<span style="color:#B35000">r</span>,@<span style="color:#204A87">temp</span>) = @<span style="text-decoration:underline;color:#B35000">_</span>;
-    @<span style="color:#204A87">temp</span> = split(<span style="color:#5C3566">/(.):/</span>);
-    <span style="color:#346604">while</span> ($#<span style="color:#204A87">temp</span> &gt;= $[) {
-        $<span style="color:#B35000">flag</span> .= shift(@<span style="color:#204A87">temp</span>);
-        $<span style="color:#B35000">opt</span> .= shift(@<span style="color:#204A87">temp</span>);
+    <span style="color:#204A87">local</span>($<span style="color:#B35000">_</span>,$<span style="color:#B35000">flag</span>,$<span style="color:#B35000">opt</span>,$<span style="color:#B35000">f</span>,$<span style="color:#B35000">r</span>,@<span style="text-decoration:underline;color:#B35000">temp</span>) = @<span style="text-decoration:underline;color:#B35000">_</span>;
+    @<span style="text-decoration:underline;color:#B35000">temp</span> = split(<span style="color:#5C3566">/(.):/</span>);
+    <span style="color:#346604">while</span> ($#<span style="text-decoration:underline;color:#B35000">temp</span> &gt;= $[) {
+        $<span style="color:#B35000">flag</span> .= shift(@<span style="text-decoration:underline;color:#B35000">temp</span>);
+        $<span style="color:#B35000">opt</span> .= shift(@<span style="text-decoration:underline;color:#B35000">temp</span>);
     }
     <span style="color:#346604">while</span> ($<span style="color:#B35000">_</span> = $<span style="color:#B35000">ARGV</span>[0], <span style="color:#5C3566">/^-(.)(.*)/</span> &amp;&amp; shift(@<span style="text-decoration:underline;color:#B35000">ARGV</span>)) {
         ($<span style="color:#B35000">f</span>,$<span style="color:#B35000">r</span>) = ($<span style="color:#B35000">1</span>,$<span style="color:#B35000">2</span>);
@@ -128,16 +127,16 @@
 
     <h2>OCaml (source: <code>genlex.ml</code> in OCaml’s standard library)</h2>
     <pre class="src-tuareg"><span style="color:#5C3566">(** The lexer **)</span>
-<span style="color:#000000;font-weight:700">let</span> <span style="color:#A40000">make_lexer</span><span style="color:#B35000"> keywords</span> <span style="color:#A52A2A">=</span>
-  <span style="color:#000000;font-weight:700">let</span> <span style="color:#B35000">kwd_table</span> <span style="color:#A52A2A">=</span> <span style="color:#204A87">Hashtbl.</span>create 17 <span style="color:#000000;font-weight:700">in</span>
-  <span style="color:#204A87">List.</span>iter <span style="color:#A52A2A">(</span><span style="color:#346604" class="esh-non-ascii"><span><span>λ</span></span></span> <span style="color:#B35000">s</span> <span style="color:#A52A2A" class="esh-non-ascii"><span><span>→</span></span></span> <span style="color:#204A87">Hashtbl.</span>add kwd_table s <span style="color:#A52A2A">(</span>Kwd s<span style="color:#A52A2A">))</span> keywords<span style="color:#A52A2A">;</span>
-  <span style="color:#000000;font-weight:700">let</span> <span style="color:#A40000">ident_or_keyword</span><span style="color:#B35000"> id</span> <span style="color:#A52A2A">=</span>
+<span style="color:#000000;font-weight:700">let</span> <span style="color:#A40000">make_lexer</span> <span style="color:#B35000">keywords</span> =
+  <span style="color:#000000;font-weight:700">let</span> <span style="color:#B35000">kwd_table</span> = <span style="color:#204A87">Hashtbl.</span>create 17 <span style="color:#000000;font-weight:700">in</span>
+  <span style="color:#204A87">List.</span>iter (<span style="color:#346604" class="esh-non-ascii"><span><span>λ</span></span></span> <span style="color:#B35000">s</span> <span class="esh-non-ascii"><span><span>→</span></span></span> <span style="color:#204A87">Hashtbl.</span>add kwd_table s (Kwd s)) keywords;
+  <span style="color:#000000;font-weight:700">let</span> <span style="color:#A40000">ident_or_keyword</span> <span style="color:#B35000">id</span> =
     <span style="color:#346604">try</span> <span style="color:#204A87">Hashtbl.</span>find kwd_table id <span style="color:#346604">with</span>
-      <span style="color:#75507B">Not_found</span> <span style="color:#A52A2A" class="esh-non-ascii"><span><span>→</span></span></span> Ident id
-  <span style="color:#000000;font-weight:700">and</span> <span style="color:#A40000">keyword_or_error</span><span style="color:#B35000"> c</span> <span style="color:#A52A2A">=</span>
-    <span style="color:#000000;font-weight:700">let</span> <span style="color:#B35000">s</span> <span style="color:#A52A2A">=</span> <span style="color:#204A87">String.</span>make 1 c <span style="color:#000000;font-weight:700">in</span>
+      <span style="color:#75507B">Not_found</span> <span class="esh-non-ascii"><span><span>→</span></span></span> Ident id
+  <span style="color:#000000;font-weight:700">and</span> <span style="color:#A40000">keyword_or_error</span> <span style="color:#B35000">c</span> =
+    <span style="color:#000000;font-weight:700">let</span> <span style="color:#B35000">s</span> = <span style="color:#204A87">String.</span>make 1 c <span style="color:#000000;font-weight:700">in</span>
     <span style="color:#346604">try</span> <span style="color:#204A87">Hashtbl.</span>find kwd_table s <span style="color:#346604">with</span>
-      <span style="color:#75507B">Not_found</span> <span style="color:#A52A2A" class="esh-non-ascii"><span><span>→</span></span></span> <span style="color:#75507B">raise</span> <span style="color:#A52A2A">(</span><span style="color:#204A87">Stream.</span>Error <span style="color:#A52A2A">(</span><span style="color:#5C3566">&quot;Illegal character &quot;</span> <span style="color:#A52A2A">^</span> s<span style="color:#A52A2A">))</span></pre>
+      <span style="color:#75507B">Not_found</span> <span class="esh-non-ascii"><span><span>→</span></span></span> <span style="color:#75507B">raise</span> (<span style="color:#204A87">Stream.</span>Error (<span style="color:#5C3566">&quot;Illegal character &quot;</span> <span style="color:#A52A2A">^</span> s))</pre>
 
     <h2>Dafny (source: <code>DutchFlag.dfy</code> in Dafny’s repo)</h2>
     <pre class="src-dafny"><span style="color:#75507B">method</span> <span style="color:#A40000">DutchFlag</span>(<span style="color:#B35000">a</span>: <span style="color:#204A87">array&lt;Color&gt;</span>)
@@ -175,8 +174,8 @@
   <span style="color:#204A87" class="esh-non-ascii"><span><span>∀</span></span></span> `{FacadeWrapper (Value av) A} (<span style="color:#B35000">ev</span>: Env av) (<span style="color:#B35000">key</span>: StringMap.key)
     (<span style="color:#B35000">prog</span>: Stmt) (<span style="color:#B35000">tail<span class="esh-raised"><span class="esh-raised-contents"><span style="bottom:-0.25em">1</span></span><span class="esh-raised-placeholder">1</span></span> tail<span class="esh-raised"><span class="esh-raised-contents"><span style="bottom:-0.25em">2</span></span><span class="esh-raised-placeholder">2</span></span></span>: A <span class="esh-non-ascii"><span><span>→</span></span></span> Telescope av) ex (<span style="color:#B35000">v</span>: A),
     key <span class="esh-non-ascii"><span><span>∉</span></span></span> ex <span class="esh-non-ascii"><span><span>→</span></span></span>
-    ({{ tail<span class="esh-raised"><span class="esh-raised-contents"><span style="bottom:-0.25em">1</span></span><span class="esh-raised-placeholder">1</span></span> v }} prog {{ tail<span class="esh-raised"><span class="esh-raised-contents"><span style="bottom:-0.25em">2</span></span><span class="esh-raised-placeholder">2</span></span> v }} <span class="esh-non-ascii"><span><span>∪</span></span></span> {{ [key <span class="esh-non-ascii"><span><span>▹</span></span></span> wrap v] :: ex }} // ev <span class="esh-non-ascii"><span><span>↔</span></span></span>
-     {{ [[`key <span class="esh-non-ascii"><span><span>↦</span></span></span> v <span style="color:#204A87">as</span> vv]]::tail<span class="esh-raised"><span class="esh-raised-contents"><span style="bottom:-0.25em">1</span></span><span class="esh-raised-placeholder">1</span></span> vv }} prog {{ [[`key <span class="esh-non-ascii"><span><span>↦</span></span></span> v <span style="color:#204A87">as</span> vv]]::tail<span class="esh-raised"><span class="esh-raised-contents"><span style="bottom:-0.25em">2</span></span><span class="esh-raised-placeholder">2</span></span> vv }} <span class="esh-non-ascii"><span><span>∪</span></span></span> {{ ex }} // ev).
+    ({{ tail<span class="esh-raised"><span class="esh-raised-contents"><span style="bottom:-0.25em">1</span></span><span class="esh-raised-placeholder">1</span></span> v }} prog {{ tail<span class="esh-raised"><span class="esh-raised-contents"><span style="bottom:-0.25em">2</span></span><span class="esh-raised-placeholder">2</span></span> v }} <span class="esh-non-ascii"><span><span>∪</span></span></span> {{ [key <span class="esh-non-ascii"><span><span>▹</span></span></span> wrap v] <span class="esh-non-ascii"><span><span>∷</span></span></span> ex }} // ev <span class="esh-non-ascii"><span><span>↔</span></span></span>
+     {{ [[`key <span class="esh-non-ascii"><span><span>↦</span></span></span> v <span style="color:#204A87">as</span> vv]]<span class="esh-non-ascii"><span><span>∷</span></span></span>tail<span class="esh-raised"><span class="esh-raised-contents"><span style="bottom:-0.25em">1</span></span><span class="esh-raised-placeholder">1</span></span> vv }} prog {{ [[`key <span class="esh-non-ascii"><span><span>↦</span></span></span> v <span style="color:#204A87">as</span> vv]]<span class="esh-non-ascii"><span><span>∷</span></span></span>tail<span class="esh-raised"><span class="esh-raised-contents"><span style="bottom:-0.25em">2</span></span><span class="esh-raised-placeholder">2</span></span> vv }} <span class="esh-non-ascii"><span><span>∪</span></span></span> {{ ex }} // ev).
 <span style="color:#346604">Proof</span>.
   <span style="color:#B452CD">repeat</span> <span style="color:#204A87">match</span> goal <span style="color:#204A87">with</span>
          | _ <span class="esh-non-ascii"><span><span>⇒</span></span></span> <span style="color:#FF0000">tauto</span>
@@ -185,7 +184,7 @@
          | [ H: <span style="color:#B35000">?a</span> <span class="esh-non-ascii"><span><span>≲</span></span></span> Cons _ _ _ <span class="esh-non-ascii"><span><span>∪</span></span></span> _ <span class="esh-non-ascii"><span><span>⊢</span></span></span> _ ] <span class="esh-non-ascii"><span><span>⇒</span></span></span> learn (Cons_PushExt _ _ _ _ _ H)
          | [ H: ProgOk <span style="color:#B35000">?fmap</span> _ _ <span style="color:#B35000">?t<span class="esh-raised"><span class="esh-raised-contents"><span style="bottom:-0.25em">1</span></span><span class="esh-raised-placeholder">1</span></span></span> <span style="color:#B35000">?t<span class="esh-raised"><span class="esh-raised-contents"><span style="bottom:-0.25em">2</span></span><span class="esh-raised-placeholder">2</span></span></span>, H': _ <span class="esh-non-ascii"><span><span>≲</span></span></span> <span style="color:#B35000">?t<span class="esh-raised"><span class="esh-raised-contents"><span style="bottom:-0.25em">1</span></span><span class="esh-raised-placeholder">1</span></span></span> <span class="esh-non-ascii"><span><span>∪</span></span></span> <span style="color:#B35000">?fmap</span> <span class="esh-non-ascii"><span><span>⊢</span></span></span> _ ] <span class="esh-non-ascii"><span><span>⇒</span></span></span> <span style="color:#00008B">destruct</span> (H _ H'); no_dup
          | [ H: RunsTo _ _ <span style="color:#B35000">?from</span> <span style="color:#B35000">?to</span>, H': <span style="color:#204A87" class="esh-non-ascii"><span><span>∀</span></span></span> <span style="color:#B35000">st</span>, RunsTo _ _ <span style="color:#B35000">?from</span> st <span class="esh-non-ascii"><span><span>→</span></span></span> _ <span class="esh-non-ascii"><span><span>⊢</span></span></span> _ ] <span class="esh-non-ascii"><span><span>⇒</span></span></span> <span style="color:#00008B">specialize</span> (H' _ H)
-         | [ H: _ <span class="esh-non-ascii"><span><span>≲</span></span></span> _ <span class="esh-non-ascii"><span><span>∪</span></span></span> [_ <span class="esh-non-ascii"><span><span>▹</span></span></span> _] :: _ <span class="esh-non-ascii"><span><span>⊢</span></span></span> _ ] <span class="esh-non-ascii"><span><span>⇒</span></span></span> <span style="color:#00008B">apply</span> Cons_PopExt <span style="color:#204A87">in</span> H
+         | [ H: _ <span class="esh-non-ascii"><span><span>≲</span></span></span> _ <span class="esh-non-ascii"><span><span>∪</span></span></span> [_ <span class="esh-non-ascii"><span><span>▹</span></span></span> _] <span class="esh-non-ascii"><span><span>∷</span></span></span> _ <span class="esh-non-ascii"><span><span>⊢</span></span></span> _ ] <span class="esh-non-ascii"><span><span>⇒</span></span></span> <span style="color:#00008B">apply</span> Cons_PopExt <span style="color:#204A87">in</span> H
          <span style="color:#204A87">end</span>.
 <span style="color:#346604">Qed</span>.</pre>
   </body></html>
