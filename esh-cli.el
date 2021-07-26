@@ -169,7 +169,8 @@ Are you missing --standalone?\n" in-path))
                (setq complain-about-missing-input nil))
               ("--debug-on-error"
                (setq debug-on-error t)
-               (setq esh-client-debug-server t))
+               (setq esh-client-debug-server t)
+               (princ "Running in --debug-on-error mode: expect reduced performance\n"))
               ("--kill-server"
                (esh-client-kill-server)
                (setq complain-about-missing-input nil))
