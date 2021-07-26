@@ -147,6 +147,8 @@ This is needed on Windows, and at least on certain macOS builds."
 (defun esh-server--init-set-variables ()
   "Set a few defaults useful for ESH."
   (esh-server--set-coding-systems)
+  ;; LaTeX is case-sensitive
+  (setq-default case-fold-search nil)
   ;; Some terminals don't like Unicode
   (setq-default text-quoting-style 'grave)
   ;; Interval tree functions are rather GC-heavy
