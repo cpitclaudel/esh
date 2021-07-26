@@ -21,3 +21,7 @@ test:
 
 reference:
 	make -C example reference
+
+bench:
+	cd /usr/lib/python3.8/; cat turtle.py inspect.py doctest.py pydoc.py tarfile.py pickletools.py argparse.py > /tmp/bench.py
+	time bin/esh2tex --standalone /tmp/bench.py
