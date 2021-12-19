@@ -100,6 +100,7 @@ requiring it here also allows us to set `load-prefer-newer'
 first, guaranteeing that we don't get a stale copy of ESH."
   `(progn
      (setq-default load-prefer-newer t)
+     (setq-default backtrace-line-length 0)
      (require 'esh-server)
      (esh-server-eval ',form ,dest ,esh-client-debug-server)))
 

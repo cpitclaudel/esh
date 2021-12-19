@@ -28,6 +28,7 @@
 
 (setq-default load-prefer-newer t)
 (setq-default text-quoting-style 'grave)
+(setq-default backtrace-line-length 0)
 
 (eval-and-compile
   (defconst esh-cli--script-full-path
