@@ -101,6 +101,7 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'esh-assert)
 
 (cl-declaim (optimize (speed 3) (safety 0)))
