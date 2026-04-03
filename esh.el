@@ -705,6 +705,7 @@ returns 1 instead of t."
   "Normalize attribute DISPLAY."
   (pcase display
     (`nil `(raise nil))
+    (`(space :relative-height ,_) display)
     (`(raise ,amount) `(raise ,(unless (= amount 0) amount)))
     (_ (error "Unexpected display property %S" display))))
 
