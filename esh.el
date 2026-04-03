@@ -445,6 +445,12 @@ the original string."
   (esh--commit-replacing-display-specs)
   (esh--commit-compositions))
 
+(defun esh--prepare-buffer ()
+  "Prepare buffer for export by committing overlays and text properties."
+  (esh--commit-overlays (current-buffer))
+  (esh--remove-final-newline)
+  (esh--commit-specs))
+
 (defun esh--mark-newlines (&optional additional-props)
   "Add `esh--newline' and ADDITIONAL-PROPS text properties to each \\n.
 The value of `esh--newline' is either `empty' or `non-empty' (we
@@ -1034,10 +1040,7 @@ lines in inline blocks."
   "Export current buffer to LaTeX."
   (let ((inhibit-modification-hooks t))
     (setq-local buffer-undo-list t)
-    (untabify (point-min) (point-max))
-    (esh--commit-overlays (current-buffer))
-    (esh--remove-final-newline)
-    (esh--commit-specs)
+    (esh--prepare-buffer)
     (esh--mark-newlines '(esh--break t)))
   (let ((tree (esh--buffer-to-document-tree
                esh--latex-props
@@ -1448,9 +1451,7 @@ This may modify to the current buffer."
   (let ((inhibit-modification-hooks t))
     (setq-local buffer-undo-list t)
     (untabify (point-min) (point-max))
-    (esh--commit-overlays (current-buffer))
-    (esh--remove-final-newline)
-    (esh--commit-specs)
+    (esh--prepare-buffer)
     (esh--mark-newlines)
     (esh--mark-non-ascii))
   (let ((tree (esh--buffer-to-document-tree
