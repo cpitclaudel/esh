@@ -803,8 +803,10 @@ See `esh--resolve-event-conflicts'.")
   "Escape LaTeX specials in BEG .. `point-max'."
   (goto-char beg)
   (while (re-search-forward esh--latex-specials-re nil t)
-    (let ((special (char-after (match-beginning 0))))
-      (replace-match (aref esh--latex-specials-vector special) t t))))
+    (let* ((pos (match-beginning 0))
+          (special (char-after pos)))
+      (unless (get-char-property pos 'esh-raw)
+        (replace-match (aref esh--latex-specials-vector special) t t)))))
 
 (defvar esh--latex-escape-alist nil
   "Alist of additional ‘char → LaTeX string’ mappings.")
